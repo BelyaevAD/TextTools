@@ -10,6 +10,20 @@ LLM actions on selected text for Windows: select text → hotkey → action grid
 
 **Site:** [belyaevad.github.io/TextTools](https://belyaevad.github.io/TextTools/en/) · [Русская версия](https://belyaevad.github.io/TextTools/)
 
+## Screenshots
+
+| Action menu | API settings |
+|---|---|
+| ![Action menu](docs/assets/screenshots/01-action-menu.png) | ![API settings](docs/assets/screenshots/02-settings-api.png) |
+
+| Actions editor | Prompt editor |
+|---|---|
+| ![Actions editor](docs/assets/screenshots/04-actions-editor.png) | ![Prompt editor](docs/assets/screenshots/05-prompt-editor.png) |
+
+| UI settings | Result window |
+|---|---|
+| ![UI settings](docs/assets/screenshots/03-settings-ui.png) | ![Result window](docs/assets/screenshots/06-result-window.png) |
+
 Built with **AutoHotkey v2**. HTTP goes through system `curl.exe` (more stable than COM/WinHTTP for this workload).
 
 ## Features

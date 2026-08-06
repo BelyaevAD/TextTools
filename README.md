@@ -10,6 +10,20 @@
 
 **Сайт:** [belyaevad.github.io/TextTools](https://belyaevad.github.io/TextTools/) · [English site](https://belyaevad.github.io/TextTools/en/)
 
+## Скриншоты
+
+| Меню действий | Настройки API |
+|---|---|
+| ![Сетка действий](docs/assets/screenshots/01-action-menu.png) | ![Настройки API](docs/assets/screenshots/02-settings-api.png) |
+
+| Редактор действий | Редактор промпта |
+|---|---|
+| ![Редактор действий](docs/assets/screenshots/04-actions-editor.png) | ![Редактор промпта](docs/assets/screenshots/05-prompt-editor.png) |
+
+| Интерфейс | Окно результата |
+|---|---|
+| ![Настройки UI](docs/assets/screenshots/03-settings-ui.png) | ![Результат](docs/assets/screenshots/06-result-window.png) |
+
 Написан на **AutoHotkey v2**. HTTP к API идёт через системный `curl.exe` (стабильнее COM/WinHTTP в этом сценарии).
 
 ## Возможности
