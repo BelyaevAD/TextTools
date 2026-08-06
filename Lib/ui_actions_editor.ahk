@@ -20,55 +20,61 @@ ShowActionsEditor(*) {
     ; сделало бы локальной саму глобальную переменную (см. TEXTTOOLS_RUNBOOK §5 п.27)
     appList := CloneApps(APPS)
 
-    g := Gui("+Resize", "TextTools - редактор действий")
+    g := Gui("+Resize", "TextTools - " Loc("ed.title", "редактор действий"))
     gEditorGui := g
     g.SetFont("s10", "Segoe UI")
-    tab := g.Add("Tab3", "x10 y10 w760 h420", ["Кнопки меню", "Быстрые уточнения", "Приложения"])
+    tab := g.Add("Tab3", "x10 y10 w760 h420", [
+        Loc("ed.tab.actions", "Кнопки меню"),
+        Loc("ed.tab.quick", "Быстрые уточнения"),
+        Loc("ed.tab.apps", "Приложения")])
 
     ; --- вкладка 1: действия ---
     tab.UseTab(1)
     lvA := g.Add("ListView", "x25 y45 w560 r16 -Multi",
-        ["Клавиша", "Название", "Результат", "Язык", "Модель"])
-    bAAdd := g.Add("Button", "x595 y45 w160", "Добавить")
-    bAEdit := g.Add("Button", "x595 y+6 w160", "Изменить…")
-    bADup := g.Add("Button", "x595 y+6 w160", "Дублировать")
-    bADel := g.Add("Button", "x595 y+6 w160", "Удалить")
-    g.Add("Text", "x595 y+14 w160", "Порядок в сетке:")
-    bAUp := g.Add("Button", "x595 y+4 w77", "Вверх")
-    bADown := g.Add("Button", "x+6 yp w77", "Вниз")
+        [Loc("ed.col.key", "Клавиша"), Loc("ed.col.name", "Название"),
+         Loc("ed.col.result", "Результат"), Loc("ed.col.lang", "Язык"),
+         Loc("ed.col.model", "Модель")])
+    bAAdd := g.Add("Button", "x595 y45 w160", Loc("ed.add", "Добавить"))
+    bAEdit := g.Add("Button", "x595 y+6 w160", Loc("ed.edit", "Изменить…"))
+    bADup := g.Add("Button", "x595 y+6 w160", Loc("ed.dup", "Дублировать"))
+    bADel := g.Add("Button", "x595 y+6 w160", Loc("btn.delete", "Удалить"))
+    g.Add("Text", "x595 y+14 w160", Loc("ed.grid_order", "Порядок в сетке:"))
+    bAUp := g.Add("Button", "x595 y+4 w77", Loc("ed.up", "Вверх"))
+    bADown := g.Add("Button", "x+6 yp w77", Loc("ed.down", "Вниз"))
 
     ; --- вкладка 2: быстрые уточнения ---
     tab.UseTab(2)
-    lvQ := g.Add("ListView", "x25 y45 w560 r16 -Multi", ["Название", "Инструкция модели"])
-    bQAdd := g.Add("Button", "x595 y45 w160", "Добавить")
-    bQEdit := g.Add("Button", "x595 y+6 w160", "Изменить…")
-    bQDel := g.Add("Button", "x595 y+6 w160", "Удалить")
-    g.Add("Text", "x595 y+14 w160", "Порядок в ряду:")
-    bQUp := g.Add("Button", "x595 y+4 w77", "Вверх")
-    bQDown := g.Add("Button", "x+6 yp w77", "Вниз")
+    lvQ := g.Add("ListView", "x25 y45 w560 r16 -Multi",
+        [Loc("ed.col.name", "Название"), Loc("ed.col.instr", "Инструкция модели")])
+    bQAdd := g.Add("Button", "x595 y45 w160", Loc("ed.add", "Добавить"))
+    bQEdit := g.Add("Button", "x595 y+6 w160", Loc("ed.edit", "Изменить…"))
+    bQDel := g.Add("Button", "x595 y+6 w160", Loc("btn.delete", "Удалить"))
+    g.Add("Text", "x595 y+14 w160", Loc("ed.row_order", "Порядок в ряду:"))
+    bQUp := g.Add("Button", "x595 y+4 w77", Loc("ed.up", "Вверх"))
+    bQDown := g.Add("Button", "x+6 yp w77", Loc("ed.down", "Вниз"))
 
     ; --- вкладка 3: приложения-источники ---
     tab.UseTab(3)
     lvP := g.Add("ListView", "x25 y45 w560 r16 -Multi",
-        ["Процесс", "Заголовок содержит", "Название", "Поправка к промпту"])
-    bPAdd := g.Add("Button", "x595 y45 w160", "Добавить")
-    bPEdit := g.Add("Button", "x595 y+6 w160", "Изменить…")
-    bPDel := g.Add("Button", "x595 y+6 w160", "Удалить")
-    g.Add("Text", "x595 y+14 w160", "Порядок роли не играет:")
+        [Loc("ed.col.proc", "Процесс"), Loc("ed.col.title_has", "Заголовок содержит"),
+         Loc("ed.col.name", "Название"), Loc("ed.col.prompt_fix", "Поправка к промпту")])
+    bPAdd := g.Add("Button", "x595 y45 w160", Loc("ed.add", "Добавить"))
+    bPEdit := g.Add("Button", "x595 y+6 w160", Loc("ed.edit", "Изменить…"))
+    bPDel := g.Add("Button", "x595 y+6 w160", Loc("btn.delete", "Удалить"))
+    g.Add("Text", "x595 y+14 w160", Loc("ed.app_order", "Порядок роли не играет:"))
     g.SetFont("s9 c707070")
     g.Add("Text", "x595 y+2 w160",
-        "записи с заголовком проверяются первыми, поэтому Jira выигрывает у общего Chrome")
+        Loc("ed.app_order.hint", "записи с заголовком проверяются первыми, поэтому Jira выигрывает у общего Chrome"))
     g.SetFont("s10")
 
     tab.UseTab()
     g.SetFont("s9 c707070")
-    hint := g.Add("Text", "x10 y440 w760",
-        "Клавиша выбирается в карточке действия из " MENU_KEYS.Length " возможных и может быть снята; "
-        . "порядок в списке задаёт только раскладку сетки. Промпт пишется на английском: так модель точнее следует инструкции.")
+    hintText := Loc("ed.hint", "Клавиша выбирается в карточке действия из {1} возможных и может быть снята; порядок в списке задаёт только раскладку сетки. Промпт пишется на английском: так модель точнее следует инструкции.")
+    hint := g.Add("Text", "x10 y440 w760", StrReplace(hintText, "{1}", MENU_KEYS.Length))
     g.SetFont("s10")
-    bSave := g.Add("Button", "x10 y470 w150 Default", "Сохранить")
-    bCancel := g.Add("Button", "x+8 w120", "Отмена")
-    bReset := g.Add("Button", "x+8 w200", "Сбросить к заводским")
+    bSave := g.Add("Button", "x10 y470 w150 Default", Loc("btn.save", "Сохранить"))
+    bCancel := g.Add("Button", "x+8 w120", Loc("btn.cancel", "Отмена"))
+    bReset := g.Add("Button", "x+8 w200", Loc("ed.reset", "Сбросить к заводским"))
 
     FillA(), FillQ(), FillP()
 
@@ -105,10 +111,10 @@ ShowActionsEditor(*) {
         for i, a in acts
             lvA.Add(, a.key != "" ? StrUpper(a.key) : "—",
                 (a.icon != "" ? a.icon " " : "") ActionName(a),
-                a.win ? "в окне" : "заменить выделение",
+                a.win ? Loc("ed.result.window", "в окне") : Loc("ed.result.replace", "заменить выделение"),
                 (a.lang = "" || a.lang = "auto") ? Loc("act.lang.auto.short", "как в тексте")
                     : LangLabel(a.lang),
-                (a.HasProp("model") && a.model != "") ? a.model : "по умолчанию")
+                (a.HasProp("model") && a.model != "") ? a.model : Loc("ed.model.default", "по умолчанию"))
         lvA.ModifyCol(1, 60), lvA.ModifyCol(2, 170), lvA.ModifyCol(3, 140)
         lvA.ModifyCol(4, 90), lvA.ModifyCol(5, 95)
         if (sel && sel <= acts.Length)
@@ -248,19 +254,21 @@ MoveRow(list, lv, delta, refill) {
 ; Модальный диалог правки действия. onSave получает готовый объект.
 ; allActs/selfRow нужны, чтобы поймать клавишу, занятую другим действием.
 EditActionDialog(parent, a, allActs, selfRow, onSave) {
-    d := Gui("+Owner" parent.Hwnd, a.name = "" ? "Новое действие" : "Действие: " a.name)
+    d := Gui("+Owner" parent.Hwnd, a.name = ""
+        ? Loc("ed.act.new", "Новое действие")
+        : Loc("ed.act.edit", "Действие:") " " ActionName(a))
     d.SetFont("s10", "Segoe UI")
     parent.Opt("+Disabled")
 
-    d.Add("Text", "x10 y12 w110", "Название:")
+    d.Add("Text", "x10 y12 w110", Loc("ed.field.name", "Название:"))
     eName := d.Add("Edit", "x125 y10 w250", a.name)
-    d.Add("Text", "x385 y12 w60", "Значок:")
+    d.Add("Text", "x385 y12 w60", Loc("ed.icon", "Значок:"))
     eIcon := d.Add("Edit", "x445 y10 w60", a.icon)
 
     ; клавиша выбирается из пула: произвольную нельзя - хоткеи пула
     ; зарегистрированы один раз на старте
-    d.Add("Text", "x520 y12 w60", "Клавиша:")
-    keyItems := ["— нет —"]
+    d.Add("Text", "x520 y12 w60", Loc("ed.field.key", "Клавиша:"))
+    keyItems := [Loc("ed.key.none", "— нет —")]
     for k in MENU_KEYS
         keyItems.Push(StrUpper(k))
     ddKey := d.Add("DropDownList", "x585 y9 w50", keyItems)
@@ -269,9 +277,9 @@ EditActionDialog(parent, a, allActs, selfRow, onSave) {
         if (a.HasProp("key") && a.key = k)
             ddKey.Value := i + 1
 
-    d.Add("Text", "x10 y46 w110", "Результат:")
-    rbReplace := d.Add("Radio", "x125 y46" (a.win ? "" : " Checked"), "заменить выделение")
-    rbWindow := d.Add("Radio", "x+14 yp" (a.win ? " Checked" : ""), "открыть в окне")
+    d.Add("Text", "x10 y46 w110", Loc("ed.field.result", "Результат:"))
+    rbReplace := d.Add("Radio", "x125 y46" (a.win ? "" : " Checked"), Loc("ed.result.replace", "заменить выделение"))
+    rbWindow := d.Add("Radio", "x+14 yp" (a.win ? " Checked" : ""), Loc("ed.result.open", "открыть в окне"))
 
     ; Языки берутся из настроек (галочки), а не зашиты в код. Язык, назначенный
     ; раньше и позже убранный из списка, добавляется обратно - иначе он молча
@@ -304,7 +312,7 @@ EditActionDialog(parent, a, allActs, selfRow, onSave) {
     ; Модель действия. Первый пункт - следовать настройкам, а не фиксировать имя:
     ; тогда смена модели по умолчанию подхватится всеми обычными действиями.
     curModel := (a.HasProp("model") && a.model != "") ? a.model : ""
-    modelItems := ["по умолчанию (" cfg.model ")"]
+    modelItems := [Loc("ed.model.default_of", "по умолчанию") " (" cfg.model ")"]
     modelList := ExtraModels()
     ; модель, заданная раньше и убранная из настроек, не должна молча потеряться
     if (curModel != "") {
@@ -317,7 +325,7 @@ EditActionDialog(parent, a, allActs, selfRow, onSave) {
     }
     for m in modelList
         modelItems.Push(m)
-    d.Add("Text", "x10 y112 w110", "Модель:")
+    d.Add("Text", "x10 y112 w110", Loc("ed.field.model", "Модель:"))
     ddModel := d.Add("DropDownList", "x125 y109 w250", modelItems)
     ddModel.Value := 1
     for i, m in modelList
@@ -325,20 +333,21 @@ EditActionDialog(parent, a, allActs, selfRow, onSave) {
             ddModel.Value := i + 1
     d.SetFont("s9 c707070")
     d.Add("Text", "x385 y113 w250", modelList.Length
-        ? "список моделей - в настройках" : "добавь модели в настройках, чтобы выбирать")
+        ? Loc("ed.model.hint", "список моделей - в настройках")
+        : Loc("ed.model.hint_empty", "добавь модели в настройках, чтобы выбирать"))
     d.SetFont("s10")
 
-    d.Add("Text", "x10 y146 w110", "Префикс:")
+    d.Add("Text", "x10 y146 w110", Loc("ed.field.prefix", "Префикс:"))
     ePrefix := d.Add("Edit", "x125 y144 w510", StrReplace(a.prefix, "`n", "\n"))
     d.SetFont("s9 c707070")
-    d.Add("Text", "x125 y+2 w510", "Уходит перед выделенным текстом. \n - перевод строки.")
+    d.Add("Text", "x125 y+2 w510", Loc("ed.prefix.hint", "Уходит перед выделенным текстом. \n - перевод строки."))
     d.SetFont("s10")
 
-    d.Add("Text", "x10 y+10 w620", "Промпт (что модель должна сделать; пишется на английском):")
+    d.Add("Text", "x10 y+10 w620", Loc("ed.field.prompt", "Промпт (что модель должна сделать; пишется на английском):"))
     eTask := d.Add("Edit", "x10 y+4 w625 r14 Multi WantTab", a.task)
 
-    bOk := d.Add("Button", "x10 y+10 w150 Default", "Сохранить")
-    d.Add("Button", "x+8 w120", "Отмена").OnEvent("Click", (*) => Close())
+    bOk := d.Add("Button", "x10 y+10 w150 Default", Loc("btn.save", "Сохранить"))
+    d.Add("Button", "x+8 w120", Loc("btn.cancel", "Отмена")).OnEvent("Click", (*) => Close())
     bOk.OnEvent("Click", Save)
     d.OnEvent("Escape", (*) => Close())
     d.OnEvent("Close", (*) => Close())

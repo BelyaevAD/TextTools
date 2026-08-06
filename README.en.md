@@ -14,15 +14,15 @@ LLM actions on selected text for Windows: select text → hotkey → action grid
 
 | Action menu | API settings |
 |---|---|
-| ![Action menu](docs/assets/screenshots/01-action-menu.png) | ![API settings](docs/assets/screenshots/02-settings-api.png) |
+| ![Action menu](docs/assets/screenshots/en/01-action-menu.png) | ![API settings](docs/assets/screenshots/en/02-settings-api.png) |
 
 | Actions editor | Prompt editor |
 |---|---|
-| ![Actions editor](docs/assets/screenshots/04-actions-editor.png) | ![Prompt editor](docs/assets/screenshots/05-prompt-editor.png) |
+| ![Actions editor](docs/assets/screenshots/en/04-actions-editor.png) | ![Prompt editor](docs/assets/screenshots/en/05-prompt-editor.png) |
 
 | UI settings | Result window |
 |---|---|
-| ![UI settings](docs/assets/screenshots/03-settings-ui.png) | ![Result window](docs/assets/screenshots/06-result-window.png) |
+| ![UI settings](docs/assets/screenshots/en/03-settings-ui.png) | ![Result window](docs/assets/screenshots/en/06-result-window.png) |
 
 Built with **AutoHotkey v2**. HTTP goes through system `curl.exe` (more stable than COM/WinHTTP for this workload).
 

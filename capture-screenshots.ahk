@@ -4,7 +4,10 @@
 ; Run from repo root (no stdout redirect):
 ;   AutoHotkey64.exe capture-screenshots.ahk
 
-OutDir := A_ScriptDir "\docs\assets\screenshots"
+lang := (A_Args.Length >= 1) ? StrLower(A_Args[1]) : "ru"
+if (lang != "en" && lang != "ru")
+    lang := "ru"
+OutDir := A_ScriptDir "\docs\assets\screenshots\" lang
 DirCreate(OutDir)
 PsCap := A_ScriptDir "\tools\capture-window.ps1"
 Report := OutDir "\_capture-report.txt"
@@ -36,7 +39,7 @@ cfg := {
     model: "anthropic/claude-haiku-4.5",
     models: "anthropic/claude-haiku-4.5, openai/gpt-4.1-mini, google/gemini-2.5-flash",
     models_known: "anthropic/claude-haiku-4.5, openai/gpt-4.1-mini, google/gemini-2.5-flash, openai/gpt-4.1",
-    ui_lang: "en",
+    ui_lang: lang,
     hotkey: "^!Space",
     hotkey_repeat: "^+Space",
     markdown: "0"
@@ -78,7 +81,8 @@ CenterGui(g) {
     g.Move(Max(40, (A_ScreenWidth - w) // 2), Max(40, (A_ScreenHeight - h) // 2))
 }
 
-Say("start ACTIONS=" ACTIONS.Length)
+gUiStrings := LoadUiLang(lang)
+Say("start lang=" lang " strings=" gUiStrings.Count " ACTIONS=" ACTIONS.Length)
 
 gMenuGui := BuildMenu()
 try gMenuEdit.Value := "Make it shorter and keep the technical meaning"
