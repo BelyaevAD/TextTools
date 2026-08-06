@@ -1,0 +1,15 @@
+; Copy to TextTools.ini next to TextTools.ahk (or let Settings create it).
+; Do not commit TextTools.ini — it holds your API key.
+
+[api]
+base_url=https://openrouter.ai/api/v1
+api_key=
+model=anthropic/claude-haiku-4.5
+models=
+models_known=
+
+[ui]
+hotkey=^!Space
+hotkey_repeat=^+Space
+markdown=1
+lang=en

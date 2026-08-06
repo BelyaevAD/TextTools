@@ -1,0 +1,36 @@
+name: Validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ahk-validate:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install AutoHotkey v2
+        shell: pwsh
+        run: |
+          winget install -e --id AutoHotkey.AutoHotkey --accept-package-agreements --accept-source-agreements
+          $ahk = Join-Path $env:LOCALAPPDATA 'Programs\AutoHotkey\v2\AutoHotkey64.exe'
+          if (-not (Test-Path $ahk)) { $ahk = 'C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe' }
+          if (-not (Test-Path $ahk)) { throw 'AutoHotkey64.exe not found after install' }
+          echo "AHK=$ahk" >> $env:GITHUB_ENV
+
+      - name: Validate TextTools.ahk
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath $env:AHK -ArgumentList '/ErrorStdOut','/validate','TextTools.ahk' -Wait -PassThru -NoNewWindow -RedirectStandardOutput validate.log
+          Get-Content validate.log -ErrorAction SilentlyContinue
+          if ($p.ExitCode -ne 0) { exit $p.ExitCode }
+
+      - name: Run unit tests
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath $env:AHK -ArgumentList 'tests-usage-and-source.ahk' -Wait -PassThru -WorkingDirectory $env:GITHUB_WORKSPACE
+          if (Test-Path "$env:TEMP\tt_us_report.txt") { Get-Content "$env:TEMP\tt_us_report.txt" -Tail 40 }
+          exit $p.ExitCode

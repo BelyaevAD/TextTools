@@ -1,0 +1,476 @@
+; TextTools - редактор действий: состав кнопок меню и быстрых уточнений,
+; их промпты и режимы. Подключается из TextTools.ahk, отдельно не запускается.
+;
+; Правки ведутся на КОПИИ наборов и применяются только по «Сохранить»: закрытие
+; окна крестиком или Esc ничего не меняет. После сохранения перестраивать ничего
+; не нужно - меню и окно результата читают ACTIONS/QUICK_REFINE при каждом показе.
+
+ShowActionsEditor(*) {
+    global gEditorGui
+    if IsSet(gEditorGui) && gEditorGui {
+        try {
+            gEditorGui.Show()
+            return
+        }
+    }
+    acts := CloneActions(ACTIONS)              ; рабочая копия
+    quicks := CloneQuick(QUICK_REFINE)
+    ; ВАЖНО: имя рабочей копии не должно отличаться от глобального APPS только
+    ; регистром - в AHK v2 имена нечувствительны к регистру, и присваивание
+    ; сделало бы локальной саму глобальную переменную (см. TEXTTOOLS_RUNBOOK §5 п.27)
+    appList := CloneApps(APPS)
+
+    g := Gui("+Resize", "TextTools - редактор действий")
+    gEditorGui := g
+    g.SetFont("s10", "Segoe UI")
+    tab := g.Add("Tab3", "x10 y10 w760 h420", ["Кнопки меню", "Быстрые уточнения", "Приложения"])
+
+    ; --- вкладка 1: действия ---
+    tab.UseTab(1)
+    lvA := g.Add("ListView", "x25 y45 w560 r16 -Multi",
+        ["Клавиша", "Название", "Результат", "Язык", "Модель"])
+    bAAdd := g.Add("Button", "x595 y45 w160", "Добавить")
+    bAEdit := g.Add("Button", "x595 y+6 w160", "Изменить…")
+    bADup := g.Add("Button", "x595 y+6 w160", "Дублировать")
+    bADel := g.Add("Button", "x595 y+6 w160", "Удалить")
+    g.Add("Text", "x595 y+14 w160", "Порядок в сетке:")
+    bAUp := g.Add("Button", "x595 y+4 w77", "Вверх")
+    bADown := g.Add("Button", "x+6 yp w77", "Вниз")
+
+    ; --- вкладка 2: быстрые уточнения ---
+    tab.UseTab(2)
+    lvQ := g.Add("ListView", "x25 y45 w560 r16 -Multi", ["Название", "Инструкция модели"])
+    bQAdd := g.Add("Button", "x595 y45 w160", "Добавить")
+    bQEdit := g.Add("Button", "x595 y+6 w160", "Изменить…")
+    bQDel := g.Add("Button", "x595 y+6 w160", "Удалить")
+    g.Add("Text", "x595 y+14 w160", "Порядок в ряду:")
+    bQUp := g.Add("Button", "x595 y+4 w77", "Вверх")
+    bQDown := g.Add("Button", "x+6 yp w77", "Вниз")
+
+    ; --- вкладка 3: приложения-источники ---
+    tab.UseTab(3)
+    lvP := g.Add("ListView", "x25 y45 w560 r16 -Multi",
+        ["Процесс", "Заголовок содержит", "Название", "Поправка к промпту"])
+    bPAdd := g.Add("Button", "x595 y45 w160", "Добавить")
+    bPEdit := g.Add("Button", "x595 y+6 w160", "Изменить…")
+    bPDel := g.Add("Button", "x595 y+6 w160", "Удалить")
+    g.Add("Text", "x595 y+14 w160", "Порядок роли не играет:")
+    g.SetFont("s9 c707070")
+    g.Add("Text", "x595 y+2 w160",
+        "записи с заголовком проверяются первыми, поэтому Jira выигрывает у общего Chrome")
+    g.SetFont("s10")
+
+    tab.UseTab()
+    g.SetFont("s9 c707070")
+    hint := g.Add("Text", "x10 y440 w760",
+        "Клавиша выбирается в карточке действия из " MENU_KEYS.Length " возможных и может быть снята; "
+        . "порядок в списке задаёт только раскладку сетки. Промпт пишется на английском: так модель точнее следует инструкции.")
+    g.SetFont("s10")
+    bSave := g.Add("Button", "x10 y470 w150 Default", "Сохранить")
+    bCancel := g.Add("Button", "x+8 w120", "Отмена")
+    bReset := g.Add("Button", "x+8 w200", "Сбросить к заводским")
+
+    FillA(), FillQ(), FillP()
+
+    bAAdd.OnEvent("Click", (*) => EditActionRow(0))
+    bAEdit.OnEvent("Click", (*) => EditActionRow(lvA.GetNext(0)))
+    lvA.OnEvent("DoubleClick", (*) => EditActionRow(lvA.GetNext(0)))
+    bADup.OnEvent("Click", DupA)
+    bADel.OnEvent("Click", DelA)
+    bAUp.OnEvent("Click", (*) => MoveRow(acts, lvA, -1, FillA))
+    bADown.OnEvent("Click", (*) => MoveRow(acts, lvA, 1, FillA))
+
+    bQAdd.OnEvent("Click", (*) => EditQuickRow(0))
+    bQEdit.OnEvent("Click", (*) => EditQuickRow(lvQ.GetNext(0)))
+    lvQ.OnEvent("DoubleClick", (*) => EditQuickRow(lvQ.GetNext(0)))
+    bQDel.OnEvent("Click", DelQ)
+    bQUp.OnEvent("Click", (*) => MoveRow(quicks, lvQ, -1, FillQ))
+    bQDown.OnEvent("Click", (*) => MoveRow(quicks, lvQ, 1, FillQ))
+
+    bPAdd.OnEvent("Click", (*) => EditAppRow(0))
+    bPEdit.OnEvent("Click", (*) => EditAppRow(lvP.GetNext(0)))
+    lvP.OnEvent("DoubleClick", (*) => EditAppRow(lvP.GetNext(0)))
+    bPDel.OnEvent("Click", DelP)
+
+    bSave.OnEvent("Click", DoSaveSets)
+    bCancel.OnEvent("Click", (*) => CloseEditor())
+    bReset.OnEvent("Click", DoReset)
+    g.OnEvent("Escape", (*) => CloseEditor())
+    g.OnEvent("Close", (*) => CloseEditor())
+    g.Show()
+
+    FillA() {
+        sel := lvA.GetNext(0)
+        lvA.Delete()
+        for i, a in acts
+            lvA.Add(, a.key != "" ? StrUpper(a.key) : "—",
+                (a.icon != "" ? a.icon " " : "") ActionName(a),
+                a.win ? "в окне" : "заменить выделение",
+                (a.lang = "" || a.lang = "auto") ? Loc("act.lang.auto.short", "как в тексте")
+                    : LangLabel(a.lang),
+                (a.HasProp("model") && a.model != "") ? a.model : "по умолчанию")
+        lvA.ModifyCol(1, 60), lvA.ModifyCol(2, 170), lvA.ModifyCol(3, 140)
+        lvA.ModifyCol(4, 90), lvA.ModifyCol(5, 95)
+        if (sel && sel <= acts.Length)
+            lvA.Modify(sel, "Select Focus")
+    }
+
+    FillQ() {
+        sel := lvQ.GetNext(0)
+        lvQ.Delete()
+        for q in quicks
+            lvQ.Add(, q.label, Snip(q.instr))
+        lvQ.ModifyCol(1, 150), lvQ.ModifyCol(2, 400)
+        if (sel && sel <= quicks.Length)
+            lvQ.Modify(sel, "Select Focus")
+    }
+
+    ; row = 0 -> добавление нового
+    EditActionRow(row) {
+        src := row ? acts[row]
+            ; id пуст: он есть только у заводских действий, по нему берётся перевод
+            : {id: "", name: "", icon: "", prefix: "", task: "", lang: "auto", ru: true,
+               win: false, key: FreeMenuKey(acts), model: ""}
+        EditActionDialog(g, src, acts, row, (res) => (row ? acts[row] := res : acts.Push(res), FillA()))
+    }
+
+    EditQuickRow(row) {
+        src := row ? quicks[row] : {label: "", instr: ""}
+        EditQuickDialog(g, src, (res) => (row ? quicks[row] := res : quicks.Push(res), FillQ()))
+    }
+
+    FillP() {
+        sel := lvP.GetNext(0)
+        lvP.Delete()
+        for a in appList
+            lvP.Add(, a.proc, a.title != "" ? a.title : "—", a.name,
+                a.hint != "" ? Snip(a.hint) : "— без поправки —")
+        lvP.ModifyCol(1, 130), lvP.ModifyCol(2, 120), lvP.ModifyCol(3, 130), lvP.ModifyCol(4, 160)
+        if (sel && sel <= appList.Length)
+            lvP.Modify(sel, "Select Focus")
+    }
+
+    EditAppRow(row) {
+        src := row ? appList[row] : {proc: "", title: "", name: "", desc: "", hint: ""}
+        EditAppDialog(g, src, (res) => (row ? appList[row] := res : appList.Push(res), FillP()))
+    }
+
+    DelP(*) {
+        row := lvP.GetNext(0)
+        if !row
+            return
+        if (MsgBox("Удалить профиль «" appList[row].name "»?`n"
+            . "Приложение снова заведётся автоматически при следующем использовании.",
+            "TextTools", "YesNo Icon? 262144") = "Yes") {
+            appList.RemoveAt(row)
+            FillP()
+        }
+    }
+
+    DupA(*) {
+        row := lvA.GetNext(0)
+        if !row
+            return
+        copy := CloneActions([acts[row]])[1]
+        copy.name .= " (копия)"
+        copy.key := FreeMenuKey(acts)           ; клавиша занята оригиналом
+        acts.InsertAt(row + 1, copy)
+        FillA()
+    }
+
+    DelA(*) {
+        row := lvA.GetNext(0)
+        if !row
+            return
+        if (acts.Length = 1) {
+            MsgBox("Нельзя удалить последнее действие: меню осталось бы пустым.", "TextTools", "Icon! 262144")
+            return
+        }
+        if (MsgBox("Удалить действие «" acts[row].name "»?", "TextTools", "YesNo Icon? 262144") = "Yes") {
+            acts.RemoveAt(row)
+            FillA()
+        }
+    }
+
+    DelQ(*) {
+        row := lvQ.GetNext(0)
+        if !row
+            return
+        quicks.RemoveAt(row)
+        FillQ()
+    }
+
+    DoSaveSets(*) {
+        global ACTIONS, QUICK_REFINE, APPS
+        try {
+            SaveActionSets(acts, quicks)
+            SaveApps(appList)
+        } catch as e {
+            MsgBox("Не удалось сохранить настройки:`n`n" e.Message, "TextTools", "Iconx 262144")
+            return
+        }
+        ACTIONS := acts
+        QUICK_REFINE := quicks
+        APPS := appList
+        CloseEditor()
+        TrayTip("Сохранено: действий " ACTIONS.Length ", уточнений " QUICK_REFINE.Length
+            . ", приложений " APPS.Length, "TextTools")
+    }
+
+    DoReset(*) {
+        if (MsgBox("Вернуть заводские наборы кнопок, уточнений и приложений?`n"
+            . "Текущие изменения будут потеряны.", "TextTools", "YesNo Icon! 262144") != "Yes")
+            return
+        acts := CloneActions(DEFAULT_ACTIONS)
+        quicks := CloneQuick(DEFAULT_QUICK)
+        appList := CloneApps(DEFAULT_APPS)
+        FillA(), FillQ(), FillP()
+    }
+
+    CloseEditor() {
+        global gEditorGui
+        gEditorGui := ""
+        g.Destroy()
+    }
+}
+
+; Перемещение строки списка на delta позиций (общая для обеих вкладок)
+MoveRow(list, lv, delta, refill) {
+    row := lv.GetNext(0)
+    if (!row || row + delta < 1 || row + delta > list.Length)
+        return
+    item := list.RemoveAt(row)
+    list.InsertAt(row + delta, item)
+    refill()
+    lv.Modify(row + delta, "Select Focus Vis")
+}
+
+; Модальный диалог правки действия. onSave получает готовый объект.
+; allActs/selfRow нужны, чтобы поймать клавишу, занятую другим действием.
+EditActionDialog(parent, a, allActs, selfRow, onSave) {
+    d := Gui("+Owner" parent.Hwnd, a.name = "" ? "Новое действие" : "Действие: " a.name)
+    d.SetFont("s10", "Segoe UI")
+    parent.Opt("+Disabled")
+
+    d.Add("Text", "x10 y12 w110", "Название:")
+    eName := d.Add("Edit", "x125 y10 w250", a.name)
+    d.Add("Text", "x385 y12 w60", "Значок:")
+    eIcon := d.Add("Edit", "x445 y10 w60", a.icon)
+
+    ; клавиша выбирается из пула: произвольную нельзя - хоткеи пула
+    ; зарегистрированы один раз на старте
+    d.Add("Text", "x520 y12 w60", "Клавиша:")
+    keyItems := ["— нет —"]
+    for k in MENU_KEYS
+        keyItems.Push(StrUpper(k))
+    ddKey := d.Add("DropDownList", "x585 y9 w50", keyItems)
+    ddKey.Value := 1
+    for i, k in MENU_KEYS
+        if (a.HasProp("key") && a.key = k)
+            ddKey.Value := i + 1
+
+    d.Add("Text", "x10 y46 w110", "Результат:")
+    rbReplace := d.Add("Radio", "x125 y46" (a.win ? "" : " Checked"), "заменить выделение")
+    rbWindow := d.Add("Radio", "x+14 yp" (a.win ? " Checked" : ""), "открыть в окне")
+
+    ; Языки берутся из настроек (галочки), а не зашиты в код. Язык, назначенный
+    ; раньше и позже убранный из списка, добавляется обратно - иначе он молча
+    ; сменился бы на «как в исходном тексте» при первом же сохранении.
+    d.Add("Text", "x10 y78 w110", Loc("act.lang", "Язык ответа:"))
+    langCodes := [""]
+    langItems := [Loc("act.lang.auto", "как в исходном тексте")]
+    for lg in EnabledLangs() {
+        langCodes.Push(lg.code)
+        langItems.Push(lg.name)
+    }
+    if (a.lang != "" && a.lang != "auto") {
+        known := false
+        for c in langCodes
+            if (c = a.lang)
+                known := true
+        if !known {
+            langCodes.Push(a.lang)
+            langItems.Push(LangLabel(a.lang) " " Loc("act.lang.off", "(нет в списке)"))
+        }
+    }
+    ddLang := d.Add("DropDownList", "x125 y75 w180", langItems)
+    ddLang.Value := 1
+    for i, c in langCodes
+        if (c != "" && c = a.lang)
+            ddLang.Value := i
+    cbRu := d.Add("CheckBox", "x320 y78" (a.ru ? " Checked" : ""),
+        Loc("act.rustyle", "правила русского стиля"))
+
+    ; Модель действия. Первый пункт - следовать настройкам, а не фиксировать имя:
+    ; тогда смена модели по умолчанию подхватится всеми обычными действиями.
+    curModel := (a.HasProp("model") && a.model != "") ? a.model : ""
+    modelItems := ["по умолчанию (" cfg.model ")"]
+    modelList := ExtraModels()
+    ; модель, заданная раньше и убранная из настроек, не должна молча потеряться
+    if (curModel != "") {
+        known := false
+        for m in modelList
+            if (m = curModel)
+                known := true
+        if !known
+            modelList.Push(curModel)
+    }
+    for m in modelList
+        modelItems.Push(m)
+    d.Add("Text", "x10 y112 w110", "Модель:")
+    ddModel := d.Add("DropDownList", "x125 y109 w250", modelItems)
+    ddModel.Value := 1
+    for i, m in modelList
+        if (m = curModel)
+            ddModel.Value := i + 1
+    d.SetFont("s9 c707070")
+    d.Add("Text", "x385 y113 w250", modelList.Length
+        ? "список моделей - в настройках" : "добавь модели в настройках, чтобы выбирать")
+    d.SetFont("s10")
+
+    d.Add("Text", "x10 y146 w110", "Префикс:")
+    ePrefix := d.Add("Edit", "x125 y144 w510", StrReplace(a.prefix, "`n", "\n"))
+    d.SetFont("s9 c707070")
+    d.Add("Text", "x125 y+2 w510", "Уходит перед выделенным текстом. \n - перевод строки.")
+    d.SetFont("s10")
+
+    d.Add("Text", "x10 y+10 w620", "Промпт (что модель должна сделать; пишется на английском):")
+    eTask := d.Add("Edit", "x10 y+4 w625 r14 Multi WantTab", a.task)
+
+    bOk := d.Add("Button", "x10 y+10 w150 Default", "Сохранить")
+    d.Add("Button", "x+8 w120", "Отмена").OnEvent("Click", (*) => Close())
+    bOk.OnEvent("Click", Save)
+    d.OnEvent("Escape", (*) => Close())
+    d.OnEvent("Close", (*) => Close())
+    d.Show()
+
+    Save(*) {
+        name := Trim(eName.Value), task := Trim(eTask.Value)
+        if (name = "") {
+            MsgBox("Название не может быть пустым.", "TextTools", "Icon! 262144")
+            return
+        }
+        if (task = "") {
+            MsgBox("Промпт не может быть пустым: без него действие ничего не сделает.",
+                "TextTools", "Icon! 262144")
+            return
+        }
+        key := ddKey.Value > 1 ? MENU_KEYS[ddKey.Value - 1] : ""
+        if (key != "") {
+            for i, other in allActs {
+                if (i != selfRow && other.HasProp("key") && other.key = key) {
+                    MsgBox("Клавиша " StrUpper(key) " уже занята действием «" other.name "».`n"
+                        . "Выбери другую или сними клавишу у него.", "TextTools", "Icon! 262144")
+                    return
+                }
+            }
+        }
+        onSave({
+            name: name,
+            icon: Trim(eIcon.Value),
+            prefix: StrReplace(ePrefix.Value, "\n", "`n"),
+            task: task,
+            lang: (ddLang.Value > 1 && ddLang.Value <= langCodes.Length)
+                ? langCodes[ddLang.Value] : "auto",
+            ru: cbRu.Value ? true : false,
+            win: rbWindow.Value ? true : false,
+            key: key,
+            model: ddModel.Value > 1 ? modelList[ddModel.Value - 1] : ""})
+        Close()
+    }
+
+    Close() {
+        parent.Opt("-Disabled")
+        d.Destroy()
+        try parent.Show()          ; вернуть фокус родителю
+    }
+}
+
+; Модальный диалог правки профиля приложения-источника
+EditAppDialog(parent, a, onSave) {
+    d := Gui("+Owner" parent.Hwnd, a.proc = "" ? "Новое приложение" : "Приложение: " a.name)
+    d.SetFont("s10", "Segoe UI")
+    parent.Opt("+Disabled")
+
+    d.Add("Text", "x10 y12 w150", "Процесс (exe):")
+    eProc := d.Add("Edit", "x165 y10 w200", a.proc)
+    d.Add("Text", "x385 y12 w130", "Заголовок содержит:")
+    eTitle := d.Add("Edit", "x520 y10 w200", a.title)
+    d.SetFont("s9 c707070")
+    d.Add("Text", "x165 y+2 w555",
+        "Заголовок необязателен. Он нужен, чтобы отличать площадки внутри одного приложения "
+        . "(Jira и Confluence в браузере); записи с заголовком проверяются первыми.")
+    d.SetFont("s10")
+
+    d.Add("Text", "x10 y+12 w150", "Название:")
+    eName := d.Add("Edit", "x165 yp-2 w350", a.name)
+
+    d.Add("Text", "x10 y+12 w150", "Описание (для себя):")
+    eDesc := d.Add("Edit", "x165 yp-2 w555", a.desc)
+
+    d.Add("Text", "x10 y+14 w710", "Поправка к промпту (1-2 предложения на английском; пусто — обрабатывать как обычно):")
+    eHint := d.Add("Edit", "x10 y+4 w710 r5 Multi WantTab", a.hint)
+
+    d.Add("Button", "x10 y+10 w150 Default", "Сохранить").OnEvent("Click", Save)
+    d.Add("Button", "x+8 w120", "Отмена").OnEvent("Click", (*) => Close())
+    d.OnEvent("Escape", (*) => Close())
+    d.OnEvent("Close", (*) => Close())
+    d.Show()
+
+    Save(*) {
+        proc := Trim(eProc.Value)
+        if (proc = "") {
+            MsgBox("Имя процесса обязательно: по нему приложение и определяется.",
+                "TextTools", "Icon! 262144")
+            return
+        }
+        name := Trim(eName.Value)
+        onSave({proc: proc, title: Trim(eTitle.Value), name: name != "" ? name : proc,
+            desc: Trim(eDesc.Value), hint: Trim(eHint.Value)})
+        Close()
+    }
+
+    Close() {
+        parent.Opt("-Disabled")
+        d.Destroy()
+        try parent.Show()
+    }
+}
+
+; Модальный диалог правки быстрого уточнения
+EditQuickDialog(parent, q, onSave) {
+    d := Gui("+Owner" parent.Hwnd, q.label = "" ? "Новое уточнение" : "Уточнение: " q.label)
+    d.SetFont("s10", "Segoe UI")
+    parent.Opt("+Disabled")
+
+    d.Add("Text", "x10 y12 w110", "Название:")
+    eLabel := d.Add("Edit", "x125 y10 w250", q.label)
+    d.SetFont("s9 c707070")
+    d.Add("Text", "x125 y+2 w400", "Короткое - это подпись на кнопке в окне результата.")
+    d.SetFont("s10")
+
+    d.Add("Text", "x10 y+12 w620", "Инструкция модели (на английском):")
+    eInstr := d.Add("Edit", "x10 y+4 w520 r8 Multi WantTab", q.instr)
+
+    d.Add("Button", "x10 y+10 w150 Default", "Сохранить").OnEvent("Click", Save)
+    d.Add("Button", "x+8 w120", "Отмена").OnEvent("Click", (*) => Close())
+    d.OnEvent("Escape", (*) => Close())
+    d.OnEvent("Close", (*) => Close())
+    d.Show()
+
+    Save(*) {
+        label := Trim(eLabel.Value), instr := Trim(eInstr.Value)
+        if (label = "" || instr = "") {
+            MsgBox("Название и инструкция должны быть заполнены.", "TextTools", "Icon! 262144")
+            return
+        }
+        onSave({label: label, instr: instr})
+        Close()
+    }
+
+    Close() {
+        parent.Opt("-Disabled")
+        d.Destroy()
+        try parent.Show()
+    }
+}
