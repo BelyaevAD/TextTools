@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TextTools — LLM-обработка выделенного текста на Windows (AutoHotkey v2)</title>
+    <meta name="description" content="TextTools: выделите текст в любом приложении Windows, нажмите хоткей и примените LLM-действие — вычитка, переписывание, суммаризация, таблица, разбор кода. OpenAI-совместимый API, AutoHotkey v2, MIT.">
+    <meta name="keywords" content="TextTools, AutoHotkey, AHK v2, LLM, обработка текста, OpenAI, OpenRouter, Ollama, Writing Tools Windows, proofread, summarize, AI writing assistant">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <meta name="author" content="BelyaevAD">
+    <meta name="theme-color" content="#102621">
+    <link rel="canonical" href="https://belyaevad.github.io/TextTools/">
+    <link rel="alternate" hreflang="ru" href="https://belyaevad.github.io/TextTools/">
+    <link rel="alternate" hreflang="en" href="https://belyaevad.github.io/TextTools/en/">
+    <link rel="alternate" hreflang="x-default" href="https://belyaevad.github.io/TextTools/">
+    <link rel="sitemap" type="application/xml" href="https://belyaevad.github.io/TextTools/sitemap.xml">
+    <link rel="icon" type="image/svg+xml" href="assets/brand-mark.svg">
+    <link rel="stylesheet" href="assets/site.css">
+
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="ru_RU">
+    <meta property="og:locale:alternate" content="en_US">
+    <meta property="og:title" content="TextTools — LLM-действия над выделенным текстом">
+    <meta property="og:description" content="Системный помощник на AutoHotkey v2: выделение → хоткей → LLM-действия. OpenAI-совместимый API, локальный Ollama, MIT.">
+    <meta property="og:url" content="https://belyaevad.github.io/TextTools/">
+    <meta property="og:site_name" content="TextTools">
+    <meta property="og:image" content="https://belyaevad.github.io/TextTools/assets/og-card.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="TextTools — LLM text actions for Windows">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="TextTools">
+    <meta name="twitter:description" content="LLM-обработка выделенного текста на Windows (AutoHotkey v2).">
+    <meta name="twitter:image" content="https://belyaevad.github.io/TextTools/assets/og-card.png">
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "SoftwareApplication",
+            "name": "TextTools",
+            "applicationCategory": "UtilitiesApplication",
+            "operatingSystem": "Windows 10, Windows 11",
+            "softwareVersion": "0.1.0",
+            "url": "https://belyaevad.github.io/TextTools/",
+            "downloadUrl": "https://github.com/BelyaevAD/TextTools/releases/tag/v0.1.0",
+            "installUrl": "https://github.com/BelyaevAD/TextTools",
+            "description": "Обработка выделенного текста через LLM на Windows: сетка действий, OpenAI-совместимый API, AutoHotkey v2.",
+            "license": "https://github.com/BelyaevAD/TextTools/blob/main/LICENSE",
+            "isAccessibleForFree": true,
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "USD"
+            },
+            "author": {
+              "@type": "Person",
+              "name": "Alexander Belyaev",
+              "url": "https://belyaevad.github.io/"
+            }
+          },
+          {
+            "@type": "SoftwareSourceCode",
+            "name": "TextTools",
+            "codeRepository": "https://github.com/BelyaevAD/TextTools",
+            "url": "https://belyaevad.github.io/TextTools/",
+            "programmingLanguage": "AutoHotkey",
+            "runtimePlatform": "AutoHotkey v2",
+            "license": "https://github.com/BelyaevAD/TextTools/blob/main/LICENSE",
+            "keywords": "AutoHotkey, AHK v2, LLM, OpenAI-compatible, text processing, Windows",
+            "inLanguage": ["ru", "en"]
+          },
+          {
+            "@type": "WebSite",
+            "name": "TextTools",
+            "url": "https://belyaevad.github.io/TextTools/",
+            "inLanguage": "ru",
+            "publisher": {
+              "@type": "Person",
+              "name": "BelyaevAD",
+              "url": "https://github.com/BelyaevAD"
+            }
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <header class="site-header">
+      <nav class="nav shell" aria-label="Основная навигация">
+        <a class="brand" href="./">
+          <img src="assets/brand-mark.svg" alt="" width="38" height="38">
+          <span>TextTools</span>
+        </a>
+        <div class="nav-right">
+          <div class="nav-links">
+            <a href="https://github.com/BelyaevAD/TextTools">GitHub</a>
+            <a href="https://github.com/BelyaevAD/TextTools/blob/main/docs/USER_GUIDE.md">Документация</a>
+            <a href="https://github.com/BelyaevAD/TextTools/releases">Релизы</a>
+          </div>
+          <div class="language-switch" aria-label="Выбор языка">
+            <a href="./" lang="ru" aria-current="page">RU</a>
+            <a href="en/" lang="en">EN</a>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero-band">
+        <div class="hero-inner shell">
+          <div class="hero-copy">
+            <p class="eyebrow">AutoHotkey v2 · LLM на выделенном тексте</p>
+            <h1>TextTools</h1>
+            <p class="hero-lead">Выделите текст в любом приложении Windows, нажмите хоткей и выберите действие: вычитка, переписывание, суммаризация, таблица, разбор кода и другие. Результат вставляется на место или открывается в окне с Markdown.</p>
+            <div class="hero-actions">
+              <a class="button" href="https://github.com/BelyaevAD/TextTools">Открыть на GitHub</a>
+              <a class="button secondary" href="https://github.com/BelyaevAD/TextTools/releases/tag/v0.1.0">Скачать v0.1.0</a>
+            </div>
+            <div class="hero-meta" aria-label="Технические характеристики">
+              <span>Windows 10/11</span>
+              <span>AutoHotkey v2</span>
+              <span>MIT License</span>
+            </div>
+          </div>
+
+          <div class="flow-scene" aria-label="Схема работы TextTools">
+            <span class="flow-line one" aria-hidden="true"></span>
+            <span class="flow-line two" aria-hidden="true"></span>
+            <span class="flow-line three" aria-hidden="true"></span>
+            <div class="flow-node client">
+              <strong>Любое приложение</strong>
+              <small>выделение текста</small>
+            </div>
+            <div class="flow-node server">
+              <strong>TextTools</strong>
+              <small>Ctrl+Alt+Space</small>
+            </div>
+            <div class="flow-node api">
+              <strong>LLM API</strong>
+              <small>OpenAI-compatible</small>
+            </div>
+            <div class="flow-status">curl.exe · ключ только локально</div>
+          </div>
+        </div>
+      </section>
+
+      <div class="stats-band">
+        <div class="stats shell">
+          <div class="stat"><strong>16</strong><span>заводских действий в сетке меню</span></div>
+          <div class="stat"><strong>1</strong><span>хоткей для любого окна Windows</span></div>
+          <div class="stat"><strong>∞</strong><span>OpenAI-совместимых провайдеров</span></div>
+        </div>
+      </div>
+
+      <section class="section">
+        <div class="shell">
+          <div class="section-heading">
+            <h2>Что умеет TextTools</h2>
+            <p>Инструмент остаётся локальным скриптом AutoHotkey: состояние и ключ на вашей машине, а к модели уходит только текст выбранного действия.</p>
+          </div>
+          <div class="feature-grid">
+            <article class="feature">
+              <span class="feature-number">01</span>
+              <h3>Сетка действий и акселераторы</h3>
+              <p>Вычитка, переписывание, деловой тон, суммаризация, тезисы, таблица, спецификация, разбор кода, вопросы и черновик ответа — с клавишами 1–0 и Q–Y.</p>
+            </article>
+            <article class="feature">
+              <span class="feature-number">02</span>
+              <h3>Любой совместимый API</h3>
+              <p>OpenRouter, OpenAI, прокси Anthropic, локальный Ollama и другие endpoints с `/v1/chat/completions`. Модель по умолчанию и отдельно на действие.</p>
+            </article>
+            <article class="feature">
+              <span class="feature-number">03</span>
+              <h3>Редактор и профили приложений</h3>
+              <p>Кнопки и промпты правятся из трея. Профили подсказывают модели, что текст из IDE, почты, таблицы или трекера задач.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section white">
+        <div class="shell">
+          <div class="section-heading">
+            <h2>Типовые сценарии</h2>
+            <p>Один хоткей покрывает правку формы, переписывание смысла и структурный разбор требований.</p>
+          </div>
+          <div class="coverage" aria-label="Сценарии использования">
+            <div class="coverage-item"><code>proofread</code><strong>Вычитка без смены смысла</strong></div>
+            <div class="coverage-item"><code>rewrite</code><strong>Ясность для инженеров</strong></div>
+            <div class="coverage-item"><code>summary</code><strong>Сжатие для действия</strong></div>
+            <div class="coverage-item"><code>table</code><strong>Markdown-таблица</strong></div>
+            <div class="coverage-item"><code>spec</code><strong>Спека для разработки</strong></div>
+            <div class="coverage-item"><code>code</code><strong>Разбор фрагмента кода</strong></div>
+            <div class="coverage-item"><code>reply</code><strong>Черновик ответа</strong></div>
+            <div class="coverage-item"><code>reqreview</code><strong>Ревью требований</strong></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section dark">
+        <div class="quick-start shell">
+          <div class="quick-copy">
+            <p class="eyebrow">Быстрый старт</p>
+            <h2>Установка за пару минут</h2>
+            <p>Нужны AutoHotkey v2 и системный curl.exe. Скрипт install.ps1 копирует файлы в %LOCALAPPDATA% и регистрирует автозапуск.</p>
+            <a class="button secondary" href="https://github.com/BelyaevAD/TextTools#установка">Открыть инструкцию</a>
+          </div>
+          <div class="code-window" aria-label="Команды установки">
+            <div class="code-toolbar">
+              <span class="window-dot"></span>
+              <span class="window-dot yellow"></span>
+              <span class="window-dot green"></span>
+              <span>powershell</span>
+            </div>
+            <pre><code>winget install -e --id AutoHotkey.AutoHotkey
+git clone https://github.com/BelyaevAD/TextTools.git
+cd TextTools
+powershell -ExecutionPolicy Bypass -File .\install.ps1
+
+<span class="code-comment"># Затем: трей → Настройки → API key</span></code></pre>
+          </div>
+        </div>
+      </section>
+
+      <section class="section white">
+        <div class="shell">
+          <div class="section-heading">
+            <h2>Конфиденциальность и стабильность</h2>
+            <p>Ключ лежит только в локальном TextTools.ini. История результатов на диске содержит ваши тексты — не коммитьте её.</p>
+          </div>
+          <ul class="safety-list">
+            <li>HTTP к модели идёт через отдельный процесс curl.exe — без WinHTTP внутри AHK.</li>
+            <li>Factory-хоткей Ctrl+Alt+Space: Ctrl+Space часто занят IME и другими хуками.</li>
+            <li>Поддерживается локальный Ollama (http://127.0.0.1:11434/v1).</li>
+            <li>Интерфейс локализуется пакетами lang/*.ini; factory UI — английский.</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-inner shell">
+        <p>TextTools · открытый проект под лицензией MIT · inspired by Writing Tools, prompts original</p>
+        <div class="footer-links">
+          <a href="https://github.com/BelyaevAD/TextTools">GitHub</a>
+          <a href="https://github.com/BelyaevAD/TextTools/blob/main/LICENSE">Лицензия</a>
+          <a href="en/" lang="en">English</a>
+          <a href="https://belyaevad.github.io/">belyaevad.github.io</a>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

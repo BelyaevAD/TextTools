@@ -4,8 +4,11 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![AutoHotkey](https://img.shields.io/badge/AutoHotkey-v2-blue.svg)](https://www.autohotkey.com/)
+[![Site](https://img.shields.io/badge/site-belyaevad.github.io-0f8f73.svg)](https://belyaevad.github.io/TextTools/)
 
 Обработка выделенного текста через LLM на Windows: выделили фрагмент → хоткей → сетка действий (вычитать, переписать, суммаризировать, таблица, разбор кода и др.) → результат заменяет выделение или открывается в окне с Markdown.
+
+**Сайт:** [belyaevad.github.io/TextTools](https://belyaevad.github.io/TextTools/) · [English site](https://belyaevad.github.io/TextTools/en/)
 
 Написан на **AutoHotkey v2**. HTTP к API идёт через системный `curl.exe` (стабильнее COM/WinHTTP в этом сценарии).
 

@@ -4,8 +4,11 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![AutoHotkey](https://img.shields.io/badge/AutoHotkey-v2-blue.svg)](https://www.autohotkey.com/)
+[![Site](https://img.shields.io/badge/site-belyaevad.github.io-0f8f73.svg)](https://belyaevad.github.io/TextTools/en/)
 
 LLM actions on selected text for Windows: select text → hotkey → action grid (proofread, rewrite, summarize, table, code explain, …) → result replaces the selection or opens in a Markdown window.
+
+**Site:** [belyaevad.github.io/TextTools](https://belyaevad.github.io/TextTools/en/) · [Русская версия](https://belyaevad.github.io/TextTools/)
 
 Built with **AutoHotkey v2**. HTTP goes through system `curl.exe` (more stable than COM/WinHTTP for this workload).
 

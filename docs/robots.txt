@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://belyaevad.github.io/TextTools/sitemap.xml
