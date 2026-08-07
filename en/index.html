@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TextTools — LLM for selected text on Windows</title>
+    <meta name="description" content="Select text in any Windows window, hit a hotkey, and send it to a model: proofread, rewrite, summarize, table, explain code. AutoHotkey v2, OpenAI-compatible API, MIT.">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <meta name="author" content="BelyaevAD">
+    <meta name="theme-color" content="#0e221d">
+    <link rel="canonical" href="https://belyaevad.github.io/TextTools/en/">
+    <link rel="alternate" hreflang="ru" href="https://belyaevad.github.io/TextTools/">
+    <link rel="alternate" hreflang="en" href="https://belyaevad.github.io/TextTools/en/">
+    <link rel="alternate" hreflang="x-default" href="https://belyaevad.github.io/TextTools/">
+    <link rel="sitemap" type="application/xml" href="https://belyaevad.github.io/TextTools/sitemap.xml">
+    <link rel="icon" type="image/svg+xml" href="../assets/brand-mark.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/site.css">
+
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:locale:alternate" content="ru_RU">
+    <meta property="og:title" content="TextTools — LLM for selected text">
+    <meta property="og:description" content="Hotkey in any Windows window → action grid → result in place or in a separate window. AutoHotkey v2, MIT.">
+    <meta property="og:url" content="https://belyaevad.github.io/TextTools/en/">
+    <meta property="og:site_name" content="TextTools">
+    <meta property="og:image" content="https://belyaevad.github.io/TextTools/assets/og-card.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="TextTools action menu over selected text">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="TextTools">
+    <meta name="twitter:description" content="LLM for selected text on Windows (AutoHotkey v2).">
+    <meta name="twitter:image" content="https://belyaevad.github.io/TextTools/assets/og-card.png">
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "SoftwareApplication",
+            "name": "TextTools",
+            "applicationCategory": "UtilitiesApplication",
+            "operatingSystem": "Windows 10, Windows 11",
+            "softwareVersion": "0.1.0",
+            "url": "https://belyaevad.github.io/TextTools/en/",
+            "downloadUrl": "https://github.com/BelyaevAD/TextTools/releases/tag/v0.1.0",
+            "description": "AutoHotkey v2 script: select text in any Windows window, hotkey, OpenAI-compatible API actions.",
+            "license": "https://github.com/BelyaevAD/TextTools/blob/main/LICENSE",
+            "isAccessibleForFree": true,
+            "screenshot": [
+              "https://belyaevad.github.io/TextTools/assets/screenshots/en/01-action-menu.png",
+              "https://belyaevad.github.io/TextTools/assets/screenshots/en/02-settings-api.png",
+              "https://belyaevad.github.io/TextTools/assets/screenshots/en/04-actions-editor.png",
+              "https://belyaevad.github.io/TextTools/assets/screenshots/en/05-prompt-editor.png"
+            ],
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "USD"
+            },
+            "author": {
+              "@type": "Person",
+              "name": "Alexander Belyaev",
+              "url": "https://belyaevad.github.io/"
+            }
+          },
+          {
+            "@type": "SoftwareSourceCode",
+            "name": "TextTools",
+            "codeRepository": "https://github.com/BelyaevAD/TextTools",
+            "url": "https://belyaevad.github.io/TextTools/",
+            "programmingLanguage": "AutoHotkey",
+            "runtimePlatform": "AutoHotkey v2",
+            "license": "https://github.com/BelyaevAD/TextTools/blob/main/LICENSE",
+            "keywords": "AutoHotkey, AHK v2, LLM, OpenAI-compatible, text processing, Windows",
+            "inLanguage": ["en", "ru"]
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <header class="site-header">
+      <nav class="nav shell" aria-label="Primary">
+        <a class="brand" href="../">
+          <img src="../assets/brand-mark.svg" alt="" width="36" height="36">
+          <span>TextTools</span>
+        </a>
+        <div class="nav-right">
+          <div class="nav-links">
+            <a href="https://github.com/BelyaevAD/TextTools/blob/main/docs/USER_GUIDE.md">Docs</a>
+            <a href="https://github.com/BelyaevAD/TextTools/releases">Releases</a>
+          </div>
+          <span class="nav-star">
+            <a class="github-button" href="https://github.com/BelyaevAD/TextTools" data-color-scheme="no-preference: dark; light: dark; dark: dark;" data-icon="octicon-star" data-size="large" data-show-count="true" aria-label="Star BelyaevAD/TextTools on GitHub">Star</a>
+          </span>
+          <div class="language-switch" aria-label="Language">
+            <a href="../" lang="ru">RU</a>
+            <a href="./" lang="en" aria-current="page">EN</a>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero-band">
+        <div class="hero-inner shell">
+          <div class="hero-copy">
+            <p class="eyebrow">Windows · AutoHotkey v2</p>
+            <h1>TextTools</h1>
+            <p class="hero-lead">Select text in any app, hit the hotkey, pick what you want done. Proofreading, rewriting, summaries, tables, explaining code — that sort of thing. The result replaces the selection, or opens in its own window.</p>
+            <div class="hero-actions">
+              <a class="button" href="https://github.com/BelyaevAD/TextTools/releases/tag/v0.1.0">Download v0.1.0</a>
+              <a class="button secondary" href="https://github.com/BelyaevAD/TextTools/blob/main/docs/USER_GUIDE.md">Docs</a>
+            </div>
+            <div class="hero-meta" aria-label="Basics">
+              <span>Windows 10/11</span>
+              <span>OpenAI-compatible API</span>
+              <span>MIT</span>
+            </div>
+          </div>
+
+          <figure class="hero-visual">
+            <div class="hero-frame">
+              <img
+                src="../assets/screenshots/en/01-action-menu.png"
+                width="488"
+                height="333"
+                alt="TextTools action menu after the hotkey: grid of actions for the selected text"
+                fetchpriority="high">
+            </div>
+            <figcaption>Ctrl+Alt+Space · action menu</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="shell">
+          <div class="section-heading">
+            <h2>What it is</h2>
+            <p>A normal local AutoHotkey script. Keys and settings stay on your machine; only the text for the action you run goes to the model.</p>
+          </div>
+          <div class="feature-grid">
+            <article class="feature">
+              <h3>One hotkey, any window</h3>
+              <p>Browser, mail, IDE, Excel — no plugins, no pasting into a chat. Open the menu, pick an action, or type your own instruction.</p>
+            </article>
+            <article class="feature">
+              <h3>Your own endpoint</h3>
+              <p>OpenRouter, OpenAI, Anthropic proxies, local Ollama — anything that speaks <code>/v1/chat/completions</code>. Default model plus a per-action override.</p>
+            </article>
+            <article class="feature">
+              <h3>Edit without touching code</h3>
+              <p>Buttons, prompts, and “where this text came from” hints (IDE, mail, spreadsheet…) live in the tray. Break something — reset to factory.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section white" id="screenshots">
+        <div class="shell">
+          <div class="section-heading">
+            <h2>What it looks like</h2>
+            <p>Hotkey menu, API settings, prompt editor, result window — all from the tray.</p>
+          </div>
+          <div class="shot-gallery">
+            <figure class="shot-card">
+              <a href="../assets/screenshots/en/01-action-menu.png" target="_blank" rel="noopener">
+                <img src="../assets/screenshots/en/01-action-menu.png" width="488" height="333" alt="TextTools action grid" loading="lazy">
+              </a>
+              <figcaption><strong>Action menu</strong><span>Buttons with accelerators and a free-form instruction field</span></figcaption>
+            </figure>
+            <figure class="shot-card">
+              <a href="../assets/screenshots/en/02-settings-api.png" target="_blank" rel="noopener">
+                <img src="../assets/screenshots/en/02-settings-api.png" width="658" height="515" alt="TextTools API settings" loading="lazy">
+              </a>
+              <figcaption><strong>API</strong><span>Base URL, key, default model, model list</span></figcaption>
+            </figure>
+            <figure class="shot-card">
+              <a href="../assets/screenshots/en/03-settings-ui.png" target="_blank" rel="noopener">
+                <img src="../assets/screenshots/en/03-settings-ui.png" width="658" height="515" alt="TextTools UI settings" loading="lazy">
+              </a>
+              <figcaption><strong>UI</strong><span>Language and hotkeys for the menu and repeat-last</span></figcaption>
+            </figure>
+            <figure class="shot-card">
+              <a href="../assets/screenshots/en/04-actions-editor.png" target="_blank" rel="noopener">
+                <img src="../assets/screenshots/en/04-actions-editor.png" width="798" height="545" alt="TextTools actions editor" loading="lazy">
+              </a>
+              <figcaption><strong>Actions editor</strong><span>Grid buttons, refine chips, app profiles</span></figcaption>
+            </figure>
+            <figure class="shot-card">
+              <a href="../assets/screenshots/en/05-prompt-editor.png" target="_blank" rel="noopener">
+                <img src="../assets/screenshots/en/05-prompt-editor.png" width="663" height="548" alt="TextTools prompt editor" loading="lazy">
+              </a>
+              <figcaption><strong>Prompt editor</strong><span>Task text, response language, model for that action</span></figcaption>
+            </figure>
+            <figure class="shot-card">
+              <a href="../assets/screenshots/en/06-result-window.png" target="_blank" rel="noopener">
+                <img src="../assets/screenshots/en/06-result-window.png" width="818" height="634" alt="TextTools result window" loading="lazy">
+              </a>
+              <figcaption><strong>Result</strong><span>Markdown, refine chips, paste back into the source window</span></figcaption>
+            </figure>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="shell">
+          <div class="section-heading">
+            <h2>Built-in actions</h2>
+            <p>Sixteen in the grid. These are the ones I actually use most.</p>
+          </div>
+          <div class="coverage" aria-label="Actions">
+            <div class="coverage-item"><code>proofread</code><strong>Fix the wording, keep the meaning</strong></div>
+            <div class="coverage-item"><code>rewrite</code><strong>Make it clearer, cut the fluff</strong></div>
+            <div class="coverage-item"><code>summary</code><strong>Compress to the point</strong></div>
+            <div class="coverage-item"><code>table</code><strong>Turn it into a Markdown table</strong></div>
+            <div class="coverage-item"><code>spec</code><strong>Sketch a spec for engineering</strong></div>
+            <div class="coverage-item"><code>code</code><strong>Explain a code fragment</strong></div>
+            <div class="coverage-item"><code>reply</code><strong>Draft a reply</strong></div>
+            <div class="coverage-item"><code>reqreview</code><strong>Review requirements</strong></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section dark">
+        <div class="quick-start shell">
+          <div class="quick-copy">
+            <p class="eyebrow">Install</p>
+            <h2>A couple of minutes</h2>
+            <p>You need AutoHotkey v2 and system <code>curl.exe</code>. <code>install.ps1</code> copies into <code>%LOCALAPPDATA%</code> and registers autostart.</p>
+            <a class="button secondary" href="https://github.com/BelyaevAD/TextTools/blob/main/README.en.md#install">Full install notes</a>
+          </div>
+          <div class="code-window" aria-label="Install commands">
+            <div class="code-toolbar">
+              <span class="window-dot"></span>
+              <span class="window-dot yellow"></span>
+              <span class="window-dot green"></span>
+              <span>powershell</span>
+            </div>
+            <pre><code>winget install -e --id AutoHotkey.AutoHotkey
+git clone https://github.com/BelyaevAD/TextTools.git
+cd TextTools
+powershell -ExecutionPolicy Bypass -File .\install.ps1
+
+<span class="code-comment"># Tray → Settings → API key</span></code></pre>
+          </div>
+        </div>
+      </section>
+
+      <section class="section white">
+        <div class="shell">
+          <div class="section-heading">
+            <h2>Key and stability</h2>
+            <p>The API key lives only in local <code>TextTools.ini</code>. On-disk history holds your texts — don’t commit it.</p>
+          </div>
+          <ul class="safety-list">
+            <li>Calls go through a separate <code>curl.exe</code> process, not WinHTTP inside AHK.</li>
+            <li>Default hotkey is <code>Ctrl+Alt+Space</code> — <code>Ctrl+Space</code> is often taken by IMEs and other hooks.</li>
+            <li>Local Ollama works out of the box at <code>http://127.0.0.1:11434/v1</code>.</li>
+            <li>UI language packs live in <code>lang/*.ini</code>; factory UI is English.</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-inner shell">
+        <p>TextTools · MIT · idea inspired by Writing Tools; code and prompts are original</p>
+        <div class="footer-links">
+          <a href="https://github.com/BelyaevAD/TextTools">GitHub</a>
+          <a href="https://github.com/BelyaevAD/TextTools/blob/main/LICENSE">License</a>
+          <a href="../" lang="ru">Русский</a>
+          <a href="https://belyaevad.github.io/">belyaevad.github.io</a>
+        </div>
+      </div>
+    </footer>
+    <script async defer src="https://buttons.github.io/buttons.js"></script>
+  </body>
+</html>
