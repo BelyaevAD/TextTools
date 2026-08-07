@@ -6,7 +6,7 @@
 [![AutoHotkey](https://img.shields.io/badge/AutoHotkey-v2-blue.svg)](https://www.autohotkey.com/)
 [![Site](https://img.shields.io/badge/site-belyaevad.github.io-0f8f73.svg)](https://belyaevad.github.io/TextTools/en/)
 
-LLM actions on selected text for Windows: select text → hotkey → action grid (proofread, rewrite, summarize, table, code explain, …) → result replaces the selection or opens in a Markdown window.
+A small AutoHotkey v2 script. Select text in any Windows window, hit a hotkey, and send it through an LLM: proofread, rewrite, summarize, make a table, explain a code snippet, and so on. The result either replaces the selection or opens in its own window.
 
 **Site:** [belyaevad.github.io/TextTools](https://belyaevad.github.io/TextTools/en/) · [Русская версия](https://belyaevad.github.io/TextTools/)
 
@@ -24,17 +24,17 @@ LLM actions on selected text for Windows: select text → hotkey → action grid
 |---|---|
 | ![UI settings](docs/assets/screenshots/en/03-settings-ui.png) | ![Result window](docs/assets/screenshots/en/06-result-window.png) |
 
-Built with **AutoHotkey v2**. HTTP goes through system `curl.exe` (more stable than COM/WinHTTP for this workload).
+HTTP goes through system `curl.exe` — more stable than COM/WinHTTP inside the AHK process for this.
 
-## Features
+## What it does
 
 - Action grid with key accelerators and a free-form instruction field
 - Repeat last action (`Ctrl+Shift+Space` by default)
-- Action/prompt editor and per-app source profiles
-- Any OpenAI-compatible endpoint (OpenRouter, OpenAI, Anthropic proxies, local Ollama, …)
-- Default model plus per-action model override
+- Button/prompt editor and “where this text came from” profiles
+- Any OpenAI-compatible endpoint (OpenRouter, OpenAI, Anthropic proxies, local Ollama…)
+- Default model plus per-action override
 - Token usage and cost estimate (OpenRouter catalog)
-- UI localization via `lang/*.ini` packs
+- UI language via `lang/*.ini` packs
 
 ## Requirements
 
@@ -52,33 +52,33 @@ cd TextTools
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
-Or download a source zip from [Releases](https://github.com/BelyaevAD/TextTools/releases), extract, and run `install.ps1`.
+Or grab a source zip from [Releases](https://github.com/BelyaevAD/TextTools/releases), extract, and run `install.ps1`.
 
-The script copies files to `%LOCALAPPDATA%\Scripts\TextTools\`, registers autostart, and launches the app. Open **Settings** from the tray, set Base URL and API key (see [`TextTools.ini.example`](TextTools.ini.example)).
+The script copies into `%LOCALAPPDATA%\Scripts\TextTools\`, registers autostart, and launches the app. From the tray open **Settings**, set Base URL and API key (see [`TextTools.ini.example`](TextTools.ini.example)).
 
-Without install: double-click `TextTools.ahk` if AHK v2 is installed (state files are still written next to the script).
+Without install: double-click `TextTools.ahk` if AHK v2 is already there (state files still land next to the script).
 
 ## Usage
 
 | Action | Default |
 |---|---|
 | Action menu | `Ctrl+Alt+Space` |
-| Repeat last action | `Ctrl+Shift+Space` |
+| Repeat last | `Ctrl+Shift+Space` |
 | Result in a window (no paste) | **Shift** + click / action key |
 
-Hotkeys are configurable. `Ctrl+Space` is often taken by IMEs or other low-level hook tools, so the factory default is `Ctrl+Alt+Space`.
+Hotkeys are configurable. `Ctrl+Space` is often taken by IMEs or other hook tools, so the default is `Ctrl+Alt+Space`.
 
-More detail: [docs/USER_GUIDE.md](docs/USER_GUIDE.md). Known pitfalls: [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
+More detail: [docs/USER_GUIDE.md](docs/USER_GUIDE.md). Common pitfalls: [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
 
 ## Privacy
 
-- The API key lives only in local `TextTools.ini` (gitignored)
-- Text is sent to your chosen provider only when you run an action
-- On-disk history contains full processed texts — do not commit it; clear it for sensitive work
+- API key only in local `TextTools.ini` (gitignored)
+- Text goes to your provider only when you run an action
+- On-disk history holds processed texts — don’t commit it; clear it for sensitive work
 
 ## Credits
 
-The idea of system-wide LLM text actions is inspired by [Writing Tools](https://github.com/theJayTea/WritingTools) (theJayTea). TextTools code and prompt wording in this repository are original.
+The idea of system-wide LLM text actions is inspired by [Writing Tools](https://github.com/theJayTea/WritingTools) (theJayTea). Code and prompt wording here are original.
 
 Runtime: [AutoHotkey](https://www.autohotkey.com/) (Lexikos and community).
 

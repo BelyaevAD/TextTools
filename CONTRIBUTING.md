@@ -1,10 +1,10 @@
 # Contributing
 
-Thanks for considering a contribution.
+Thanks for taking a look.
 
 1. Fork and branch from `main`
-2. Keep changes focused; match existing AHK v2 style
-3. Do not commit runtime state (`TextTools.ini`, logs, history, user `*.ini`, `prices.json`)
+2. Keep changes focused; match the existing AHK v2 style
+3. Don’t commit runtime state (`TextTools.ini`, logs, history, user `*.ini`, `prices.json`)
 4. Run validation before opening a PR:
 
 ```powershell
@@ -14,4 +14,4 @@ Thanks for considering a contribution.
 
 5. For prompt text changes, keep constant names (`TASK_*`, `BLOCK_*`) and the TASK/KEEP/FORM/NEVER shape so the editor and stores keep working
 
-Discuss large UX changes in an issue first.
+Large UX changes — open an issue first.
