@@ -87,11 +87,11 @@ img {
 }
 
 .nav-right {
-  gap: 20px;
+  gap: 16px;
 }
 
 .nav-links {
-  gap: 20px;
+  gap: 18px;
 }
 
 .nav-links a {
@@ -104,6 +104,19 @@ img {
 .nav-links a:hover,
 .nav-links a:focus-visible {
   color: #ffffff;
+}
+
+.nav-star {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  line-height: 0;
+}
+
+.nav-star > span,
+.nav-star iframe {
+  display: inline-block !important;
+  vertical-align: middle;
 }
 
 .language-switch {
@@ -203,12 +216,6 @@ h1 {
   align-items: center;
   gap: 12px;
   margin-top: 28px;
-}
-
-.github-star {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
 }
 
 .button {
