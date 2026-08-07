@@ -1,12 +1,14 @@
-#Requires AutoHotkey v2.0
+﻿#Requires AutoHotkey v2.0
 #SingleInstance Off
-; Capture product screenshots → docs/assets/screenshots/
-; Run from repo root (no stdout redirect):
-;   AutoHotkey64.exe capture-screenshots.ahk
+; Capture screenshots to docs/assets/screenshots/<lang>/
+;   AutoHotkey64.exe capture-screenshots.ahk ru
+;   AutoHotkey64.exe capture-screenshots.ahk en
+; Do NOT redirect stdout/stderr.
 
 lang := (A_Args.Length >= 1) ? StrLower(A_Args[1]) : "ru"
 if (lang != "en" && lang != "ru")
     lang := "ru"
+
 OutDir := A_ScriptDir "\docs\assets\screenshots\" lang
 DirCreate(OutDir)
 PsCap := A_ScriptDir "\tools\capture-window.ps1"
@@ -82,10 +84,14 @@ CenterGui(g) {
 }
 
 gUiStrings := LoadUiLang(lang)
+extraInstr := "Make it shorter and keep the technical meaning"
+sampleMd := "# Auth flow notes`n`n- Keep password reset out of the login modal.`n- Add rate limits on `/otp/verify`.`n- Prefer magic-link for first-time desktop users.`n`n| Step | Owner | Status |`n| --- | --- | --- |`n| Spec | Product | Done |`n| API | Backend | In progress |`n| UI | Frontend | Todo |`n"
+resTitle := "Summary"
+
 Say("start lang=" lang " strings=" gUiStrings.Count " ACTIONS=" ACTIONS.Length)
 
 gMenuGui := BuildMenu()
-try gMenuEdit.Value := "Make it shorter and keep the technical meaning"
+try gMenuEdit.Value := extraInstr
 CenterGui(gMenuGui)
 gMenuGui.Show()
 if gMenuFirstBtn
@@ -113,10 +119,24 @@ Sleep 500
 Shot(gEditorGui.Hwnd, "04-actions-editor")
 
 EditActionDialog(gEditorGui, ACTIONS[1], ACTIONS, 1, (*) => 0)
-Sleep 500
-dlgHwnd := WinExist("Действие:")
-if !dlgHwnd
-    dlgHwnd := WinExist("Action:")
+Sleep 600
+dlgHwnd := 0
+for hwnd in WinGetList("ahk_class AutoHotkeyGUI") {
+    title := WinGetTitle("ahk_id " hwnd)
+    if InStr(title, "Action:") || InStr(title, "New action") || InStr(title, "ed.act.edit") {
+        dlgHwnd := hwnd
+        break
+    }
+    ; Match Russian "Действие:" without embedding Cyrillic in this file
+    if (InStr(title, ":") && (InStr(title, "H ") = 0) && WinGetClass("ahk_id " hwnd) = "AutoHotkeyGUI") {
+        owner := 0
+        try owner := DllCall("GetWindow", "ptr", hwnd, "uint", 4, "ptr") ; GW_OWNER
+        if owner {
+            dlgHwnd := hwnd
+            break
+        }
+    }
+}
 if !dlgHwnd
     throw Error("action dialog not found")
 Shot(dlgHwnd, "05-prompt-editor")
@@ -125,30 +145,14 @@ Sleep 200
 try gEditorGui.Destroy()
 gEditorGui := ""
 
-sampleMd :=
-(
-"# Auth flow notes
-
-- Keep password reset out of the login modal.
-- Add rate limits on `/otp/verify`.
-- Prefer magic-link for first-time desktop users.
-
-| Step | Owner | Status |
-| --- | --- | --- |
-| Spec | Product | Done |
-| API | Backend | In progress |
-| UI | Frontend | Todo |
-"
-)
-ShowResult("Summary", sampleMd, [{role: "user", content: "summarize"}, {role: "assistant", content: sampleMd}], cfg.model)
+ShowResult(resTitle, sampleMd, [{role: "user", content: "summarize"}, {role: "assistant", content: sampleMd}], cfg.model)
 Sleep 600
-resHwnd := WinExist("TextTools - Summary")
+resHwnd := WinExist("TextTools - " resTitle)
 if !resHwnd
     throw Error("result window not found")
 Shot(resHwnd, "06-result-window")
 try WinClose("ahk_id " resHwnd)
 
-; Close leftover GUIs so the process can exit.
 DetectHiddenWindows true
 for hwnd in WinGetList("ahk_class AutoHotkeyGUI ahk_pid " ProcessExist()) {
     try WinClose("ahk_id " hwnd)
