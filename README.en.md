@@ -78,7 +78,7 @@ More detail: [docs/USER_GUIDE.md](docs/USER_GUIDE.md). Common pitfalls: [docs/TR
 
 ## Credits
 
-The idea of system-wide LLM text actions is inspired by [Writing Tools](https://github.com/theJayTea/WritingTools) (theJayTea). Code and prompt wording here are original.
+The idea of running LLM actions on selected text from any window is inspired by [Writing Tools](https://github.com/theJayTea/WritingTools) (theJayTea). Code and prompt wording here are original.
 
 Runtime: [AutoHotkey](https://www.autohotkey.com/) (Lexikos and community).
 
