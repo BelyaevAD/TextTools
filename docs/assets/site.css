@@ -200,8 +200,15 @@ h1 {
 .hero-actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 12px;
   margin-top: 28px;
+}
+
+.github-star {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
 }
 
 .button {
