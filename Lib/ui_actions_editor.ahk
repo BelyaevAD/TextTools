@@ -307,7 +307,7 @@ EditActionDialog(parent, a, allActs, selfRow, onSave) {
         if (c != "" && c = a.lang)
             ddLang.Value := i
     cbRu := d.Add("CheckBox", "x320 y78" (a.ru ? " Checked" : ""),
-        Loc("act.rustyle", "правила русского стиля"))
+        Loc("act.langstyle", "правила языка по умолчанию"))
 
     ; Модель действия. Первый пункт - следовать настройкам, а не фиксировать имя:
     ; тогда смена модели по умолчанию подхватится всеми обычными действиями.

@@ -10,8 +10,9 @@ BuildInstruction(a, srcHint := "") {
     if (srcHint != "")
         parts.Push("SOURCE APPLICATION: " srcHint)
     parts.Push(BLOCK_FIDELITY)
+    ; a.ru — историческое имя флага в actions.ini: «включить стиль языка ответа»
     if a.ru
-        parts.Push(BLOCK_RUSTYLE)
+        parts.Push(StyleBlock(a.lang))
     parts.Push(a.task)
     ; краткость идёт ПОСЛЕ задачи: правило про воду должно перебивать соблазн
     ; развернуть ответ, заданный самим TASK-блоком

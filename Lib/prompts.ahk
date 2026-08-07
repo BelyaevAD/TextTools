@@ -14,7 +14,22 @@ BLOCK_CONTEXT := "CONTEXT: the material is workplace IT writing - tickets, specs
 
 BLOCK_FIDELITY := "FIDELITY: invent nothing that is absent from the source - no extra requirements, actors, integrations, numbers, causes or fixes. Preserve must / should / may and the as-is versus to-be distinction. Leave hypotheses, proposals and questions labeled as such. Keep genuine ambiguity; do not silently merge inconsistent terms. Name the actor when the source does."
 
-BLOCK_RUSTYLE := "RU STYLE: prefer a plain hyphen over an em dash (U+2014); avoid the letter yo (U+0451); do not end paragraphs with wrap-up slogans; avoid bureaucratic filler."
+; Style blocks used when the action's "language style" checkbox is on.
+; Chosen by the action's output language (a.lang), not by the UI pack.
+BLOCK_STYLE_AUTO := "STYLE: follow ordinary orthography and typography of the language you write in; prefer a plain hyphen over an em dash; do not end paragraphs with wrap-up slogans; avoid bureaucratic filler."
+
+BLOCK_STYLE_RU := "STYLE (Russian): prefer a plain hyphen over an em dash (U+2014); avoid the letter yo (U+0451); do not end paragraphs with wrap-up slogans; avoid bureaucratic filler."
+
+BLOCK_STYLE_EN := "STYLE (English): prefer a plain hyphen over an em dash; avoid decorative punctuation; do not end paragraphs with wrap-up slogans; avoid corporate fluff."
+
+; Pick the style fragment for the action's response language.
+StyleBlock(lang) {
+    if (lang = "ru")
+        return BLOCK_STYLE_RU
+    if (lang = "en")
+        return BLOCK_STYLE_EN
+    return BLOCK_STYLE_AUTO
+}
 
 BLOCK_BREVITY := "BREVITY: skip preambles, task restatements, closing takeaways and hedging like 'it is important to note'. Drop meta-remarks about the text. Every sentence must carry a source fact; delete framing or repetition. Use lists only for real enumerations. Prefer shorter wording when no fact is lost."
 

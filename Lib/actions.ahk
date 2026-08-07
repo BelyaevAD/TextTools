@@ -3,7 +3,7 @@
 ; This file is the reset target. Included from TextTools.ahk; do not run alone.
 
 ; ---------------------------------------------------------------------------
-; Actions: name, icon, lang (auto/en/ru), ru (RU STYLE), win (result window vs replace)
+; Actions: name, icon, lang (auto/en/ru), ru (language style on/off), win (result window vs replace)
 ; ---------------------------------------------------------------------------
 
 MENU_KEYS := ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "q", "w", "e", "r", "t", "y"]
