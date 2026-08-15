@@ -2,6 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://buttons.github.io; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; frame-src https://ghbtns.com https://buttons.github.io; connect-src 'self' https://api.github.com">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>TextTools — LLM for selected text on Windows</title>
     <meta name="description" content="Select text in any Windows window, hit a hotkey, and send it to a model: proofread, rewrite, summarize, table, explain code. AutoHotkey v2, OpenAI-compatible API, MIT.">
@@ -44,9 +45,9 @@
             "name": "TextTools",
             "applicationCategory": "UtilitiesApplication",
             "operatingSystem": "Windows 10, Windows 11",
-            "softwareVersion": "0.1.0",
+            "softwareVersion": "0.2.0",
             "url": "https://belyaevad.github.io/TextTools/en/",
-            "downloadUrl": "https://github.com/BelyaevAD/TextTools/releases/tag/v0.1.0",
+            "downloadUrl": "https://github.com/BelyaevAD/TextTools/releases/tag/v0.2.0",
             "description": "AutoHotkey v2 script: select text in any Windows window, hotkey, OpenAI-compatible API actions.",
             "license": "https://github.com/BelyaevAD/TextTools/blob/main/LICENSE",
             "isAccessibleForFree": true,
@@ -91,11 +92,11 @@
         </a>
         <div class="nav-right">
           <div class="nav-links">
-            <a href="https://github.com/BelyaevAD/TextTools/blob/main/docs/USER_GUIDE.md">Docs</a>
-            <a href="https://github.com/BelyaevAD/TextTools/releases">Releases</a>
+            <a href="https://github.com/BelyaevAD/TextTools/blob/main/docs/USER_GUIDE.md" target="_blank" rel="noopener noreferrer">Docs</a>
+            <a href="https://github.com/BelyaevAD/TextTools/releases" target="_blank" rel="noopener noreferrer">Releases</a>
           </div>
           <span class="nav-star">
-            <a class="github-button" href="https://github.com/BelyaevAD/TextTools" data-color-scheme="no-preference: dark; light: dark; dark: dark;" data-icon="octicon-star" data-size="large" data-show-count="true" aria-label="Star BelyaevAD/TextTools on GitHub">Star</a>
+            <a class="github-button" href="https://github.com/BelyaevAD/TextTools" rel="noopener" data-color-scheme="no-preference: dark; light: dark; dark: dark;" data-icon="octicon-star" data-size="large" data-show-count="true" aria-label="Star BelyaevAD/TextTools on GitHub">Star</a>
           </span>
           <div class="language-switch" aria-label="Language">
             <a href="../" lang="ru">RU</a>
@@ -113,8 +114,8 @@
             <h1>TextTools</h1>
             <p class="hero-lead">Select text in any app, hit the hotkey, pick what you want done. Proofreading, rewriting, summaries, tables, explaining code — that sort of thing. The result replaces the selection, or opens in its own window.</p>
             <div class="hero-actions">
-              <a class="button" href="https://github.com/BelyaevAD/TextTools/releases/tag/v0.1.0">Download v0.1.0</a>
-              <a class="button secondary" href="https://github.com/BelyaevAD/TextTools/blob/main/docs/USER_GUIDE.md">Docs</a>
+              <a class="button" href="https://github.com/BelyaevAD/TextTools/releases/tag/v0.2.0" target="_blank" rel="noopener noreferrer">Download v0.2.0</a>
+              <a class="button secondary" href="https://github.com/BelyaevAD/TextTools/blob/main/docs/USER_GUIDE.md" target="_blank" rel="noopener noreferrer">Docs</a>
             </div>
             <div class="hero-meta" aria-label="Basics">
               <span>Windows 10/11</span>
@@ -232,7 +233,7 @@
             <p class="eyebrow">Install</p>
             <h2>A couple of minutes</h2>
             <p>You need AutoHotkey v2 and system <code>curl.exe</code>. <code>install.ps1</code> copies into <code>%LOCALAPPDATA%</code> and registers autostart.</p>
-            <a class="button secondary" href="https://github.com/BelyaevAD/TextTools/blob/main/README.en.md#install">Full install notes</a>
+            <a class="button secondary" href="https://github.com/BelyaevAD/TextTools/blob/main/README.en.md#install" target="_blank" rel="noopener noreferrer">Full install notes</a>
           </div>
           <div class="code-window" aria-label="Install commands">
             <div class="code-toolbar">
@@ -255,7 +256,7 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1
         <div class="shell">
           <div class="section-heading">
             <h2>Key and stability</h2>
-            <p>The API key lives only in local <code>TextTools.ini</code>. On-disk history holds your texts — don’t commit it.</p>
+            <p>The API key lives only in local <code>TextTools.ini</code>. App profiling is off by default. On-disk history holds your texts — don’t commit it.</p>
           </div>
           <ul class="safety-list">
             <li>Calls go through a separate <code>curl.exe</code> process, not WinHTTP inside AHK.</li>
@@ -271,10 +272,10 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1
       <div class="footer-inner shell">
         <p>TextTools · MIT · idea inspired by Writing Tools; code and prompts are original</p>
         <div class="footer-links">
-          <a href="https://github.com/BelyaevAD/TextTools">GitHub</a>
-          <a href="https://github.com/BelyaevAD/TextTools/blob/main/LICENSE">License</a>
+          <a href="https://github.com/BelyaevAD/TextTools" target="_blank" rel="noopener noreferrer">GitHub</a>
+          <a href="https://github.com/BelyaevAD/TextTools/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">License</a>
           <a href="../" lang="ru">Русский</a>
-          <a href="https://belyaevad.github.io/">belyaevad.github.io</a>
+          <a href="https://belyaevad.github.io/" target="_blank" rel="noopener noreferrer">belyaevad.github.io</a>
         </div>
       </div>
     </footer>

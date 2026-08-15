@@ -2,6 +2,7 @@
 <html lang="ru">
   <head>
     <meta charset="utf-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://buttons.github.io; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; frame-src https://ghbtns.com https://buttons.github.io; connect-src 'self' https://api.github.com">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>TextTools — LLM для выделенного текста на Windows</title>
     <meta name="description" content="Выдели текст в любом окне Windows, нажми хоткей и отдай его модели: вычитка, переписывание, краткое изложение, таблица, разбор кода. AutoHotkey v2, OpenAI-совместимый API, MIT.">
@@ -44,9 +45,9 @@
             "name": "TextTools",
             "applicationCategory": "UtilitiesApplication",
             "operatingSystem": "Windows 10, Windows 11",
-            "softwareVersion": "0.1.0",
+            "softwareVersion": "0.2.0",
             "url": "https://belyaevad.github.io/TextTools/",
-            "downloadUrl": "https://github.com/BelyaevAD/TextTools/releases/tag/v0.1.0",
+            "downloadUrl": "https://github.com/BelyaevAD/TextTools/releases/tag/v0.2.0",
             "installUrl": "https://github.com/BelyaevAD/TextTools",
             "description": "Скрипт AutoHotkey v2: выделение текста в любом окне Windows, хоткей и действия через OpenAI-совместимый API.",
             "license": "https://github.com/BelyaevAD/TextTools/blob/main/LICENSE",
@@ -103,11 +104,11 @@
         </a>
         <div class="nav-right">
           <div class="nav-links">
-            <a href="https://github.com/BelyaevAD/TextTools/blob/main/docs/USER_GUIDE.md">Документация</a>
-            <a href="https://github.com/BelyaevAD/TextTools/releases">Релизы</a>
+            <a href="https://github.com/BelyaevAD/TextTools/blob/main/docs/USER_GUIDE.md" target="_blank" rel="noopener noreferrer">Документация</a>
+            <a href="https://github.com/BelyaevAD/TextTools/releases" target="_blank" rel="noopener noreferrer">Релизы</a>
           </div>
           <span class="nav-star">
-            <a class="github-button" href="https://github.com/BelyaevAD/TextTools" data-color-scheme="no-preference: dark; light: dark; dark: dark;" data-icon="octicon-star" data-size="large" data-show-count="true" aria-label="Star BelyaevAD/TextTools on GitHub">Star</a>
+            <a class="github-button" href="https://github.com/BelyaevAD/TextTools" rel="noopener" data-color-scheme="no-preference: dark; light: dark; dark: dark;" data-icon="octicon-star" data-size="large" data-show-count="true" aria-label="Star BelyaevAD/TextTools on GitHub">Star</a>
           </span>
           <div class="language-switch" aria-label="Выбор языка">
             <a href="./" lang="ru" aria-current="page">RU</a>
@@ -125,8 +126,8 @@
             <h1>TextTools</h1>
             <p class="hero-lead">Выдели текст в любом приложении, нажми хоткей — появится сетка действий. Вычитка, переписывание, краткое изложение, таблица, разбор кода и остальное. Результат либо встанет вместо выделения, либо откроется в отдельном окне.</p>
             <div class="hero-actions">
-              <a class="button" href="https://github.com/BelyaevAD/TextTools/releases/tag/v0.1.0">Скачать v0.1.0</a>
-              <a class="button secondary" href="https://github.com/BelyaevAD/TextTools/blob/main/docs/USER_GUIDE.md">Документация</a>
+              <a class="button" href="https://github.com/BelyaevAD/TextTools/releases/tag/v0.2.0" target="_blank" rel="noopener noreferrer">Скачать v0.2.0</a>
+              <a class="button secondary" href="https://github.com/BelyaevAD/TextTools/blob/main/docs/USER_GUIDE.md" target="_blank" rel="noopener noreferrer">Документация</a>
             </div>
             <div class="hero-meta" aria-label="Кратко">
               <span>Windows 10/11</span>
@@ -244,7 +245,7 @@
             <p class="eyebrow">Установка</p>
             <h2>Пара минут</h2>
             <p>Нужны AutoHotkey v2 и системный <code>curl.exe</code>. <code>install.ps1</code> кладёт файлы в <code>%LOCALAPPDATA%</code> и вешает автозапуск.</p>
-            <a class="button secondary" href="https://github.com/BelyaevAD/TextTools#установка">Полная инструкция</a>
+            <a class="button secondary" href="https://github.com/BelyaevAD/TextTools#установка" target="_blank" rel="noopener noreferrer">Полная инструкция</a>
           </div>
           <div class="code-window" aria-label="Команды установки">
             <div class="code-toolbar">
@@ -267,7 +268,7 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1
         <div class="shell">
           <div class="section-heading">
             <h2>Про ключ и стабильность</h2>
-            <p>Ключ живёт только в локальном <code>TextTools.ini</code>. История на диске хранит тексты — в git её лучше не класть.</p>
+            <p>Ключ живёт только в локальном <code>TextTools.ini</code>. Профилирование приложений выключено по умолчанию. История на диске хранит тексты — в git её лучше не класть.</p>
           </div>
           <ul class="safety-list">
             <li>Запросы к модели идут через отдельный процесс <code>curl.exe</code>, не через WinHTTP внутри AHK.</li>
@@ -283,10 +284,10 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1
       <div class="footer-inner shell">
         <p>TextTools · MIT · идея навеяна Writing Tools, код и промпты свои</p>
         <div class="footer-links">
-          <a href="https://github.com/BelyaevAD/TextTools">GitHub</a>
-          <a href="https://github.com/BelyaevAD/TextTools/blob/main/LICENSE">Лицензия</a>
+          <a href="https://github.com/BelyaevAD/TextTools" target="_blank" rel="noopener noreferrer">GitHub</a>
+          <a href="https://github.com/BelyaevAD/TextTools/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">Лицензия</a>
           <a href="en/" lang="en">English</a>
-          <a href="https://belyaevad.github.io/">belyaevad.github.io</a>
+          <a href="https://belyaevad.github.io/" target="_blank" rel="noopener noreferrer">belyaevad.github.io</a>
         </div>
       </div>
     </footer>
