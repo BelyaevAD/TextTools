@@ -15,3 +15,9 @@ Don’t paste live API keys, tokens, or private document contents into issues.
 ## Scope
 
 TextTools is a local AutoHotkey script. It doesn’t ship a network service of its own; risk is mainly local state files and whatever you send to your chosen LLM provider.
+
+Selected text is sent only when you run an action. Optional **app profiling** (exe name + window title) is off by default and asks before sending.
+
+Temporary curl config files under `%TEMP%\TextTools_*` can contain the API key; they are deleted in `finally` and swept on startup. Do not put quotes or line breaks in the API key or Base URL — they would break the curl `-K` file.
+
+History (`TextTools_history.txt`) stores processed text. Clear it from the tray for sensitive work.

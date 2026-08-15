@@ -26,12 +26,13 @@ try FileDelete(APPS_INI)
 
 cfg := {base_url: "http://127.0.0.1:9", api_key: "", model: "test",
         models: "модель-подешевле, модель-подороже", models_known: "", ui_lang: "ru", hotkey: "^Space",
-        hotkey_repeat: "^+Space", markdown: "1"}
+        hotkey_repeat: "^+Space", markdown: "1", app_profiling: "0", clip_wait: "0.8"}
 gEditorGui := "", gMenuEdit := "", gMenuFirstBtn := "", gMenuGui := "", gBusy := false
 gBusyGui := "", gBusyText := "", gBusyInfo := "", gBusyDetail := "", gBusyStart := 0
 gHistory := [], gPrevWin := 0, gForeWin := 0, gSel := "", gSettingsGui := ""
 gLastUsage := "", gCallLabel := "", gLastAction := "", gLastInstr := "", gRestoreTimer := ""
 gHotkeyCurrent := "", gHotkeyRepeatCurrent := "", gUiStrings := Map()
+gClipWarned := false, gPriceIndex := "", gStartTick := A_TickCount
 try FileDelete(LANGS_INI)
 LANGS := LoadLangs()
 sets := LoadActionSets()
@@ -39,90 +40,93 @@ ACTIONS := sets.actions
 QUICK_REFINE := sets.quick
 APPS := LoadApps()
 Say(s) => FileAppend(s "`n", REPORT, "UTF-8")
+fails := 0
+Check(ok, msg) {
+    global fails
+    if !ok
+        fails++
+    Say((ok ? "OK   " : "FAIL ") msg)
+}
 
 Say("наборы загружены: действий " ACTIONS.Length ", уточнений " QUICK_REFINE.Length ", приложений " APPS.Length)
 ShowActionsEditor()
 if !(IsObject(gEditorGui)) {
-    Say("FAIL окно редактора не создано")
-    ExitApp(1)
-}
-Say("OK   редактор открылся без ошибок")
-lists := []
-for c in gEditorGui
-    if (c.Type = "ListView")
-        lists.Push(c.GetCount())
-Say(lists.Length = 3 ? "OK   три вкладки: строк " lists[1] " / " lists[2] " / " lists[3]
-    : "FAIL списков " lists.Length)
-Say(lists.Length = 3 && lists[1] = ACTIONS.Length && lists[2] = QUICK_REFINE.Length && lists[3] = APPS.Length
-    ? "OK   все три списка заполнены данными" : "FAIL наполнение")
-gEditorGui.GetPos(, , &w, &h)
-over := 0
-for c in gEditorGui {
-    c.GetPos(&cx, &cy, &cw, &ch)
-    if (cx + cw > w - 8 || cy + ch > h - 8)
-        over++
-}
-Say(over = 0 ? "OK   контролы не выходят за край (окно " w "x" h ")" : "FAIL за краем: " over)
+    Check(false, "окно редактора не создано")
+    Say("SKIP остаток проверок редактора")
+} else {
+    Check(true, "редактор открылся без ошибок")
+    lists := []
+    for c in gEditorGui
+        if (c.Type = "ListView")
+            lists.Push(c.GetCount())
+    Check(lists.Length = 3, lists.Length = 3 ? "три вкладки: строк " lists[1] " / " lists[2] " / " lists[3]
+        : "FAIL списков " lists.Length)
+    Check(lists.Length = 3 && lists[1] = ACTIONS.Length && lists[2] = QUICK_REFINE.Length && lists[3] = APPS.Length
+        , "все три списка заполнены данными")
+    gEditorGui.GetPos(, , &w, &h)
+    over := 0
+    for c in gEditorGui {
+        c.GetPos(&cx, &cy, &cw, &ch)
+        if (cx + cw > w - 8 || cy + ch > h - 8)
+            over++
+    }
+    Check(over = 0, over = 0 ? "контролы не выходят за край (окно " w "x" h ")" : "за краем: " over)
 
-; карточка действия и карточка приложения тоже должны открываться
-EditActionDialog(gEditorGui, ACTIONS[1], ACTIONS, 1, (*) => 0)
-Say("OK   карточка действия открылась")
-EditAppDialog(gEditorGui, APPS[1], (*) => 0)
-Say("OK   карточка приложения открылась")
+    EditActionDialog(gEditorGui, ACTIONS[1], ACTIONS, 1, (*) => 0)
+    Check(true, "карточка действия открылась")
+    EditAppDialog(gEditorGui, APPS[1], (*) => 0)
+    Check(true, "карточка приложения открылась")
+}
 
-; Окно настроек: его отсутствие в тесте и пропустило дефект, когда локальная
-; modelRows затенила функцию ModelRows() и настройки перестали открываться.
 ShowSettings()
 if !IsObject(gSettingsGui) {
-    Say("FAIL окно настроек не создано")
-    ExitApp(1)
-}
-Say("OK   настройки открылись без ошибок")
-setLists := [], setTabs := 0
-for c in gSettingsGui {
-    if (c.Type = "ListView")
-        setLists.Push(c.GetCount())
-    if (InStr(c.Type, "Tab") = 1)
-        setTabs++
-}
-Say(setTabs = 1 ? "OK   вкладки настроек созданы" : "FAIL вкладок " setTabs)
-Say(setLists.Length = 2 ? "OK   списки моделей и языков: строк " setLists[1] " / " setLists[2]
-    : "FAIL списков в настройках " setLists.Length)
-Say(setLists.Length = 2 && setLists[2] = LANGS.Length
-    ? "OK   список языков заполнен" : "FAIL языков в списке")
+    Check(false, "окно настроек не создано")
+    Say("SKIP остаток проверок настроек")
+} else {
+    Check(true, "настройки открылись без ошибок")
+    setLists := [], setTabs := 0
+    for c in gSettingsGui {
+        if (c.Type = "ListView")
+            setLists.Push(c.GetCount())
+        if (InStr(c.Type, "Tab") = 1)
+            setTabs++
+    }
+    Check(setTabs = 1, setTabs = 1 ? "вкладки настроек созданы" : "вкладок " setTabs)
+    Check(setLists.Length = 2, setLists.Length = 2 ? "списки моделей и языков: строк " setLists[1] " / " setLists[2]
+        : "списков в настройках " setLists.Length)
+    Check(setLists.Length = 2 && setLists[2] = LANGS.Length, "список языков заполнен")
 
-; Кнопки на вкладках обязаны помещаться в саму вкладку: уехавшую за нижний край
-; «Загрузить у провайдера» пользователь просто не видел и решил, что функции нет.
-tx := 0, ty := 0, tw := 0, th := 0
-for c in gSettingsGui
-    if (InStr(c.Type, "Tab") = 1)
-        c.GetPos(&tx, &ty, &tw, &th)
-clipped := 0, onPage := 0
-for c in gSettingsGui {
-    if (c.Type != "Button")
-        continue
-    c.GetPos(&bx, &by, &bw, &bh)
-    if (by >= ty + th)                       ; кнопки под вкладкой (Сохранить/Отмена)
-        continue
-    onPage++
-    if (by + bh > ty + th - 4 || bx + bw > tx + tw - 4)
-        clipped++
+    tx := 0, ty := 0, tw := 0, th := 0
+    for c in gSettingsGui
+        if (InStr(c.Type, "Tab") = 1)
+            c.GetPos(&tx, &ty, &tw, &th)
+    clipped := 0, onPage := 0
+    for c in gSettingsGui {
+        if (c.Type != "Button")
+            continue
+        c.GetPos(&bx, &by, &bw, &bh)
+        if (by >= ty + th)
+            continue
+        onPage++
+        if (by + bh > ty + th - 4 || bx + bw > tx + tw - 4)
+            clipped++
+    }
+    Check(clipped = 0, clipped = 0 ? "кнопки вкладок помещаются (" onPage " шт., вкладка " tw "x" th ")"
+        : "кнопок за краем вкладки: " clipped " из " onPage)
+    ; 7 кнопок внутри вкладок: Load / Recommend / Test / Default / Retarget на API
+    ; и «Добавить свой…» + «Удалить» на языках.
+    Check(onPage = 7, onPage = 7 ? "кнопки вкладок ровно те, что нужны (" onPage ")"
+        : "кнопок на вкладках всего " onPage)
 }
-Say(clipped = 0 ? "OK   кнопки вкладок помещаются (" onPage " шт., вкладка " tw "x" th ")"
-    : "FAIL кнопок за краем вкладки: " clipped " из " onPage)
-; 6 кнопок внутри вкладок: «Загрузить у провайдера», «Рекомендуемые модели»,
-; «Тест API», «Сделать моделью по умолчанию» на API и «Добавить свой…» +
-; «Удалить» на языках. Ручного добавления и удаления моделей нет намеренно -
-; список приходит от провайдера целиком.
-Say(onPage = 6 ? "OK   кнопки вкладок ровно те, что нужны (" onPage ")"
-    : "FAIL кнопок на вкладках всего " onPage)
 try FileDelete(ACTIONS_INI)
 try FileDelete(APPS_INI)
-ExitApp(0)
+Say(fails = 0 ? "`nВСЕ ПРОВЕРКИ ПРОШЛИ" : "`nПРОВАЛОВ: " fails)
+ExitApp(fails = 0 ? 0 : 1)
 #Include Lib/log.ahk
 #Include Lib/i18n.ahk
 #Include Lib/langs_store.ahk
 #Include Lib/config.ahk
+#Include Lib/http.ahk
 #Include Lib/api.ahk
 #Include Lib/prices.ahk
 #Include Lib/actions_store.ahk
@@ -130,12 +134,13 @@ ExitApp(0)
 #Include Lib/history.ahk
 #Include Lib/ui_result.ahk
 #Include Lib/markdown.ahk
-; набор включений держим полным, как в самой программе: неполный набор даёт
-; ошибку загрузки на первой же ссылке в другой файл, и тест молча зависает
 #Include Lib/hotkeys.ahk
 #Include Lib/ui_menu.ahk
 #Include Lib/action_run.ahk
 #Include Lib/clipboard.ahk
 #Include Lib/ui_settings.ahk
+#Include Lib/ui_settings_api.ahk
+#Include Lib/ui_settings_langs.ahk
+#Include Lib/ui_settings_ui.ahk
 #Include Lib/recommend.ahk
 #Include Lib/ui_actions_editor.ahk

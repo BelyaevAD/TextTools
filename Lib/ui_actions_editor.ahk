@@ -150,7 +150,7 @@ ShowActionsEditor(*) {
         lvP.Delete()
         for a in appList
             lvP.Add(, a.proc, a.title != "" ? a.title : "—", a.name,
-                a.hint != "" ? Snip(a.hint) : "— без поправки —")
+                a.hint != "" ? Snip(a.hint) : Loc("ed.no_hint", "— без поправки —"))
         lvP.ModifyCol(1, 130), lvP.ModifyCol(2, 120), lvP.ModifyCol(3, 130), lvP.ModifyCol(4, 160)
         if (sel && sel <= appList.Length)
             lvP.Modify(sel, "Select Focus")
@@ -165,8 +165,7 @@ ShowActionsEditor(*) {
         row := lvP.GetNext(0)
         if !row
             return
-        if (MsgBox("Удалить профиль «" appList[row].name "»?`n"
-            . "Приложение снова заведётся автоматически при следующем использовании.",
+        if (MsgBox(Format(Loc("ed.del_app", "Удалить профиль «{1}»?`nПриложение снова заведётся автоматически при следующем использовании."), appList[row].name),
             "TextTools", "YesNo Icon? 262144") = "Yes") {
             appList.RemoveAt(row)
             FillP()
@@ -178,7 +177,7 @@ ShowActionsEditor(*) {
         if !row
             return
         copy := CloneActions([acts[row]])[1]
-        copy.name .= " (копия)"
+        copy.name .= Loc("ed.copy_suffix", " (копия)")
         copy.key := FreeMenuKey(acts)           ; клавиша занята оригиналом
         acts.InsertAt(row + 1, copy)
         FillA()
@@ -189,10 +188,10 @@ ShowActionsEditor(*) {
         if !row
             return
         if (acts.Length = 1) {
-            MsgBox("Нельзя удалить последнее действие: меню осталось бы пустым.", "TextTools", "Icon! 262144")
+            MsgBox(Loc("ed.last_action", "Нельзя удалить последнее действие: меню осталось бы пустым."), "TextTools", "Icon! 262144")
             return
         }
-        if (MsgBox("Удалить действие «" acts[row].name "»?", "TextTools", "YesNo Icon? 262144") = "Yes") {
+        if (MsgBox(Format(Loc("ed.del_action", "Удалить действие «{1}»?"), acts[row].name), "TextTools", "YesNo Icon? 262144") = "Yes") {
             acts.RemoveAt(row)
             FillA()
         }
@@ -212,22 +211,22 @@ ShowActionsEditor(*) {
             SaveActionSets(acts, quicks)
             SaveApps(appList)
         } catch as e {
-            MsgBox("Не удалось сохранить настройки:`n`n" e.Message, "TextTools", "Iconx 262144")
+            MsgBox(Loc("ed.save_fail", "Не удалось сохранить настройки:") "`n`n" e.Message, "TextTools", "Iconx 262144")
             return
         }
         ACTIONS := acts
         QUICK_REFINE := quicks
         APPS := appList
         CloseEditor()
-        TrayTip("Сохранено: действий " ACTIONS.Length ", уточнений " QUICK_REFINE.Length
-            . ", приложений " APPS.Length, "TextTools")
+        TrayTip(Format(Loc("ed.saved", "Сохранено: действий {1}, уточнений {2}, приложений {3}"), ACTIONS.Length, QUICK_REFINE.Length, APPS.Length), "TextTools")
     }
 
     DoReset(*) {
-        if (MsgBox("Вернуть заводские наборы кнопок, уточнений и приложений?`n"
-            . "Текущие изменения будут потеряны.", "TextTools", "YesNo Icon! 262144") != "Yes")
+        if (MsgBox(Loc("ed.reset_ask", "Вернуть заводские наборы кнопок, уточнений и приложений?`nТекущие изменения будут потеряны."), "TextTools", "YesNo Icon! 262144") != "Yes")
             return
         acts := CloneActions(DEFAULT_ACTIONS)
+        try ApplyFactoryRoles(acts, cfg.base_url)
+        try EnsureModelsForActions(acts)
         quicks := CloneQuick(DEFAULT_QUICK)
         appList := CloneApps(DEFAULT_APPS)
         FillA(), FillQ(), FillP()
@@ -356,11 +355,11 @@ EditActionDialog(parent, a, allActs, selfRow, onSave) {
     Save(*) {
         name := Trim(eName.Value), task := Trim(eTask.Value)
         if (name = "") {
-            MsgBox("Название не может быть пустым.", "TextTools", "Icon! 262144")
+            MsgBox(Loc("ed.name_empty", "Название не может быть пустым."), "TextTools", "Icon! 262144")
             return
         }
         if (task = "") {
-            MsgBox("Промпт не может быть пустым: без него действие ничего не сделает.",
+            MsgBox(Loc("ed.prompt_empty", "Промпт не может быть пустым: без него действие ничего не сделает."),
                 "TextTools", "Icon! 262144")
             return
         }
@@ -368,8 +367,7 @@ EditActionDialog(parent, a, allActs, selfRow, onSave) {
         if (key != "") {
             for i, other in allActs {
                 if (i != selfRow && other.HasProp("key") && other.key = key) {
-                    MsgBox("Клавиша " StrUpper(key) " уже занята действием «" other.name "».`n"
-                        . "Выбери другую или сними клавишу у него.", "TextTools", "Icon! 262144")
+                    MsgBox(Format(Loc("ed.key_taken", "Клавиша {1} уже занята действием «{2}».`nВыбери другую или сними клавишу у него."), StrUpper(key), other.name), "TextTools", "Icon! 262144")
                     return
                 }
             }
@@ -395,33 +393,30 @@ EditActionDialog(parent, a, allActs, selfRow, onSave) {
     }
 }
 
-; Модальный диалог правки профиля приложения-источника
 EditAppDialog(parent, a, onSave) {
-    d := Gui("+Owner" parent.Hwnd, a.proc = "" ? "Новое приложение" : "Приложение: " a.name)
+    d := Gui("+Owner" parent.Hwnd, a.proc = "" ? Loc("ed.app.new", "Новое приложение") : Loc("ed.app.edit", "Приложение: ") a.name)
     d.SetFont("s10", "Segoe UI")
     parent.Opt("+Disabled")
 
-    d.Add("Text", "x10 y12 w150", "Процесс (exe):")
+    d.Add("Text", "x10 y12 w150", Loc("ed.app.proc", "Процесс (exe):"))
     eProc := d.Add("Edit", "x165 y10 w200", a.proc)
-    d.Add("Text", "x385 y12 w130", "Заголовок содержит:")
+    d.Add("Text", "x385 y12 w130", Loc("ed.app.title", "Заголовок содержит:"))
     eTitle := d.Add("Edit", "x520 y10 w200", a.title)
     d.SetFont("s9 c707070")
-    d.Add("Text", "x165 y+2 w555",
-        "Заголовок необязателен. Он нужен, чтобы отличать площадки внутри одного приложения "
-        . "(Jira и Confluence в браузере); записи с заголовком проверяются первыми.")
+    d.Add("Text", "x165 y+2 w555", Loc("ed.app.title.hint", "Заголовок необязателен. Он нужен, чтобы отличать площадки внутри одного приложения (Jira и Confluence в браузере); записи с заголовком проверяются первыми."))
     d.SetFont("s10")
 
-    d.Add("Text", "x10 y+12 w150", "Название:")
+    d.Add("Text", "x10 y+12 w150", Loc("ed.field.name", "Название:"))
     eName := d.Add("Edit", "x165 yp-2 w350", a.name)
 
-    d.Add("Text", "x10 y+12 w150", "Описание (для себя):")
+    d.Add("Text", "x10 y+12 w150", Loc("ed.app.desc", "Описание (для себя):"))
     eDesc := d.Add("Edit", "x165 yp-2 w555", a.desc)
 
-    d.Add("Text", "x10 y+14 w710", "Поправка к промпту (1-2 предложения на английском; пусто — обрабатывать как обычно):")
+    d.Add("Text", "x10 y+14 w710", Loc("ed.app.hint", "Поправка к промпту (1-2 предложения на английском; пусто — обрабатывать как обычно):"))
     eHint := d.Add("Edit", "x10 y+4 w710 r5 Multi WantTab", a.hint)
 
-    d.Add("Button", "x10 y+10 w150 Default", "Сохранить").OnEvent("Click", Save)
-    d.Add("Button", "x+8 w120", "Отмена").OnEvent("Click", (*) => Close())
+    d.Add("Button", "x10 y+10 w150 Default", Loc("btn.save", "Сохранить")).OnEvent("Click", Save)
+    d.Add("Button", "x+8 w120", Loc("btn.cancel", "Отмена")).OnEvent("Click", (*) => Close())
     d.OnEvent("Escape", (*) => Close())
     d.OnEvent("Close", (*) => Close())
     d.Show()
@@ -429,7 +424,7 @@ EditAppDialog(parent, a, onSave) {
     Save(*) {
         proc := Trim(eProc.Value)
         if (proc = "") {
-            MsgBox("Имя процесса обязательно: по нему приложение и определяется.",
+            MsgBox(Loc("ed.app.proc_req", "Имя процесса обязательно: по нему приложение и определяется."),
                 "TextTools", "Icon! 262144")
             return
         }
@@ -446,23 +441,22 @@ EditAppDialog(parent, a, onSave) {
     }
 }
 
-; Модальный диалог правки быстрого уточнения
 EditQuickDialog(parent, q, onSave) {
-    d := Gui("+Owner" parent.Hwnd, q.label = "" ? "Новое уточнение" : "Уточнение: " q.label)
+    d := Gui("+Owner" parent.Hwnd, q.label = "" ? Loc("ed.quick.new", "Новое уточнение") : Loc("ed.quick.edit", "Уточнение: ") q.label)
     d.SetFont("s10", "Segoe UI")
     parent.Opt("+Disabled")
 
-    d.Add("Text", "x10 y12 w110", "Название:")
+    d.Add("Text", "x10 y12 w110", Loc("ed.field.name", "Название:"))
     eLabel := d.Add("Edit", "x125 y10 w250", q.label)
     d.SetFont("s9 c707070")
-    d.Add("Text", "x125 y+2 w400", "Короткое - это подпись на кнопке в окне результата.")
+    d.Add("Text", "x125 y+2 w400", Loc("ed.quick.name.hint", "Короткое - это подпись на кнопке в окне результата."))
     d.SetFont("s10")
 
-    d.Add("Text", "x10 y+12 w620", "Инструкция модели (на английском):")
+    d.Add("Text", "x10 y+12 w620", Loc("ed.quick.instr", "Инструкция модели (на английском):"))
     eInstr := d.Add("Edit", "x10 y+4 w520 r8 Multi WantTab", q.instr)
 
-    d.Add("Button", "x10 y+10 w150 Default", "Сохранить").OnEvent("Click", Save)
-    d.Add("Button", "x+8 w120", "Отмена").OnEvent("Click", (*) => Close())
+    d.Add("Button", "x10 y+10 w150 Default", Loc("btn.save", "Сохранить")).OnEvent("Click", Save)
+    d.Add("Button", "x+8 w120", Loc("btn.cancel", "Отмена")).OnEvent("Click", (*) => Close())
     d.OnEvent("Escape", (*) => Close())
     d.OnEvent("Close", (*) => Close())
     d.Show()
@@ -470,7 +464,7 @@ EditQuickDialog(parent, q, onSave) {
     Save(*) {
         label := Trim(eLabel.Value), instr := Trim(eInstr.Value)
         if (label = "" || instr = "") {
-            MsgBox("Название и инструкция должны быть заполнены.", "TextTools", "Icon! 262144")
+            MsgBox(Loc("ed.quick.required", "Название и инструкция должны быть заполнены."), "TextTools", "Icon! 262144")
             return
         }
         onSave({label: label, instr: instr})

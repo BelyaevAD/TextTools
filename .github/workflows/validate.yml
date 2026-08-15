@@ -6,31 +6,89 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   ahk-validate:
     runs-on: windows-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
-      - name: Install AutoHotkey v2
+      - name: Install AutoHotkey v2.0.26
         shell: pwsh
         run: |
-          winget install -e --id AutoHotkey.AutoHotkey --accept-package-agreements --accept-source-agreements
+          winget install -e --id AutoHotkey.AutoHotkey --version 2.0.26 --accept-package-agreements --accept-source-agreements
           $ahk = Join-Path $env:LOCALAPPDATA 'Programs\AutoHotkey\v2\AutoHotkey64.exe'
           if (-not (Test-Path $ahk)) { $ahk = 'C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe' }
           if (-not (Test-Path $ahk)) { throw 'AutoHotkey64.exe not found after install' }
           echo "AHK=$ahk" >> $env:GITHUB_ENV
 
-      - name: Validate TextTools.ahk
+      - name: Static checks
         shell: pwsh
         run: |
-          $p = Start-Process -FilePath $env:AHK -ArgumentList '/ErrorStdOut','/validate','TextTools.ahk' -Wait -PassThru -NoNewWindow -RedirectStandardOutput validate.log
-          Get-Content validate.log -ErrorAction SilentlyContinue
-          if ($p.ExitCode -ne 0) { exit $p.ExitCode }
+          node tools/check-shadowing.mjs
+          node tools/check-cyrillic.mjs
 
-      - name: Run unit tests
+      - name: Validate AHK scripts
         shell: pwsh
         run: |
-          $p = Start-Process -FilePath $env:AHK -ArgumentList 'tests-usage-and-source.ahk' -Wait -PassThru -WorkingDirectory $env:GITHUB_WORKSPACE
-          if (Test-Path "$env:TEMP\tt_us_report.txt") { Get-Content "$env:TEMP\tt_us_report.txt" -Tail 40 }
+          $files = @(
+            'TextTools.ahk',
+            'tests-logic.ahk',
+            'tests-editor-open.ahk',
+            'tests-usage-and-source.ahk',
+            'capture-screenshots.ahk'
+          )
+          foreach ($f in $files) {
+            $log = Join-Path $env:TEMP ("val_" + [IO.Path]::GetFileNameWithoutExtension($f) + ".err.log")
+            if (Test-Path $log) { Remove-Item $log -Force }
+            $p = Start-Process -FilePath $env:AHK -ArgumentList '/ErrorStdOut','/validate',$f `
+              -Wait -PassThru -NoNewWindow -WorkingDirectory $env:GITHUB_WORKSPACE -RedirectStandardError $log
+            Write-Host "==== $f ===="
+            if (Test-Path $log) { Get-Content $log -ErrorAction SilentlyContinue }
+            if ($p.ExitCode -ne 0) { exit $p.ExitCode }
+          }
+
+      - name: Stop leftover AutoHotkey
+        shell: pwsh
+        run: |
+          Get-CimInstance Win32_Process -Filter "Name = 'AutoHotkey64.exe'" -ErrorAction SilentlyContinue |
+            ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+
+      - name: Run logic tests
+        shell: pwsh
+        run: |
+          $report = Join-Path $env:TEMP 'tt_logic_report.txt'
+          if (Test-Path $report) { Remove-Item $report -Force }
+          $p = Start-Process -FilePath $env:AHK -ArgumentList 'tests-logic.ahk' -PassThru -WorkingDirectory $env:GITHUB_WORKSPACE
+          $ok = $p.WaitForExit(120000)
+          if (-not $ok) {
+            Write-Host "TIMEOUT 120s — killing PID $($p.Id)"
+            Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+            exit 1
+          }
           exit $p.ExitCode
+
+      - name: Print logic report
+        if: always()
+        shell: pwsh
+        run: |
+          $report = Join-Path $env:TEMP 'tt_logic_report.txt'
+          if (Test-Path $report) {
+            Get-Content $report
+            Copy-Item $report (Join-Path $env:GITHUB_WORKSPACE 'tt_logic_report.txt') -Force
+          } else { Write-Host "no report at $report" }
+
+      - name: Upload logic report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tt-logic-report
+          path: tt_logic_report.txt
+          if-no-files-found: ignore

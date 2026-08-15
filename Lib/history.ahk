@@ -15,7 +15,7 @@ ShowLastResult(*) {
         Flash(Loc("msg.no_results", "Результатов еще не было"))
         return
     }
-    ShowResult("Последний результат", FileRead(lastF, "UTF-8"))
+    ShowResult(Loc("hist.last", "Последний результат"), FileRead(lastF, "UTF-8"))
 }
 
 ; usage - объект {prompt, completion} из ответа API либо "" (провайдер его не вернул)
@@ -23,11 +23,17 @@ HistoryAdd(action, sel, result, model := "", usage := "") {
     global gHistory
     tok := IsObject(usage) ? usage.prompt + usage.completion : 0
     cost := IsObject(usage) && model != "" ? CostOf(model, usage.prompt, usage.completion) : -1
-    gHistory.InsertAt(1, {ts: FormatTime(, "yyyy-MM-dd HH:mm"), action: action, sel: sel,
-        result: result, model: model, tok: tok, cost: cost})
+    gHistory.InsertAt(1, {ts: FormatTime(, "yyyy-MM-dd HH:mm"), action: action, sel: HistTrim(sel),
+        result: HistTrim(result), model: model, tok: tok, cost: cost})
     while (gHistory.Length > 20)
         gHistory.RemoveAt(gHistory.Length)
     SaveHistory()
+}
+
+HistTrim(s, n := 8000) {
+    if (StrLen(s) <= n)
+        return s
+    return SubStr(s, 1, n) "…"
 }
 
 ; Разделитель полей - "|", поэтому он экранируется отдельно от JsonEsc;
@@ -69,9 +75,13 @@ LoadHistory() {
         f := StrSplit(Trim(line, " `r`t"), "|")
         if (f.Length < 7)
             continue
-        out.Push({ts: f[1], action: JsonUnesc(f[2]), model: JsonUnesc(f[3]),
-            tok: Integer(f[4]), cost: f[5] + 0,
-            sel: JsonUnesc(f[6]), result: JsonUnesc(f[7])})
+        tok := 0, cost := -1
+        try tok := Integer(f[4])
+        try cost := f[5] + 0
+        try out.Push({ts: f[1], action: JsonUnesc(f[2]), model: JsonUnesc(f[3]),
+            tok: tok, cost: cost, sel: JsonUnesc(f[6]), result: JsonUnesc(f[7])})
+        catch as e
+            TT_Log("история: пропуск битой строки (" e.Message ")")
         if (out.Length >= 20)
             break
     }
@@ -99,13 +109,8 @@ ShowHistory(*) {
     if (gHistory.Length = 0)
         gHistory := LoadHistory()          ; вдруг файл появился после старта
     if (gHistory.Length = 0) {
-        ShowResult("История", "# История пуста`n`n"
-            . "Здесь копятся последние 20 операций: исходный текст, результат, "
-            . "модель и стоимость.`n`n"
-            . "Записей пока нет — после этого запуска ни одно действие не выполнялось. "
-            . "Обработайте любой текст, и он появится здесь.`n`n"
-            . "История хранится в файле TextTools_history.txt рядом со скриптом "
-            . "и переживает перезапуск (трей → «Открыть папку скрипта»).")
+        ShowResult(Loc("hist.title", "История"), "# " Loc("hist.empty.title", "История пуста") "`n`n"
+            . Loc("hist.empty.body", "Здесь копятся последние 20 операций: исходный текст, результат, модель и стоимость.`n`nЗаписей пока нет — после этого запуска ни одно действие не выполнялось. Обработайте любой текст, и он появится здесь.`n`nИстория хранится в файле TextTools_history.txt рядом со скриптом и переживает перезапуск (трей → «Открыть папку скрипта»)."))
         return
     }
     snap := gHistory.Clone()
@@ -146,7 +151,7 @@ ShowHistory(*) {
     OpenOrig(*) {
         rec := Sel()
         if IsObject(rec)
-            ShowResult(rec.action " - оригинал", rec.sel)
+            ShowResult(rec.action " - " Loc("hist.orig_suffix", "оригинал"), rec.sel)
     }
     CopyRes(*) {
         rec := Sel()
@@ -199,14 +204,7 @@ UsageReport() {
     for model, rec in agg
         rows.Push({model: model, n: rec.n, p: rec.p, c: rec.c, cost: CostOf(model, rec.p, rec.c)})
     i := 2                            ; сортировка по суммарным токенам, по убыванию
-    while (i <= rows.Length) {
-        j := i
-        while (j > 1 && (rows[j].p + rows[j].c) > (rows[j - 1].p + rows[j - 1].c)) {
-            tmp := rows[j], rows[j] := rows[j - 1], rows[j - 1] := tmp
-            j--
-        }
-        i++
-    }
+    SortBy(rows, (a, b) => (a.p + a.c) > (b.p + b.c))
     md := "`n## Расход токенов по моделям`n`n"
         . "| Модель | Запросов | Промпт | Ответ | Всего | Стоимость |`n|---|---:|---:|---:|---:|---:|`n"
     grand := 0.0, unknown := false, tn := 0, tp := 0, tc := 0
@@ -248,27 +246,32 @@ ShowStats(*) {
         counts[name] := counts.Get(name, 0) + 1
     }
     if (counts.Count = 0 && !FileExist(USAGEF)) {
-        Flash("В логе еще нет действий")
+        Flash(Loc("hist.no_actions", "В логе еще нет действий"))
         return
     }
     rows := []
     for name, n in counts
         rows.Push({name: name, n: n})
-    i := 2
-    while (i <= rows.Length) {
-        j := i
-        while (j > 1 && rows[j].n > rows[j - 1].n) {
-            tmp := rows[j]
-            rows[j] := rows[j - 1]
-            rows[j - 1] := tmp
-            j--
-        }
-        i++
-    }
-    md := "# Статистика использования`n`n## Запуски действий`n`nПо логу TextTools.log.`n`n"
-        . "| Действие | Запусков |`n|---|---:|`n"
+    SortBy(rows, (a, b) => a.n > b.n)
+    md := "# " Loc("hist.stats", "Статистика использования") "`n`n## " Loc("hist.runs", "Запуски действий") "`n`n" Loc("hist.by_log", "По логу TextTools.log.") "`n`n"
+        . "| " Loc("hist.col.action", "Действие") " | " Loc("hist.runs_n", "Запусков") " |`n|---|---:|`n"
     for r in rows
         md .= "| " r.name " | " r.n " |`n"
     md .= UsageReport()
-    ShowResult("Статистика", md)
+    ShowResult(Loc("hist.stats", "Статистика"), md)
+}
+
+ClearHistory(*) {
+    global gHistory
+    gHistory := []
+    try FileDelete(HISTF)
+    ShowResult(Loc("hist.title", "История"), "# " Loc("hist.cleared.title", "История очищена") "`n`n"
+        . Loc("hist.cleared.body", "Файл TextTools_history.txt удалён. Новые операции снова появятся здесь."))
+}
+
+ClearLog(*) {
+    try FileDelete(LOGF)
+    try FileDelete(LOGF ".old")
+    ShowResult(Loc("tray.log", "Лог"), "# " Loc("log.cleared.title", "Лог очищен") "`n`n"
+        . Loc("log.cleared.body", "TextTools.log удалён. Новые события начнут писаться с этого момента."))
 }

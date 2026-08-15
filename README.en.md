@@ -73,8 +73,9 @@ More detail: [docs/USER_GUIDE.md](docs/USER_GUIDE.md). Common pitfalls: [docs/TR
 ## Privacy
 
 - API key only in local `TextTools.ini` (gitignored)
-- Text goes to your provider only when you run an action
-- On-disk history holds processed texts — don’t commit it; clear it for sensitive work
+- Text goes to your provider when you run an action
+- Profiling new apps (exe name and window title) is **off by default**. If you enable it in Settings, you see what will be sent before it goes
+- On-disk history holds processed texts — don’t commit it; clear history and the log from the tray
 
 ## Credits
 

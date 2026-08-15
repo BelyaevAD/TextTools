@@ -13,3 +13,8 @@ hotkey=^!Space
 hotkey_repeat=^+Space
 markdown=1
 lang=en
+clip_wait=0.8
+
+[apps]
+profiling=0
+

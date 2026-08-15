@@ -6,20 +6,16 @@
 ; правила подбора: никаких reasoning-моделей (лишние секунды ожидания и
 ; оплаченные «размышления») и никаких batch-вариантов (отложенное исполнение).
 ;
-; Роли:
-;   mech - механическая правка (Вычитать, Короче): качество почти не отличается,
-;          выигрыш в цене и скорости
+; Роли (стабильный ключ `key`, подпись `role` — только для интерфейса):
+;   mech - механическая правка (Вычитать, Короче)
 ;   main - рабочая лошадь, кандидат в «модель по умолчанию»
-;   deep - разбор и ревью (Разбор кода, Ревью требований, Вопросы, Задача):
-;          здесь модель должна понимать текст, а не переписывать его
-;   alt  - альтернатива под ту же роль от другого поставщика или поколения:
-;          есть с чем сравнить, не перенастраивая всё
+;   deep - разбор и ревью
+;   alt  - альтернатива для сравнения
 ;
 ; Цены и контекст сверены с каталогом OpenRouter 2026-08-04; список моделей
 ; OpenAI - с ответом /v1/models рабочего аккаунта. Имена у провайдеров меняются,
 ; поэтому кнопка не молчит: чего нет в загруженном списке, она называет явно.
 
-; Провайдер по адресу из настроек; пустая строка = не опознан
 ProviderOf(baseUrl) {
     u := StrLower(baseUrl)
     if InStr(u, "openrouter.ai")
@@ -36,7 +32,6 @@ ProviderOf(baseUrl) {
         return "mistral"
     if InStr(u, "api.x.ai")
         return "xai"
-    ; local OpenAI-compatible endpoints (Ollama default port 11434)
     if InStr(u, "localhost") || InStr(u, "127.0.0.1") || InStr(u, ":11434")
         return "ollama"
     return ""
@@ -49,7 +44,7 @@ ProviderName(key) {
     return names.Has(key) ? names[key] : key
 }
 
-; Четыре модели под роли mech / main / deep / alt
+; Четыре модели под роли mech / main / deep / alt. key — стабильный идентификатор.
 RecommendedFor(baseUrl) {
     p := ProviderOf(baseUrl)
     mech := Loc("rec.role.mech", "механическая правка")
@@ -58,47 +53,97 @@ RecommendedFor(baseUrl) {
     alt := Loc("rec.role.alt", "альтернатива для сравнения")
     switch p {
         case "openai":
-            return [{id: "gpt-4.1-nano", role: mech},
-                    {id: "gpt-4.1-mini", role: main},
-                    {id: "gpt-4.1", role: deep},
-                    {id: "gpt-5.6-luna", role: alt}]
+            return [{id: "gpt-4.1-nano", key: "mech", role: mech},
+                    {id: "gpt-4.1-mini", key: "main", role: main},
+                    {id: "gpt-4.1", key: "deep", role: deep},
+                    {id: "gpt-5.6-luna", key: "alt", role: alt}]
         case "openrouter":
-            ; смысл OpenRouter в выборе между поставщиками, поэтому набор смешанный
-            return [{id: "qwen/qwen3.7-flash", role: mech},
-                    {id: "openai/gpt-5.6-luna", role: main},
-                    {id: "anthropic/claude-sonnet-5", role: deep},
-                    {id: "deepseek/deepseek-v4-pro", role: alt}]
+            return [{id: "qwen/qwen3.7-flash", key: "mech", role: mech},
+                    {id: "openai/gpt-5.6-luna", key: "main", role: main},
+                    {id: "anthropic/claude-sonnet-5", key: "deep", role: deep},
+                    {id: "deepseek/deepseek-v4-pro", key: "alt", role: alt}]
         case "anthropic":
-            return [{id: "claude-haiku-4-5", role: mech},
-                    {id: "claude-sonnet-5", role: main},
-                    {id: "claude-opus-5", role: deep},
-                    {id: "claude-sonnet-4-6", role: alt}]
+            return [{id: "claude-haiku-4-5", key: "mech", role: mech},
+                    {id: "claude-sonnet-5", key: "main", role: main},
+                    {id: "claude-opus-5", key: "deep", role: deep},
+                    {id: "claude-sonnet-4-6", key: "alt", role: alt}]
         case "google":
-            return [{id: "gemini-3.5-flash-lite", role: mech},
-                    {id: "gemini-3.5-flash", role: main},
-                    {id: "gemini-3.6-flash", role: deep},
-                    {id: "gemini-3.1-flash-lite", role: alt}]
+            return [{id: "gemini-3.5-flash-lite", key: "mech", role: mech},
+                    {id: "gemini-3.5-flash", key: "main", role: main},
+                    {id: "gemini-3.6-flash", key: "deep", role: deep},
+                    {id: "gemini-3.1-flash-lite", key: "alt", role: alt}]
         case "deepseek":
-            ; У самого DeepSeek API всего два алиаса вместо версионных имён,
-            ; поэтому здесь честные два, а не четыре ради счёта: одна и та же
-            ; модель под четырьмя ролями - это одна строка с одной галочкой.
-            return [{id: "deepseek-chat", role: main},
-                    {id: "deepseek-reasoner", role: deep}]
+            return [{id: "deepseek-chat", key: "main", role: main},
+                    {id: "deepseek-reasoner", key: "deep", role: deep}]
         case "mistral":
-            return [{id: "mistral-small-latest", role: mech},
-                    {id: "mistral-medium-latest", role: main},
-                    {id: "mistral-large-latest", role: deep},
-                    {id: "ministral-8b-latest", role: alt}]
+            return [{id: "mistral-small-latest", key: "mech", role: mech},
+                    {id: "mistral-medium-latest", key: "main", role: main},
+                    {id: "mistral-large-latest", key: "deep", role: deep},
+                    {id: "ministral-8b-latest", key: "alt", role: alt}]
         case "xai":
-            return [{id: "grok-4.3", role: main},
-                    {id: "grok-4.5", role: deep},
-                    {id: "grok-4.20", role: alt}]
+            return [{id: "grok-4.3", key: "main", role: main},
+                    {id: "grok-4.5", key: "deep", role: deep},
+                    {id: "grok-4.20", key: "alt", role: alt}]
         case "ollama":
-            ; small local models; pull them in Ollama before use
-            return [{id: "qwen3:1.7b", role: mech},
-                    {id: "qwen3:4b", role: main},
-                    {id: "gemma3:4b", role: deep},
-                    {id: "phi4-mini", role: alt}]
+            return [{id: "qwen3:1.7b", key: "mech", role: mech},
+                    {id: "qwen3:4b", key: "main", role: main},
+                    {id: "gemma3:4b", key: "deep", role: deep},
+                    {id: "phi4-mini", key: "alt", role: alt}]
     }
     return []
+}
+
+; Слаг модели для роли: своя → main → пусто (тогда ActionCfg возьмёт cfg.model)
+RoleModel(role, baseUrl) {
+    if (role = "")
+        return ""
+    rec := RecommendedFor(baseUrl)
+    pick := "", main := ""
+    for r in rec {
+        if (r.key = "main")
+            main := r.id
+        if (r.key = role)
+            pick := r.id
+    }
+    if (pick != "")
+        return pick
+    return main
+}
+
+; Заводские действия с полем role получают слаг под текущий base_url.
+; Формат actions.ini не меняется: там по-прежнему имя модели или "-".
+ApplyFactoryRoles(acts, baseUrl) {
+    byId := Map()
+    for src in DEFAULT_ACTIONS
+        if (src.HasProp("id") && src.id != "")
+            byId[src.id] := src
+    for a in acts {
+        if !(a.HasProp("id") && a.id != "" && byId.Has(a.id))
+            continue
+        src := byId[a.id]
+        role := src.HasProp("role") ? src.role : ""
+        a.model := RoleModel(role, baseUrl)
+    }
+    return acts
+}
+
+; Чтобы модели действий были в списке отмеченных и попадали в карточку
+EnsureModelsForActions(acts) {
+    global cfg
+    have := Map()
+    for id in SplitList(cfg.models)
+        have[id] := true
+    changed := false
+    for a in acts {
+        m := (IsObject(a) && a.HasProp("model")) ? a.model : ""
+        if (m = "" || have.Has(m))
+            continue
+        have[m] := true
+        cfg.models := (cfg.models = "" ? m : cfg.models ", " m)
+        changed := true
+    }
+    if (cfg.models_known = "")
+        cfg.models_known := cfg.models
+    if changed
+        try SaveCfg(cfg)
 }

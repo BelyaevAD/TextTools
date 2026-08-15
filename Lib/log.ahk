@@ -2,14 +2,39 @@
 ; Подключается из TextTools.ahk, отдельно не запускается.
 
 TT_Log(msg) {
-    try FileAppend(FormatTime(, "yyyy-MM-dd HH:mm:ss") "  " msg "`n", LOGF, "UTF-8")
+    try {
+        if FileExist(LOGF) {
+            sz := 0
+            try sz := FileGetSize(LOGF)
+            if (sz > 1048576) {
+                bak := LOGF ".old"
+                try FileDelete(bak)
+                try FileMove(LOGF, bak)
+            }
+        }
+        FileAppend(FormatTime(, "yyyy-MM-dd HH:mm:ss") "  " msg "`n", LOGF, "UTF-8")
+    }
+}
+
+WithBusy(fn) {
+    global gBusy
+    if gBusy {
+        Flash(Loc("msg.busy", "Запрос уже выполняется"))
+        return ""
+    }
+    gBusy := true
+    try {
+        return fn()
+    } finally {
+        gBusy := false
+    }
 }
 
 ErrorLogger(e, mode) {
     extra := ""
     try extra := (e.Extra != "" ? " | " e.Extra : "") " @ " e.File ":" e.Line
     TT_Log("ОШИБКА (" mode "): " e.Message extra)
-    TrayTip("Ошибка (записана в лог): " e.Message, "TextTools")
+    TrayTip(Loc("err.logged", "Ошибка (записана в лог): ") e.Message, "TextTools")
     ; mode = "ExitApp" означает, что процесс сейчас умрет: без рестарта хоткей
     ; пропадает до конца дня и пользователь этого не замечает. Guard по аптайму,
     ; чтобы не зациклиться на ошибке старта. #SingleInstance Force сам снимет
@@ -49,7 +74,7 @@ BusyShow(text) {
     pb := g.Add("Progress", "w300 h12 +0x8 -Smooth")
     SendMessage(0x40A, 1, 40, pb.Hwnd)  ; PBM_SETMARQUEE: включить бегущую анимацию
     g.SetFont("s8", "Segoe UI")
-    gBusyInfo := g.Add("Text", "w300 cGray", "0,0 с")
+    gBusyInfo := g.Add("Text", "w300 cGray", Format(Loc("busy.sec", "{:.1f} с"), 0))
     g.Show("Hide")
     g.GetPos(,, &w, &h)
     MonitorGetWorkArea(MonitorGetPrimary(), &l, &t, &r, &b)
@@ -91,7 +116,7 @@ BusyTick() {
         SetTimer(BusyTick, 0)
         return
     }
-    el := Format("{:.1f} с", (A_TickCount - gBusyStart) / 1000)
+    el := Format(Loc("busy.sec", "{:.1f} с"), (A_TickCount - gBusyStart) / 1000)
     try gBusyInfo.Value := (gBusyDetail != "" ? gBusyDetail " · " el : el)
 }
 

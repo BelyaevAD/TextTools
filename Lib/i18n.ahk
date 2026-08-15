@@ -42,29 +42,35 @@ ParsePack(path) {
     return out
 }
 
-; Пакеты, найденные в lang\: [{code, name}]. Русский всегда первым - он в коде.
+; Пакеты, найденные в lang\ и lang\user\: [{code, name}]. Русский всегда первым.
+; Пакет в lang\user с тем же кодом перекрывает поставленный.
 UiLangPacks() {
-    out := [{code: "ru", name: "Русский"}]
-    dir := A_ScriptDir "\lang"
-    if !DirExist(dir)
-        return out
-    loop files dir "\*.ini" {
-        code := StrReplace(A_LoopFileName, ".ini")
-        if (code = "ru")
-            continue
-        pack := ParsePack(A_LoopFileFullPath)
-        out.Push({code: code, name: pack.Has("meta.name") ? pack["meta.name"] : code})
+    out := [{code: "ru", name: Loc("lang.ru", "Русский")}]
+    seen := Map("ru", true)
+    AddDir(dir) {
+        if !DirExist(dir)
+            return
+        loop files dir "\*.ini" {
+            code := StrReplace(A_LoopFileName, ".ini")
+            if seen.Has(code)
+                continue
+            seen[code] := true
+            pack := ParsePack(A_LoopFileFullPath)
+            out.Push({code: code, name: pack.Has("meta.name") ? pack["meta.name"] : code})
+        }
     }
+    AddDir(A_ScriptDir "\lang\user")
+    AddDir(A_ScriptDir "\lang")
     return out
 }
 
-; Читает пакет в Map один раз за запуск. Смена языка требует перезапуска -
-; окна уже построены, перерисовывать их на лету дороже, чем перезапустить.
 LoadUiLang(code) {
     m := Map()
     if (code = "" || code = "ru")
         return m
-    path := A_ScriptDir "\lang\" code ".ini"
+    path := A_ScriptDir "\lang\user\" code ".ini"
+    if !FileExist(path)
+        path := A_ScriptDir "\lang\" code ".ini"
     if !FileExist(path) {
         TT_Log("языковой пакет " code " не найден, интерфейс остаётся русским")
         return m

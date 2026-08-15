@@ -131,18 +131,17 @@ MenuKeyPress(key, forceWindow, *) {
 }
 
 SetupTray() {
-    A_IconTip := "TextTools - обработка текста через LLM (" cfg.hotkey ")"
+    A_IconTip := Format(Loc("tray.tip", "TextTools - обработка текста через LLM ({1})"), cfg.hotkey)
     A_TrayMenu.Delete()
-    ; Пункта "Меню обработки" здесь намеренно нет: чтобы добраться до трея, окно
-    ; с выделенным текстом придется покинуть, а часть приложений при потере
-    ; фокуса снимает выделение - Ctrl+C вернул бы пустоту или чужой текст.
-    ; Меню вызывается только хоткеем, не отрывая рук от текста.
     A_TrayMenu.Add(Loc("tray.history", "История…"), ShowHistory)
     A_TrayMenu.Add(Loc("tray.last", "Показать последний результат"), ShowLastResult)
     A_TrayMenu.Add(Loc("tray.stats", "Статистика использования"), ShowStats)
     A_TrayMenu.Add()
     A_TrayMenu.Add(Loc("tray.editor", "Редактор действий…"), ShowActionsEditor)
     A_TrayMenu.Add(Loc("tray.settings", "Настройки"), ShowSettings)
+    A_TrayMenu.Add()
+    A_TrayMenu.Add(Loc("tray.clear_hist", "Очистить историю…"), ClearHistory)
+    A_TrayMenu.Add(Loc("tray.clear_log", "Очистить лог…"), ClearLog)
     A_TrayMenu.Add()
     A_TrayMenu.Add(Loc("tray.log", "Открыть лог"), (*) => Run(LOGF))
     A_TrayMenu.Add(Loc("tray.folder", "Открыть папку скрипта"), (*) => Run(A_ScriptDir))

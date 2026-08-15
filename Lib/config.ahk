@@ -1,25 +1,39 @@
 ; TextTools - Чтение и запись TextTools.ini.
 ; Подключается из TextTools.ahk, отдельно не запускается.
 
-LoadCfg() {
+CfgDefaults() {
     return {
-        base_url: IniRead(INI, "api", "base_url", "https://openrouter.ai/api/v1"),
-        api_key:  IniRead(INI, "api", "api_key", ""),
-        model:    IniRead(INI, "api", "model", "anthropic/claude-haiku-4.5"),
-        ; models - отмеченные галочками, из них выбирается модель действия;
-        ; models_known - всё, что видели у провайдера, чтобы не ходить за
-        ; списком каждый раз (галочки снимаются, а строки остаются)
-        models:   IniRead(INI, "api", "models", ""),
-        models_known: IniRead(INI, "api", "models_known", ""),
-        hotkey:   IniRead(INI, "ui", "hotkey", "^!Space"),
-        hotkey_repeat: IniRead(INI, "ui", "hotkey_repeat", "^+Space"),
-        markdown: IniRead(INI, "ui", "markdown", "1"),
-        ui_lang:  IniRead(INI, "ui", "lang", "en")
+        base_url: "https://openrouter.ai/api/v1",
+        api_key: "",
+        model: "anthropic/claude-haiku-4.5",
+        models: "",
+        models_known: "",
+        hotkey: "^!Space",
+        hotkey_repeat: "^+Space",
+        markdown: "1",
+        ui_lang: "en",
+        app_profiling: "0",
+        clip_wait: "0.8"
     }
 }
 
-; Список из строки через запятую и обратно. Значения хранятся строкой, потому
-; что INI - плоский формат; галочки живут в интерфейсе, а не в файле.
+LoadCfg() {
+    d := CfgDefaults()
+    return {
+        base_url: IniRead(INI, "api", "base_url", d.base_url),
+        api_key:  IniRead(INI, "api", "api_key", d.api_key),
+        model:    IniRead(INI, "api", "model", d.model),
+        models:   IniRead(INI, "api", "models", d.models),
+        models_known: IniRead(INI, "api", "models_known", d.models_known),
+        hotkey:   IniRead(INI, "ui", "hotkey", d.hotkey),
+        hotkey_repeat: IniRead(INI, "ui", "hotkey_repeat", d.hotkey_repeat),
+        markdown: IniRead(INI, "ui", "markdown", d.markdown),
+        ui_lang:  IniRead(INI, "ui", "lang", d.ui_lang),
+        app_profiling: IniRead(INI, "apps", "profiling", d.app_profiling),
+        clip_wait: IniRead(INI, "ui", "clip_wait", d.clip_wait)
+    }
+}
+
 SplitList(s) {
     out := []
     for part in StrSplit(StrReplace(StrReplace(s, "`r", ""), "`n", ","), ",") {
@@ -47,11 +61,10 @@ SaveCfg(c) {
     IniWrite(c.hotkey_repeat, INI, "ui", "hotkey_repeat")
     IniWrite(c.markdown, INI, "ui", "markdown")
     IniWrite(c.ui_lang,  INI, "ui", "lang")
+    IniWrite(c.HasProp("app_profiling") ? c.app_profiling : "0", INI, "apps", "profiling")
+    IniWrite(c.HasProp("clip_wait") ? c.clip_wait : "0.8", INI, "ui", "clip_wait")
 }
 
-; Список дополнительных моделей из настроек: запятая или перевод строки.
-; Модель по умолчанию в него не входит - в выпадающих списках она отдельным
-; первым пунктом, чтобы действие следовало за настройками, а не фиксировало имя.
 ExtraModels() {
     out := []
     for m in SplitList(cfg.models) {
@@ -67,7 +80,6 @@ ExtraModels() {
     return out
 }
 
-; Конфиг для конкретного действия: своя модель перекрывает модель по умолчанию
 ActionCfg(a) {
     m := (IsObject(a) && a.HasProp("model") && a.model != "") ? a.model : cfg.model
     if (m = cfg.model)
@@ -75,8 +87,8 @@ ActionCfg(a) {
     return {base_url: cfg.base_url, api_key: cfg.api_key, model: m}
 }
 
-; Пара хоткеев применяется атомарно: сначала снимаются ОБА старых, потом
-; вешаются оба новых. По отдельности нельзя: если новый хоткей меню совпал со
-; старым хоткеем повтора, перерегистрация второго погасит только что
-; назначенный первый (Hotkey "Off" действует на клавишу, а не на колбэк).
-; Бросает при некорректной клавише - вызывающий откатывает пару.
+CfgFlag(c, name, fallback := "0") {
+    if !(IsObject(c) && c.HasProp(name))
+        return fallback
+    return c.%name%
+}

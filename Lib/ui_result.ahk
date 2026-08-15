@@ -66,7 +66,7 @@ ShowResult(title, text, convo := 0, model := "") {
 
     bCopy := g.Add("Button", "x10 y" yRow " w130", Loc("btn.copy", "Копировать"))
     bPaste := g.Add("Button", "x+8 w160", Loc("res.paste", "Вставить в окно"))
-    bView := rendered ? g.Add("Button", "x+8 w130", "Исходник") : ""
+    bView := rendered ? g.Add("Button", "x+8 w130", Loc("res.source", "Исходник")) : ""
     bClose := g.Add("Button", "x+8 w100", Loc("btn.close", "Закрыть"))
 
     bCopy.OnEvent("Click", (*) => (A_Clipboard := text, Flash(Loc("msg.copied", "Скопировано"))))
@@ -87,11 +87,11 @@ ShowResult(title, text, convo := 0, model := "") {
         if ed.Visible {
             ed.Visible := false
             ax.Visible := true
-            bView.Text := "Исходник"
+            bView.Text := Loc("res.source", "Исходник")
         } else {
             ax.Visible := false
             ed.Visible := true
-            bView.Text := "Разметка"
+            bView.Text := Loc("res.markup", "Разметка")
         }
     }
 
@@ -118,19 +118,20 @@ ShowResult(title, text, convo := 0, model := "") {
         }
         hw := g.Hwnd                     ; окно можно закрыть, пока ждем ответ
         gCallLabel := (label != "" ? "уточнение: " label : "уточнение")
-        gBusy := true
         try bAsk.Enabled := false
-        BusyShow("⏳ " (label != "" ? label : "уточнение") "…")
+        BusyShow("⏳ " (label != "" ? label : Loc("res.refine_busy", "уточнение")) "…")
         TT_Log("уточнение" (label != "" ? " (" label ")" : "") ", диалог " convo.Length " сообщений")
         convo.Push({role: "user", content: q})
         r := "", err := ""
         rc := (model != "" && model != cfg.model)
             ? {base_url: cfg.base_url, api_key: cfg.api_key, model: model} : cfg
+        gBusy := true
         try r := CallApiMsgs(rc, TrimConvo(convo))
         catch as e
             err := e.Message
+        finally
+            gBusy := false
         BusyHide()
-        gBusy := false
         alive := WinExist("ahk_id " hw)
         if alive
             try bAsk.Enabled := true

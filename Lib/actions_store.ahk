@@ -18,7 +18,8 @@ CloneActions(list) {
         out.Push({id: a.HasProp("id") ? a.id : "", name: a.name, icon: a.icon,
             prefix: a.prefix, task: a.task, lang: a.lang, ru: a.ru, win: a.win,
             key: a.HasProp("key") ? a.key : "",
-            model: a.HasProp("model") ? a.model : ""})
+            model: a.HasProp("model") ? a.model : "",
+            role: a.HasProp("role") ? a.role : ""})
     return out
 }
 
@@ -63,8 +64,11 @@ LoadActionSets() {
     path := ACTIONS_INI
     if !FileExist(path) {
         TT_Log("actions.ini не найден, раскладываю заводской набор")
-        SaveActionSets(DEFAULT_ACTIONS, DEFAULT_QUICK)
-        return {actions: CloneActions(DEFAULT_ACTIONS), quick: CloneQuick(DEFAULT_QUICK)}
+        acts := CloneActions(DEFAULT_ACTIONS)
+        try ApplyFactoryRoles(acts, cfg.base_url)
+        try EnsureModelsForActions(acts)
+        SaveActionSets(acts, DEFAULT_QUICK)
+        return {actions: acts, quick: CloneQuick(DEFAULT_QUICK)}
     }
     acts := [], quicks := []
     try {

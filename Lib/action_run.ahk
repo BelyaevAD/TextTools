@@ -42,14 +42,14 @@ RunAction(a, customText := "", forceWindow := false) {
     }
     gLastAction := a
     gLastInstr := customText
-    gCallLabel := a.name              ; попадет в файл расхода токенов
-    gBusy := true
-    ac := ActionCfg(a)                ; своя модель действия перекрывает настройки
+    gCallLabel := a.name
+    ac := ActionCfg(a)
     TT_Log("действие: " a.name (customText != "" ? " (+инструкция)" : "")
         . (forceWindow ? " (Shift: в окно)" : "") ", выделено " StrLen(gSel) " символов"
         . ", модель " ac.model)
     BusyShow("⏳ " ActionName(a) ": " Loc("run.preparing", "готовлю запрос…"))
     result := "", err := "", instr := "", user := ""
+    gBusy := true
     try {
         instr := BuildInstruction(a, AppHint(gPrevWin))
         user := a.prefix gSel
@@ -62,8 +62,9 @@ RunAction(a, customText := "", forceWindow := false) {
         result := CallApiCfg(ac, instr, user)
     } catch as e {
         err := e.Message
+    } finally {
+        gBusy := false
     }
-    gBusy := false
     if err {
         BusyHide()
         TT_Log("сбой: " err)

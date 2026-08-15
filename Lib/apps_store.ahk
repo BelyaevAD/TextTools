@@ -112,6 +112,10 @@ ResolveApp(hwnd) {
     return entry
 }
 
+AppProfilingOn() {
+    return CfgFlag(cfg, "app_profiling") = "1"
+}
+
 ; Готовая добавка к системному промпту (пустая строка = поправки нет)
 AppHint(hwnd) {
     a := ResolveApp(hwnd)
@@ -142,6 +146,12 @@ RequestAppDescription(entry, sampleTitle) {
     static seq := 0
     if (cfg.api_key = "")
         return
+    if !AppProfilingOn()
+        return
+    payload := "Executable: " entry.proc "`nWindow title: " (sampleTitle != "" ? sampleTitle : "(none)")
+    if (MsgBox(Loc("apps.profile.ask", "Отправить провайдеру сведения о приложении, чтобы подобрать поправку к промпту?")
+            . "`n`n" payload, "TextTools", "YesNo Icon? 262144") != "Yes")
+        return
     seq += 1
     tag := "TextTools_app_" seq "_" A_TickCount
     reqF := A_Temp "\" tag "_req.json"
@@ -150,7 +160,7 @@ RequestAppDescription(entry, sampleTitle) {
     cmdF := A_Temp "\" tag ".cmd"
     markF := A_Temp "\" tag "_done.txt"
 
-    user := "Executable: " entry.proc "`nWindow title: " (sampleTitle != "" ? sampleTitle : "(none)")
+    user := payload
     body := '{"model":"' JsonEsc(cfg.model) '","messages":['
         . '{"role":"system","content":"' JsonEsc(APP_DESC_PROMPT) '"},'
         . '{"role":"user","content":"' JsonEsc(user) '"}'
@@ -158,7 +168,9 @@ RequestAppDescription(entry, sampleTitle) {
     f := FileOpen(reqF, "w", "UTF-8-RAW")
     f.Write(body)
     f.Close()
-    curlCfg := 'url = "' RTrim(cfg.base_url, "/") '/chat/completions"`n'
+    try ValidateCurlValue("URL", RTrim(cfg.base_url, "/") "/chat/completions")
+    try ValidateCurlValue("API key", cfg.api_key)
+    curlCfg := 'url = "' CurlQuote(RTrim(cfg.base_url, "/") "/chat/completions") '"`n'
         . "silent`nshow-error`nmax-time = 60`n"
         . 'header = "Content-Type: application/json; charset=utf-8"`n'
         . (cfg.api_key != "" ? 'header = "Authorization: Bearer ' cfg.api_key '"`n' : "")
@@ -170,7 +182,7 @@ RequestAppDescription(entry, sampleTitle) {
     ; .cmd-обёртка вместо голого curl: маркер появляется в любом случае, и по
     ; нему видно, что файл ответа дописан целиком, а не читается на середине
     f := FileOpen(cmdF, "w", "UTF-8-RAW")
-    f.Write("@echo off`r`ncurl.exe -K `"" curlF "`"`r`necho done> `"" markF "`"`r`n")
+    f.Write("@echo off`r`n" Format('"{1}" -K "{2}"`r`necho done> "{3}"`r`n', CurlExe(), curlF, markF))
     f.Close()
     Run(cmdF, , "Hide")
     SetTimer(CheckAppDescription.Bind(entry, respF, markF, [reqF, curlF, cmdF], A_TickCount), 1200)

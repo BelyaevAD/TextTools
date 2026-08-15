@@ -44,7 +44,9 @@ cfg := {
     ui_lang: lang,
     hotkey: "^!Space",
     hotkey_repeat: "^+Space",
-    markdown: "0"
+    markdown: "0",
+    app_profiling: "0",
+    clip_wait: "0.8"
 }
 gEditorGui := "", gMenuEdit := "", gMenuFirstBtn := "", gMenuGui := "", gBusy := false
 gBusyGui := "", gBusyText := "", gBusyInfo := "", gBusyDetail := "", gBusyStart := 0
@@ -54,6 +56,8 @@ gSettingsGui := ""
 gLastUsage := "", gCallLabel := "", gLastAction := "", gLastInstr := "", gRestoreTimer := ""
 gHotkeyCurrent := "", gHotkeyRepeatCurrent := "", gUiStrings := Map()
 gStartTick := A_TickCount
+gClipWarned := false
+gPriceIndex := ""
 
 LANGS := LoadLangs()
 sets := LoadActionSets()
@@ -164,6 +168,7 @@ ExitApp(0)
 #Include Lib/i18n.ahk
 #Include Lib/langs_store.ahk
 #Include Lib/config.ahk
+#Include Lib/http.ahk
 #Include Lib/api.ahk
 #Include Lib/prices.ahk
 #Include Lib/actions_store.ahk
@@ -176,5 +181,8 @@ ExitApp(0)
 #Include Lib/action_run.ahk
 #Include Lib/clipboard.ahk
 #Include Lib/ui_settings.ahk
+#Include Lib/ui_settings_api.ahk
+#Include Lib/ui_settings_langs.ahk
+#Include Lib/ui_settings_ui.ahk
 #Include Lib/recommend.ahk
 #Include Lib/ui_actions_editor.ahk

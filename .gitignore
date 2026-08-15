@@ -9,6 +9,8 @@ apps.ini
 langs.ini
 prices.json
 *.local
+lang/user/*.ini
+!lang/user/README.txt
 
 # OS / editor junk
 Thumbs.db

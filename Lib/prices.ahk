@@ -2,11 +2,9 @@
 ; Подключается из TextTools.ahk, отдельно не запускается.
 ;
 ; У OpenAI нет публичного эндпоинта с ценами, поэтому прайс берется из каталога
-; OpenRouter (GET /api/v1/models, без авторизации): он отдает цену за токен по
-; всем моделям, включая openai/*. Цифры оттуда могут разойтись со счетом самого
-; провайдера - в отчете это оговорено, это оценка, а не биллинг.
+; OpenRouter (GET /api/v1/models, без авторизации). Каталог разбирается один раз
+; в Map при первом обращении; битая закачка рабочий кэш не затирает.
 
-; Скачивает каталог не чаще раза в сутки. true - кэш пригоден к чтению.
 PricesRefresh(force := false) {
     if (!force && FileExist(PRICESF)) {
         age := 999
@@ -14,37 +12,33 @@ PricesRefresh(force := false) {
         if (age < 24)
             return true
     }
-    tmp := A_Temp "\TextTools_prices.json"
-    cfgF := A_Temp "\TextTools_prices.cfg"
+    tmp := A_Temp "\TextTools_prices_dl.json"
     try FileDelete(tmp)
-    curlCfg := 'url = "https://openrouter.ai/api/v1/models"`n'
-        . "silent`nshow-error`nmax-time = 20`n"
-        . 'output = "' StrReplace(tmp, "\", "\\") '"`n'
-    f := FileOpen(cfgF, "w", "UTF-8-RAW")
-    f.Write(curlCfg)
-    f.Close()
-    code := RunWait('curl.exe -K "' cfgF '"', , "Hide")
-    try FileDelete(cfgF)
-    if (code != 0 || !FileExist(tmp)) {
-        TT_Log("прайс: загрузка каталога не удалась (curl " code ")")
+    res := HttpCurl("https://openrouter.ai/api/v1/models", {timeout: 20, retries: 1})
+    if (res.curl != 0 || res.body = "") {
+        TT_Log("прайс: загрузка каталога не удалась (curl " res.curl ")")
         return FileExist(PRICESF) ? true : false
     }
-    ; битую закачку не пускаем поверх рабочего кэша
-    head := ""
-    try head := FileRead(tmp, "UTF-8 m400")      ; m400 - прочитать не больше 400 символов
-    if !InStr(head, '"data"') {
-        try FileDelete(tmp)
+    if !InStr(SubStr(res.body, 1, 400), '"data"') {
         TT_Log("прайс: каталог пришел в неожиданном формате, кэш не тронут")
         return FileExist(PRICESF) ? true : false
     }
-    try FileDelete(PRICESF)
-    try FileMove(tmp, PRICESF, true)
+    try {
+        f := FileOpen(tmp, "w", "UTF-8")
+        f.Write(res.body)
+        f.Close()
+        try FileDelete(PRICESF)
+        FileMove(tmp, PRICESF, true)
+    } catch as e {
+        TT_Log("прайс: не удалось записать кэш (" e.Message ")")
+        try FileDelete(tmp)
+        return FileExist(PRICESF) ? true : false
+    }
     PriceCacheReset()
     TT_Log("прайс: каталог цен обновлен")
     return true
 }
 
-; Когда каталог загружен (для оговорки в отчете); "" если кэша нет
 PricesStamp() {
     if !FileExist(PRICESF)
         return ""
@@ -53,7 +47,6 @@ PricesStamp() {
     return t
 }
 
-; В каталоге модели именуются vendor/model, у прямых API вендора в имени нет
 PriceSlug(model, baseUrl) {
     if InStr(model, "/")
         return model
@@ -64,82 +57,87 @@ PriceSlug(model, baseUrl) {
     return model
 }
 
-; Сбрасывать надо оба кэша: они читают один и тот же файл каталога
 PriceCacheReset() {
-    ContextOf("", true)
-    PriceOf("", true)
+    global gPriceIndex
+    gPriceIndex := ""
 }
 
-; {prompt, completion} - доллары за токен; "" если модели нет в каталоге
-PriceOf(slug, reset := false) {
-    static cache := Map()
-    if reset {
-        cache := Map()
-        return ""
-    }
-    if (slug = "")
-        return ""
-    if cache.Has(slug)
-        return cache[slug]
+; Разбор каталога один раз: slug -> {prompt, completion, ctx}
+PricesEnsureIndex() {
+    global gPriceIndex
+    if IsObject(gPriceIndex)
+        return
+    gPriceIndex := Map()
     txt := ""
     try txt := FileRead(PRICESF, "UTF-8")
     if (txt = "")
-        return ""
-    res := ""
-    p := InStr(txt, '"id":"' slug '"', true)
-    if p {
-        q := InStr(txt, '"pricing"', true, p)
-        stop := q ? InStr(txt, "}", true, q) : 0
-        if (q && stop) {
-            pr := JsonStrAfter(txt, '"prompt"', q, stop)
-            co := JsonStrAfter(txt, '"completion"', q, stop)
-            if (pr != "" && co != "")
-                res := {prompt: pr + 0, completion: co + 0}
+        return
+    pos := 1
+    loop {
+        p := InStr(txt, '"id":"', true, pos)
+        if !p
+            break
+        q1 := p + 6
+        q2 := InStr(txt, '"', true, q1)
+        if !q2
+            break
+        slug := SubStr(txt, q1, q2 - q1)
+        nxt := InStr(txt, '"id":"', true, q2)
+        stop := nxt ? nxt : StrLen(txt) + 1
+        rec := {prompt: "", completion: "", ctx: 0}
+        q := InStr(txt, '"pricing"', true, q2)
+        if (q && q < stop) {
+            pend := InStr(txt, "}", true, q)
+            if (!pend || pend > stop)
+                pend := stop
+            rec.prompt := JsonStrAfter(txt, '"prompt"', q, pend)
+            rec.completion := JsonStrAfter(txt, '"completion"', q, pend)
         }
+        cq := InStr(txt, '"context_length"', true, q2)
+        if (cq && cq < stop) {
+            i := cq + 16
+            while (i < stop && !IsDigit(SubStr(txt, i, 1)))
+                i++
+            num := ""
+            while (i < stop && IsDigit(SubStr(txt, i, 1))) {
+                num .= SubStr(txt, i, 1)
+                i++
+            }
+            if (num != "")
+                rec.ctx := Integer(num)
+        }
+        gPriceIndex[slug] := rec
+        pos := q2
     }
-    cache[slug] := res
-    return res
 }
 
-; Значение строкового ключа JSON без регулярок (PCRE здесь запрещен, см. §5)
-; Размер контекста модели из того же каталога. Число, а не строка, поэтому
-; читается отдельно от цен: "context_length":1047576
-ContextOf(slug, reset := false) {
-    static cache := Map()
+PriceOf(slug, reset := false) {
     if reset {
-        cache := Map()
+        PriceCacheReset()
+        return ""
+    }
+    if (slug = "")
+        return ""
+    PricesEnsureIndex()
+    if !gPriceIndex.Has(slug)
+        return ""
+    rec := gPriceIndex[slug]
+    if (rec.prompt = "" || rec.completion = "")
+        return ""
+    return {prompt: rec.prompt + 0, completion: rec.completion + 0}
+}
+
+ContextOf(slug, reset := false) {
+    if reset {
+        PriceCacheReset()
         return 0
     }
     if (slug = "")
         return 0
-    if cache.Has(slug)
-        return cache[slug]
-    txt := ""
-    try txt := FileRead(PRICESF, "UTF-8")
-    res := 0
-    if (txt != "") {
-        p := InStr(txt, '"id":"' slug '"', true)
-        if p {
-            q := InStr(txt, '"context_length"', true, p)
-            ; ограничиваем поиск концом записи модели: у следующей модели
-            ; тоже есть context_length, и без границы взяли бы чужой
-            nxt := InStr(txt, '"id":"', true, p + 6)
-            if (q && (!nxt || q < nxt)) {
-                i := q + 16
-                while (i <= StrLen(txt) && !IsDigit(SubStr(txt, i, 1)))
-                    i++
-                num := ""
-                while (i <= StrLen(txt) && IsDigit(SubStr(txt, i, 1))) {
-                    num .= SubStr(txt, i, 1)
-                    i++
-                }
-                if (num != "")
-                    res := Integer(num)
-            }
-        }
-    }
-    cache[slug] := res
-    return res
+    PricesEnsureIndex()
+    if !gPriceIndex.Has(slug)
+        return 0
+    return gPriceIndex[slug].ctx
 }
 
 JsonStrAfter(s, key, from, stop) {
@@ -161,7 +159,6 @@ JsonStrAfter(s, key, from, stop) {
     return j ? SubStr(s, i + 1, j - i - 1) : ""
 }
 
-; Стоимость запроса в долларах; -1 если цена модели неизвестна
 CostOf(model, promptTok, complTok) {
     pr := PriceOf(PriceSlug(model, cfg.base_url))
     if !IsObject(pr)
@@ -169,7 +166,6 @@ CostOf(model, promptTok, complTok) {
     return promptTok * pr.prompt + complTok * pr.completion
 }
 
-; Мелкие суммы не должны схлопываться в $0.00 - точность по величине
 MoneyFmt(v) {
     if (v < 0)
         return "—"
@@ -194,14 +190,10 @@ NumFmt(n) {
     return out
 }
 
-; Грубая оценка ДО отправки (точные токены придут в ответе):
-; латиница ~4 символа на токен, кириллица ~2
 EstTokens(s) {
     n := StrLen(s)
     if (n = 0)
         return 0
-    ; на больших выделениях считаем по образцу: посимвольный проход по 100 КБ
-    ; заметно тормозит поток, а точность оценки этого не стоит
     sample := (n > 4000) ? SubStr(s, 1, 4000) : s
     ascii := 0
     loop parse sample

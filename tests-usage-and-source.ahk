@@ -27,10 +27,12 @@ try FileDelete(HISTF)
 
 cfg := {base_url: "https://api.openai.com/v1", api_key: "", model: "gpt-4.1-mini",
         models: "gpt-4o-mini, gpt-4.1, gpt-4o-mini, gpt-4.1-mini", models_known: "gpt-4o", ui_lang: "ru",
-        hotkey: "^Space", hotkey_repeat: "^+Space", markdown: "0"}
+        hotkey: "^Space", hotkey_repeat: "^+Space", markdown: "0", app_profiling: "0", clip_wait: "0.8"}
 gEditorGui := "", gMenuEdit := "", gMenuFirstBtn := "", gMenuGui := "", gBusy := false
 gBusyGui := "", gBusyText := "", gBusyInfo := "", gBusyDetail := "", gBusyStart := 0
 gHistory := [], gPrevWin := 0, gForeWin := 0, gSel := "", gLastUsage := "", gCallLabel := "", gUiStrings := Map()
+gClipWarned := false, gPriceIndex := "", gStartTick := A_TickCount, gSettingsGui := ""
+gLastAction := "", gLastInstr := "", gRestoreTimer := "", gHotkeyCurrent := "", gHotkeyRepeatCurrent := ""
 try FileDelete(LANGS_INI)
 LANGS := LoadLangs()
 ACTIONS := DEFAULT_ACTIONS, QUICK_REFINE := DEFAULT_QUICK, APPS := DEFAULT_APPS
@@ -116,32 +118,12 @@ if net {
 
 ; порядок в списке моделей: отмеченные наверх, внутри группы по алфавиту
 mr := [{id: "zeta", on: true}, {id: "alpha", on: false}, {id: "beta", on: true}]
-i := 2
-while (i <= mr.Length) {
-    j := i
-    while (j > 1 && ModelLess(mr[j], mr[j - 1])) {
-        t := mr[j], mr[j] := mr[j - 1], mr[j - 1] := t
-        j--
-    }
-    i++
-}
+SortBy(mr, ModelLess)
 Check(mr[1].id = "beta" && mr[2].id = "zeta" && mr[3].id = "alpha",
     "отмеченные модели наверху, внутри группы по алфавиту")
 
 ; сортировка по цене - числовая, а не по тексту: "$10.00" не должен встать
 ; раньше "$2.00", а строки без цены обязаны уходить вниз в обе стороны
-SortBy(list, col, desc) {
-    i := 2
-    while (i <= list.Length) {
-        j := i
-        while (j > 1 && ModelLessBy(list[j], list[j - 1], col, desc)) {
-            t := list[j], list[j] := list[j - 1], list[j - 1] := t
-            j--
-        }
-        i++
-    }
-    return list
-}
 IdList(list) {
     s := ""
     for x in list
@@ -152,13 +134,13 @@ priced := [{id: "дорогая", on: false, ctx: 8000, pin: 10.0, pout: 30.0},
            {id: "дешёвая", on: false, ctx: 128000, pin: 2.0, pout: 6.0},
            {id: "средняя", on: true, ctx: 400000, pin: 2.5, pout: 8.0},
            {id: "безцены", on: true, ctx: 0, pin: -1, pout: -1}]
-SortBy(priced, 3, false)
+SortBy(priced, (a, b) => ModelLessBy(a, b, 3, false))
 Check(IdList(priced) = "дешёвая,средняя,дорогая,безцены",
     "по цене возрастанию: " IdList(priced))
-SortBy(priced, 3, true)
+SortBy(priced, (a, b) => ModelLessBy(a, b, 3, true))
 Check(IdList(priced) = "дорогая,средняя,дешёвая,безцены",
     "по цене убыванию, строки без цены остались внизу: " IdList(priced))
-SortBy(priced, 2, true)
+SortBy(priced, (a, b) => ModelLessBy(a, b, 2, true))
 Check(IdList(priced) = "средняя,дешёвая,дорогая,безцены",
     "по контексту убыванию: " IdList(priced))
 Check(ModelLessBy({id: "a", ctx: 0, pin: 2.0, pout: 1}, {id: "b", ctx: 0, pin: 10.0, pout: 1}, 3, false),
@@ -309,7 +291,7 @@ Check(mIds.Length = 2, "из ответа взяты только текстов
 Check(mIds[1] = "gpt-4.1" && mIds[2] = "gpt-5.6-luna", "дубли убраны, список отсортирован")
 Check(ParseModelIds('{"data":[]}').Length = 0, "пустой список не ломает разбор")
 srt := ["gpt-5", "aaa", "gpt-4.1"]
-SortStrings(srt)
+SortBy(srt, (a, b) => StrCompare(a, b) < 0)
 Check(srt[1] = "aaa" && srt[3] = "gpt-5", "сортировка списка моделей")
 Check(Loc("нет.такого.ключа", "запасной текст") = "запасной текст",
     "непереведённый ключ показывает русский текст, а не пустоту")
@@ -387,6 +369,7 @@ ExitApp(fails = 0 ? 0 : 1)
 #Include Lib/i18n.ahk
 #Include Lib/langs_store.ahk
 #Include Lib/config.ahk
+#Include Lib/http.ahk
 #Include Lib/api.ahk
 #Include Lib/prices.ahk
 #Include Lib/actions_store.ahk
@@ -399,5 +382,8 @@ ExitApp(fails = 0 ? 0 : 1)
 #Include Lib/action_run.ahk
 #Include Lib/clipboard.ahk
 #Include Lib/ui_settings.ahk
+#Include Lib/ui_settings_api.ahk
+#Include Lib/ui_settings_langs.ahk
+#Include Lib/ui_settings_ui.ahk
 #Include Lib/recommend.ahk
 #Include Lib/ui_actions_editor.ahk
