@@ -18,7 +18,7 @@ Install target: `%LOCALAPPDATA%\Scripts\TextTools\` via `install.ps1`.
 
 1. Install AutoHotkey v2
 2. Run `install.ps1`, or open `TextTools.ahk` directly
-3. Tray → **Settings** → API: Base URL, key, default model
+3. Tray → **Settings** → API: Base URL, key, default model. Optional: HTTP/HTTPS/SOCKS **Proxy** (empty = direct; localhost Ollama skips it).
 4. Optional: **Load from provider** / **Recommended models**
 5. Select text anywhere → default hotkey `Ctrl+Alt+Space`
 
@@ -44,6 +44,8 @@ Any OpenAI-compatible `…/v1` base URL works. Examples:
 | OpenRouter | `https://openrouter.ai/api/v1` |
 | OpenAI | `https://api.openai.com/v1` |
 | Ollama | `http://127.0.0.1:11434/v1` (any non-empty string as the “key”) |
+
+Optional `proxy` in Settings / `TextTools.ini` `[api]`: `http://user:pass@host:port`, `https://host:port`, `socks5://…`, `socks5h://…` (DNS through the proxy). `host:port` without a scheme is treated as HTTP. Loopback targets are not proxied.
 
 Factory defaults in code: OpenRouter base URL, `anthropic/claude-haiku-4.5`, UI language `en`, hotkey `Ctrl+Alt+Space`.
 

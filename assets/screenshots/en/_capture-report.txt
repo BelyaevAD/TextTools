@@ -1,0 +1,8 @@
+﻿start lang=en strings=227 ACTIONS=16
+OK  01-action-menu.png  16422 bytes
+OK  02-settings-api.png  24028 bytes
+OK  03-settings-ui.png  19744 bytes
+OK  04-actions-editor.png  37908 bytes
+OK  05-prompt-editor.png  24784 bytes
+OK  06-result-window.png  18879 bytes
+DONE
