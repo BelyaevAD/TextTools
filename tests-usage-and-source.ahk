@@ -200,6 +200,9 @@ Check(ex[1] = "gpt-4o-mini" && ex[2] = "gpt-4.1", "порядок и разбо�
 Check(ActionCfg({name: "без своей модели"}).model = "gpt-4.1-mini", "действие без модели берет модель по умолчанию")
 Check(ActionCfg({name: "своя", model: "gpt-4.1"}).model = "gpt-4.1", "своя модель действия перекрывает настройки")
 Check(ActionCfg({name: "своя", model: "gpt-4.1"}).api_key = cfg.api_key, "ключ и адрес наследуются")
+cfg.proxy := "http://user:pass@127.0.0.1:7890"
+Check(ActionCfg({name: "своя", model: "gpt-4.1"}).proxy = cfg.proxy, "прокси наследуется вместе с ключом")
+cfg.proxy := ""
 
 ; модель должна пережить запись и чтение actions.ini
 saveActs := CloneActions(DEFAULT_ACTIONS)

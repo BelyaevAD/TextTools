@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.2.1 — 2026-08-16
+
+Optional HTTP/HTTPS/SOCKS proxy for API calls via curl (`api.proxy` in Settings). Localhost (Ollama) stays direct.
+
 ## v0.2.0 — 2026-08-15
 
 Reliability, privacy, and a diagnosable CI gate.

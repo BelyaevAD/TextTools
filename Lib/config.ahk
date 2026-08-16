@@ -5,6 +5,7 @@ CfgDefaults() {
     return {
         base_url: "https://openrouter.ai/api/v1",
         api_key: "",
+        proxy: "",
         model: "anthropic/claude-haiku-4.5",
         models: "",
         models_known: "",
@@ -22,6 +23,7 @@ LoadCfg() {
     return {
         base_url: IniRead(INI, "api", "base_url", d.base_url),
         api_key:  IniRead(INI, "api", "api_key", d.api_key),
+        proxy:    IniRead(INI, "api", "proxy", d.proxy),
         model:    IniRead(INI, "api", "model", d.model),
         models:   IniRead(INI, "api", "models", d.models),
         models_known: IniRead(INI, "api", "models_known", d.models_known),
@@ -54,6 +56,7 @@ JoinList(arr) {
 SaveCfg(c) {
     IniWrite(c.base_url, INI, "api", "base_url")
     IniWrite(c.api_key,  INI, "api", "api_key")
+    IniWrite(c.HasProp("proxy") ? c.proxy : "", INI, "api", "proxy")
     IniWrite(c.model,    INI, "api", "model")
     IniWrite(c.models,   INI, "api", "models")
     IniWrite(c.models_known, INI, "api", "models_known")
@@ -84,7 +87,7 @@ ActionCfg(a) {
     m := (IsObject(a) && a.HasProp("model") && a.model != "") ? a.model : cfg.model
     if (m = cfg.model)
         return cfg
-    return {base_url: cfg.base_url, api_key: cfg.api_key, model: m}
+    return {base_url: cfg.base_url, api_key: cfg.api_key, proxy: CfgFlag(cfg, "proxy", ""), model: m}
 }
 
 CfgFlag(c, name, fallback := "0") {

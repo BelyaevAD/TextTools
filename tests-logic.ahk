@@ -143,6 +143,22 @@ try {
     Check(true, "ValidateCurlValue отклоняет кавычку в API key")
 }
 
+Check(NormalizeProxy("") = "", "NormalizeProxy пустой")
+Check(NormalizeProxy("127.0.0.1:7890") = "http://127.0.0.1:7890", "NormalizeProxy без схемы → http://")
+Check(NormalizeProxy("socks5h://127.0.0.1:1080") = "socks5h://127.0.0.1:1080", "NormalizeProxy socks5h без изменений")
+Check(NormalizeProxy("http://user:pass@host:3000") = "http://user:pass@host:3000", "NormalizeProxy http с логином")
+try {
+    NormalizeProxy("ftp://host:21")
+    Check(false, "NormalizeProxy должен бросать на чужой схеме")
+} catch {
+    Check(true, "NormalizeProxy отклоняет ftp://")
+}
+Check(UrlIsLoopback("http://127.0.0.1:11434/v1/chat/completions"), "UrlIsLoopback 127.0.0.1")
+Check(CurlProxyCfg("https://openrouter.ai/api/v1/models", "") = "", "CurlProxyCfg без прокси пустой")
+Check(CurlProxyCfg("http://127.0.0.1:11434/v1/chat/completions", "http://user:pass@host:3000") = "", "localhost не идёт через прокси")
+pxBlock := CurlProxyCfg("https://openrouter.ai/api/v1/models", "user:pass@host:3000")
+Check(InStr(pxBlock, "proxy = ") && InStr(pxBlock, "http://user:pass@host:3000") && InStr(pxBlock, "noproxy"), "CurlProxyCfg пишет proxy и noproxy")
+
 Say(fails = 0 ? "`nВСЕ ПРОВЕРКИ ПРОШЛИ" : "`nПРОВАЛОВ: " fails)
 ExitApp(fails = 0 ? 0 : 1)
 

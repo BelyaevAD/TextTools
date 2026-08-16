@@ -45,9 +45,9 @@
             "name": "TextTools",
             "applicationCategory": "UtilitiesApplication",
             "operatingSystem": "Windows 10, Windows 11",
-            "softwareVersion": "0.2.0",
+            "softwareVersion": "0.2.1",
             "url": "https://belyaevad.github.io/TextTools/en/",
-            "downloadUrl": "https://github.com/BelyaevAD/TextTools/releases/tag/v0.2.0",
+            "downloadUrl": "https://github.com/BelyaevAD/TextTools/releases/tag/v0.2.1",
             "description": "AutoHotkey v2 script: select text in any Windows window, hotkey, OpenAI-compatible API actions.",
             "license": "https://github.com/BelyaevAD/TextTools/blob/main/LICENSE",
             "isAccessibleForFree": true,
@@ -114,7 +114,7 @@
             <h1>TextTools</h1>
             <p class="hero-lead">Select text in any app, hit the hotkey, pick what you want done. Proofreading, rewriting, summaries, tables, explaining code — that sort of thing. The result replaces the selection, or opens in its own window.</p>
             <div class="hero-actions">
-              <a class="button" href="https://github.com/BelyaevAD/TextTools/releases/tag/v0.2.0" target="_blank" rel="noopener noreferrer">Download v0.2.0</a>
+              <a class="button" href="https://github.com/BelyaevAD/TextTools/releases/tag/v0.2.1" target="_blank" rel="noopener noreferrer">Download v0.2.1</a>
               <a class="button secondary" href="https://github.com/BelyaevAD/TextTools/blob/main/docs/USER_GUIDE.md" target="_blank" rel="noopener noreferrer">Docs</a>
             </div>
             <div class="hero-meta" aria-label="Basics">
@@ -259,7 +259,7 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1
             <p>The API key lives only in local <code>TextTools.ini</code>. App profiling is off by default. On-disk history holds your texts — don’t commit it.</p>
           </div>
           <ul class="safety-list">
-            <li>Calls go through a separate <code>curl.exe</code> process, not WinHTTP inside AHK.</li>
+            <li>Calls go through a separate <code>curl.exe</code> process, not WinHTTP inside AHK. An optional HTTP/HTTPS/SOCKS proxy lives on the API settings tab.</li>
             <li>Default hotkey is <code>Ctrl+Alt+Space</code> — <code>Ctrl+Space</code> is often taken by IMEs and other hooks.</li>
             <li>Local Ollama works out of the box at <code>http://127.0.0.1:11434/v1</code>.</li>
             <li>UI language packs live in <code>lang/*.ini</code>; factory UI is English.</li>

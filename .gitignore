@@ -12,6 +12,8 @@ prices.json
 lang/user/*.ini
 !lang/user/README.txt
 
+docs/assets/screenshots/**/_capture-report.txt
+
 # OS / editor junk
 Thumbs.db
 Desktop.ini

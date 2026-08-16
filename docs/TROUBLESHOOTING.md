@@ -13,9 +13,9 @@
 
 ## API errors
 
-- **Test API** in Settings isolates key / URL / model problems.
-- An empty API key opens Settings on start on purpose.
-- For local Ollama, start the server and `ollama pull` the model first.
+- **Test API** in Settings isolates key / URL / model / proxy problems.
+- HTTP proxy URLs look like `http://user:pass@host:port`. SOCKS needs `socks5://` or `socks5h://` — an HTTP CONNECT proxy will time out if you label it as SOCKS.
+- For local Ollama, start the server and `ollama pull` the model first. Loopback is not sent through the proxy.
 
 ## Stability (don’t reintroduce)
 

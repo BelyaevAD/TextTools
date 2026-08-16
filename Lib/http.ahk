@@ -28,12 +28,52 @@ ValidateCurlValue(name, v) {
         throw Error(name " содержит кавычку или перевод строки — так нельзя записать в конфиг curl")
 }
 
+; Пустая строка = напрямую. Без схемы — http://. SOCKS: socks5:// / socks5h:// (DNS через прокси) / socks4://.
+NormalizeProxy(s) {
+    s := Trim(s)
+    if (s = "")
+        return ""
+    if (SubStr(s, 1, 1) = '"' && SubStr(s, -1) = '"')
+        s := SubStr(s, 2, StrLen(s) - 2)
+    low := StrLower(s)
+    known := ["http://", "https://", "socks4://", "socks4a://", "socks5://", "socks5h://"]
+    for p in known
+        if (SubStr(low, 1, StrLen(p)) = p)
+            return s
+    if InStr(s, "://")
+        throw Error("Неизвестная схема прокси. Нужны http://, https://, socks5:// или socks5h://")
+    return "http://" s
+}
+
+UrlIsLoopback(url) {
+    u := StrLower(url)
+    return InStr(u, "://127.0.0.1") || InStr(u, "://localhost") || InStr(u, "://[::1]")
+}
+
+; Строки для curl -K. Локальный Ollama не гоняем через прокси.
+CurlProxyCfg(url, proxy) {
+    proxy := NormalizeProxy(proxy)
+    if (proxy = "" || UrlIsLoopback(url))
+        return ""
+    ValidateCurlValue("proxy", proxy)
+    return 'proxy = "' CurlQuote(proxy) '"`n'
+        . 'noproxy = "localhost,127.0.0.1,::1"`n'
+}
+
 CleanupTextToolsTemp() {
     loop files A_Temp "\TextTools_*"
         try FileDelete(A_LoopFileFullPath)
 }
 
-; GET/POST через curl -K. opts: timeout, api_key, json (bool), bodyFile, retries
+ResolveProxy(opts) {
+    if (IsObject(opts) && opts.HasProp("proxy"))
+        return opts.proxy
+    if (IsSet(cfg) && IsObject(cfg) && cfg.HasProp("proxy"))
+        return cfg.proxy
+    return ""
+}
+
+; GET/POST через curl -K. opts: timeout, api_key, json (bool), bodyFile, retries, proxy
 ; Возвращает {curl, status, body}. Временные файлы снимаются в finally.
 HttpCurl(url, opts := "") {
     if !IsObject(opts)
@@ -54,6 +94,7 @@ HttpCurl(url, opts := "") {
         . "silent`nshow-error`nmax-time = " timeout "`n"
         . 'dump-header = "' StrReplace(hdrF, "\", "\\") '"`n'
         . 'output = "' StrReplace(respF, "\", "\\") '"`n'
+    curlCfg .= CurlProxyCfg(url, ResolveProxy(opts))
     if (opts.HasProp("json") && opts.json)
         curlCfg .= 'header = "Content-Type: application/json; charset=utf-8"`n'
     if (opts.HasProp("api_key") && opts.api_key != "")

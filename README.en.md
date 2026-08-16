@@ -32,6 +32,7 @@ HTTP goes through system `curl.exe` — more stable than COM/WinHTTP inside the 
 - Repeat last action (`Ctrl+Shift+Space` by default)
 - Button/prompt editor and “where this text came from” profiles
 - Any OpenAI-compatible endpoint (OpenRouter, OpenAI, Anthropic proxies, local Ollama…)
+- Optional HTTP/HTTPS/SOCKS proxy for curl (`http://user:pass@host:port` or `socks5h://…`)
 - Default model plus per-action override
 - Token usage and cost estimate (OpenRouter catalog)
 - UI language via `lang/*.ini` packs
@@ -73,6 +74,7 @@ More detail: [docs/USER_GUIDE.md](docs/USER_GUIDE.md). Common pitfalls: [docs/TR
 ## Privacy
 
 - API key only in local `TextTools.ini` (gitignored)
+- A proxy URL with user/password is the same kind of secret as the key — don’t commit it
 - Text goes to your provider when you run an action
 - Profiling new apps (exe name and window title) is **off by default**. If you enable it in Settings, you see what will be sent before it goes
 - On-disk history holds processed texts — don’t commit it; clear history and the log from the tray

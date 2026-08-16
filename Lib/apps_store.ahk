@@ -174,6 +174,7 @@ RequestAppDescription(entry, sampleTitle) {
         . "silent`nshow-error`nmax-time = 60`n"
         . 'header = "Content-Type: application/json; charset=utf-8"`n'
         . (cfg.api_key != "" ? 'header = "Authorization: Bearer ' cfg.api_key '"`n' : "")
+        . CurlProxyCfg(RTrim(cfg.base_url, "/") "/chat/completions", CfgFlag(cfg, "proxy", ""))
         . 'data-binary = "@' StrReplace(reqF, "\", "\\") '"`n'
         . 'output = "' StrReplace(respF, "\", "\\") '"`n'
     f := FileOpen(curlF, "w", "UTF-8-RAW")

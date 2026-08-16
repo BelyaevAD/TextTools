@@ -17,7 +17,7 @@ ShowSettings(*) {
     sortCol := 0, sortDesc := false
     langRows := CloneLangs(LANGS)
 
-    tab := sg.Add("Tab3", "x10 y10 w620 h420", [Loc("set.tab.api", "API"), Loc("set.tab.langs", "Языки ответа"), Loc("set.tab.ui", "Интерфейс")])
+    tab := sg.Add("Tab3", "x10 y10 w620 h448", [Loc("set.tab.api", "API"), Loc("set.tab.langs", "Языки ответа"), Loc("set.tab.ui", "Интерфейс")])
     tab.UseTab(1)
     api := SettingsApiTab(sg)
     tab.UseTab(2)
@@ -25,10 +25,10 @@ ShowSettings(*) {
     tab.UseTab(3)
     ui := SettingsUiTab(sg)
     tab.UseTab()
-    bSave := sg.Add("Button", "x10 y440 w160 Default", Loc("btn.save", "Сохранить"))
+    bSave := sg.Add("Button", "x10 y468 w160 Default", Loc("btn.save", "Сохранить"))
     sg.Add("Button", "x+8 w120", Loc("btn.cancel", "Отмена")).OnEvent("Click", (*) => sg.Destroy())
 
-    eUrl := api.eUrl, eKey := api.eKey, eModel := api.eModel, lvM := api.lvM
+    eUrl := api.eUrl, eKey := api.eKey, eProxy := api.eProxy, eModel := api.eModel, lvM := api.lvM
     lvL := langTab.lvL
     ddUi := ui.ddUi, uiLangs := ui.uiLangs, eHk := ui.eHk, eHkR := ui.eHkR
     cbMd := ui.cbMd, cbProf := ui.cbProf, eClip := ui.eClip
@@ -173,7 +173,13 @@ ShowSettings(*) {
             return
         }
         SyncChecks()
-        tmp := {base_url: Trim(eUrl.Value), api_key: Trim(eKey.Value), model: Trim(eModel.Value)}
+        tmp := {base_url: Trim(eUrl.Value), api_key: Trim(eKey.Value),
+            proxy: Trim(eProxy.Value), model: Trim(eModel.Value)}
+        try tmp.proxy := NormalizeProxy(tmp.proxy)
+        catch as e {
+            MsgBox(Loc("set.proxy.bad", "Некорректный прокси:") "`n" e.Message, "TextTools", "Iconx 262144")
+            return
+        }
         gBusy := true
         BusyShow("⏳ " Loc("set.loading_models", "запрашиваю список моделей…"))
         ids := "", err := ""
@@ -292,6 +298,11 @@ ShowSettings(*) {
             all.Push(m.id)
         cfg.base_url := Trim(eUrl.Value)
         cfg.api_key := Trim(eKey.Value)
+        try cfg.proxy := NormalizeProxy(Trim(eProxy.Value))
+        catch as e {
+            MsgBox(Loc("set.proxy.bad", "Некорректный прокси:") "`n" e.Message, "TextTools", "Iconx 262144")
+            return
+        }
         cfg.model := Trim(eModel.Value)
         cfg.models := JoinList(picked)
         cfg.models_known := JoinList(all)
@@ -325,7 +336,8 @@ ShowSettings(*) {
             Flash(Loc("msg.busy", "Запрос уже выполняется"))
             return
         }
-        tmp := {base_url: Trim(eUrl.Value), api_key: Trim(eKey.Value), model: Trim(eModel.Value)}
+        tmp := {base_url: Trim(eUrl.Value), api_key: Trim(eKey.Value),
+            proxy: Trim(eProxy.Value), model: Trim(eModel.Value)}
         gCallLabel := "тест API"
         gBusy := true
         BusyShow("⏳ " Loc("set.testing", "проверяю подключение…"))
