@@ -68,8 +68,8 @@ CleanupTextToolsTemp() {
 ResolveProxy(opts) {
     if (IsObject(opts) && opts.HasProp("proxy"))
         return opts.proxy
-    if (IsSet(cfg) && IsObject(cfg) && cfg.HasProp("proxy"))
-        return cfg.proxy
+    if (IsSet(cfg) && IsObject(cfg))
+        return EffectiveProxy(cfg)
     return ""
 }
 

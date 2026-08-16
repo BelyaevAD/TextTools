@@ -32,7 +32,7 @@ HTTP goes through system `curl.exe` — more stable than COM/WinHTTP inside the 
 - Repeat last action (`Ctrl+Shift+Space` by default)
 - Button/prompt editor and “where this text came from” profiles
 - Any OpenAI-compatible endpoint (OpenRouter, OpenAI, Anthropic proxies, local Ollama…)
-- Optional HTTP/HTTPS/SOCKS proxy for curl (`http://user:pass@host:port` or `socks5h://…`)
+- Optional HTTP/HTTPS/SOCKS proxy (checkbox on the API tab; `http://user:pass@host:port` or `socks5h://…`)
 - Default model plus per-action override
 - Token usage and cost estimate (OpenRouter catalog)
 - UI language via `lang/*.ini` packs

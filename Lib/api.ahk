@@ -27,9 +27,8 @@ CallApiMsgs(c, msgs) {
         BusyUpdate(Loc("api.sent", "📡 запрос отправлен, ждём ответ модели…"))
         BusyDetail(Format(Loc("api.sent.detail", "отправлено {1} симв. ≈ {2} ток."),
             NumFmt(chars), NumFmt(EstTokens(BodyText(msgs)))))
-        hopts := {timeout: 90, api_key: c.api_key, json: true, bodyFile: reqF, retries: 1}
-        if (c.HasProp("proxy"))
-            hopts.proxy := c.proxy
+        hopts := {timeout: 90, api_key: c.api_key, json: true, bodyFile: reqF, retries: 1,
+            proxy: EffectiveProxy(c)}
         res := HttpCurl(RTrim(c.base_url, "/") "/chat/completions", hopts)
     } finally {
         try FileDelete(reqF)
@@ -59,9 +58,7 @@ CallApiMsgs(c, msgs) {
 }
 
 FetchModelIds(c) {
-    hopts := {timeout: 30, api_key: c.api_key, retries: 1}
-    if (c.HasProp("proxy"))
-        hopts.proxy := c.proxy
+    hopts := {timeout: 30, api_key: c.api_key, retries: 1, proxy: EffectiveProxy(c)}
     res := HttpCurl(RTrim(c.base_url, "/") "/models", hopts)
     if (res.curl != 0)
         throw Error(Format(Loc("api.curl", "curl завершился с кодом {1} (сеть, таймаут или недоступный адрес)"), res.curl))

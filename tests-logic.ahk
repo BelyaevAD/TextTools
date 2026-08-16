@@ -158,6 +158,9 @@ Check(CurlProxyCfg("https://openrouter.ai/api/v1/models", "") = "", "CurlProxyCf
 Check(CurlProxyCfg("http://127.0.0.1:11434/v1/chat/completions", "http://user:pass@host:3000") = "", "localhost не идёт через прокси")
 pxBlock := CurlProxyCfg("https://openrouter.ai/api/v1/models", "user:pass@host:3000")
 Check(InStr(pxBlock, "proxy = ") && InStr(pxBlock, "http://user:pass@host:3000") && InStr(pxBlock, "noproxy"), "CurlProxyCfg пишет proxy и noproxy")
+Check(EffectiveProxy({proxy: "http://h:1", proxy_on: "0"}) = "", "EffectiveProxy выключен галочкой")
+Check(EffectiveProxy({proxy: "http://h:1", proxy_on: "1"}) = "http://h:1", "EffectiveProxy включён")
+Check(EffectiveProxy({proxy: "http://h:1"}) = "http://h:1", "EffectiveProxy без proxy_on — URL действует")
 
 Say(fails = 0 ? "`nВСЕ ПРОВЕРКИ ПРОШЛИ" : "`nПРОВАЛОВ: " fails)
 ExitApp(fails = 0 ? 0 : 1)

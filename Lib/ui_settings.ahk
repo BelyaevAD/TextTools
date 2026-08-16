@@ -17,7 +17,7 @@ ShowSettings(*) {
     sortCol := 0, sortDesc := false
     langRows := CloneLangs(LANGS)
 
-    tab := sg.Add("Tab3", "x10 y10 w620 h448", [Loc("set.tab.api", "API"), Loc("set.tab.langs", "Языки ответа"), Loc("set.tab.ui", "Интерфейс")])
+    tab := sg.Add("Tab3", "x10 y10 w620 h470", [Loc("set.tab.api", "API"), Loc("set.tab.langs", "Языки ответа"), Loc("set.tab.ui", "Интерфейс")])
     tab.UseTab(1)
     api := SettingsApiTab(sg)
     tab.UseTab(2)
@@ -25,16 +25,17 @@ ShowSettings(*) {
     tab.UseTab(3)
     ui := SettingsUiTab(sg)
     tab.UseTab()
-    bSave := sg.Add("Button", "x10 y468 w160 Default", Loc("btn.save", "Сохранить"))
+    bSave := sg.Add("Button", "x10 y490 w160 Default", Loc("btn.save", "Сохранить"))
     sg.Add("Button", "x+8 w120", Loc("btn.cancel", "Отмена")).OnEvent("Click", (*) => sg.Destroy())
 
-    eUrl := api.eUrl, eKey := api.eKey, eProxy := api.eProxy, eModel := api.eModel, lvM := api.lvM
+    eUrl := api.eUrl, eKey := api.eKey, cbProxy := api.cbProxy, eProxy := api.eProxy, eModel := api.eModel, lvM := api.lvM
     lvL := langTab.lvL
     ddUi := ui.ddUi, uiLangs := ui.uiLangs, eHk := ui.eHk, eHkR := ui.eHkR
     cbMd := ui.cbMd, cbProf := ui.cbProf, eClip := ui.eClip
 
     FillModels()
     FillLangs()
+    cbProxy.OnEvent("Click", (*) => (eProxy.Enabled := !!cbProxy.Value))
     bSave.OnEvent("Click", DoSave)
     api.bTest.OnEvent("Click", DoTest)
     api.bLoad.OnEvent("Click", DoLoadModels)
@@ -174,9 +175,12 @@ ShowSettings(*) {
         }
         SyncChecks()
         tmp := {base_url: Trim(eUrl.Value), api_key: Trim(eKey.Value),
-            proxy: Trim(eProxy.Value), model: Trim(eModel.Value)}
-        try tmp.proxy := NormalizeProxy(tmp.proxy)
-        catch as e {
+            proxy: Trim(eProxy.Value), proxy_on: cbProxy.Value ? "1" : "0",
+            model: Trim(eModel.Value)}
+        try {
+            if (tmp.proxy_on = "1")
+                tmp.proxy := NormalizeProxy(tmp.proxy)
+        } catch as e {
             MsgBox(Loc("set.proxy.bad", "Некорректный прокси:") "`n" e.Message, "TextTools", "Iconx 262144")
             return
         }
@@ -298,7 +302,10 @@ ShowSettings(*) {
             all.Push(m.id)
         cfg.base_url := Trim(eUrl.Value)
         cfg.api_key := Trim(eKey.Value)
-        try cfg.proxy := NormalizeProxy(Trim(eProxy.Value))
+        cfg.proxy_on := cbProxy.Value ? "1" : "0"
+        try cfg.proxy := (cfg.proxy_on = "1")
+            ? NormalizeProxy(Trim(eProxy.Value))
+            : Trim(eProxy.Value)
         catch as e {
             MsgBox(Loc("set.proxy.bad", "Некорректный прокси:") "`n" e.Message, "TextTools", "Iconx 262144")
             return
@@ -337,7 +344,15 @@ ShowSettings(*) {
             return
         }
         tmp := {base_url: Trim(eUrl.Value), api_key: Trim(eKey.Value),
-            proxy: Trim(eProxy.Value), model: Trim(eModel.Value)}
+            proxy: Trim(eProxy.Value), proxy_on: cbProxy.Value ? "1" : "0",
+            model: Trim(eModel.Value)}
+        try {
+            if (tmp.proxy_on = "1")
+                tmp.proxy := NormalizeProxy(tmp.proxy)
+        } catch as e {
+            MsgBox(Loc("set.proxy.bad", "Некорректный прокси:") "`n" e.Message, "TextTools", "Iconx 262144")
+            return
+        }
         gCallLabel := "тест API"
         gBusy := true
         BusyShow("⏳ " Loc("set.testing", "проверяю подключение…"))

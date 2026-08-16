@@ -4,10 +4,11 @@
 [api]
 base_url=https://openrouter.ai/api/v1
 api_key=
-; Optional HTTP/HTTPS/SOCKS proxy for curl (leave empty for direct):
+; Optional HTTP/HTTPS/SOCKS proxy (checkbox in Settings → proxy_on=1):
 ; proxy=http://user:pass@127.0.0.1:7890
 ; proxy=socks5h://127.0.0.1:1080
 proxy=
+proxy_on=0
 model=anthropic/claude-haiku-4.5
 models=
 models_known=

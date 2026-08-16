@@ -6,6 +6,7 @@ CfgDefaults() {
         base_url: "https://openrouter.ai/api/v1",
         api_key: "",
         proxy: "",
+        proxy_on: "0",
         model: "anthropic/claude-haiku-4.5",
         models: "",
         models_known: "",
@@ -20,10 +21,14 @@ CfgDefaults() {
 
 LoadCfg() {
     d := CfgDefaults()
+    proxy := IniRead(INI, "api", "proxy", d.proxy)
+    rawOn := IniRead(INI, "api", "proxy_on", "")
+    proxy_on := (rawOn != "") ? rawOn : (Trim(proxy) != "" ? "1" : "0")
     return {
         base_url: IniRead(INI, "api", "base_url", d.base_url),
         api_key:  IniRead(INI, "api", "api_key", d.api_key),
-        proxy:    IniRead(INI, "api", "proxy", d.proxy),
+        proxy:    proxy,
+        proxy_on: proxy_on,
         model:    IniRead(INI, "api", "model", d.model),
         models:   IniRead(INI, "api", "models", d.models),
         models_known: IniRead(INI, "api", "models_known", d.models_known),
@@ -57,6 +62,7 @@ SaveCfg(c) {
     IniWrite(c.base_url, INI, "api", "base_url")
     IniWrite(c.api_key,  INI, "api", "api_key")
     IniWrite(c.HasProp("proxy") ? c.proxy : "", INI, "api", "proxy")
+    IniWrite(c.HasProp("proxy_on") ? c.proxy_on : "0", INI, "api", "proxy_on")
     IniWrite(c.model,    INI, "api", "model")
     IniWrite(c.models,   INI, "api", "models")
     IniWrite(c.models_known, INI, "api", "models_known")
@@ -87,7 +93,17 @@ ActionCfg(a) {
     m := (IsObject(a) && a.HasProp("model") && a.model != "") ? a.model : cfg.model
     if (m = cfg.model)
         return cfg
-    return {base_url: cfg.base_url, api_key: cfg.api_key, proxy: CfgFlag(cfg, "proxy", ""), model: m}
+    return {base_url: cfg.base_url, api_key: cfg.api_key,
+        proxy: CfgFlag(cfg, "proxy", ""), proxy_on: CfgFlag(cfg, "proxy_on", "0"), model: m}
+}
+
+; Пусто, если галочка снята. Нет поля proxy_on — URL используется как раньше (тесты, старые объекты).
+EffectiveProxy(c) {
+    if !IsObject(c)
+        return ""
+    if (c.HasProp("proxy_on") && c.proxy_on != "1")
+        return ""
+    return c.HasProp("proxy") ? Trim(c.proxy) : ""
 }
 
 CfgFlag(c, name, fallback := "0") {

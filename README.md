@@ -32,7 +32,7 @@ HTTP к API идёт через системный `curl.exe` — так ста�
 - Повтор последнего действия (`Ctrl+Shift+Space` по умолчанию)
 - Редактор кнопок и промптов, профили «откуда текст»
 - Любой OpenAI-совместимый endpoint (OpenRouter, OpenAI, прокси Anthropic, локальный Ollama…)
-- Опциональный HTTP/HTTPS/SOCKS-прокси для curl (`http://user:pass@host:port` или `socks5h://…`)
+- Опциональный HTTP/HTTPS/SOCKS-прокси (галочка на вкладке API; `http://user:pass@host:port` или `socks5h://…`)
 - Модель по умолчанию и отдельно на действие
 - Учёт токенов и оценка стоимости (каталог OpenRouter)
 - Язык интерфейса через `lang/*.ini`

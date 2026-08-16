@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.2.2 — 2026-08-16
+
+Proxy field is gated by a checkbox; API/UI hint text no longer overlaps neighbouring labels.
+
 ## v0.2.1 — 2026-08-16
 
 Optional HTTP/HTTPS/SOCKS proxy for API calls via curl (`api.proxy` in Settings). Localhost (Ollama) stays direct.

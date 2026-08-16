@@ -124,7 +124,8 @@ ShowResult(title, text, convo := 0, model := "") {
         convo.Push({role: "user", content: q})
         r := "", err := ""
         rc := (model != "" && model != cfg.model)
-            ? {base_url: cfg.base_url, api_key: cfg.api_key, proxy: CfgFlag(cfg, "proxy", ""), model: model} : cfg
+            ? {base_url: cfg.base_url, api_key: cfg.api_key, proxy: CfgFlag(cfg, "proxy", ""),
+                proxy_on: CfgFlag(cfg, "proxy_on", "0"), model: model} : cfg
         gBusy := true
         try r := CallApiMsgs(rc, TrimConvo(convo))
         catch as e

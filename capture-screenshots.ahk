@@ -39,6 +39,7 @@ cfg := {
     base_url: "https://openrouter.ai/api/v1",
     api_key: "sk-or-v1-demo-key-not-real",
     proxy: "http://user:pass@host:port",
+    proxy_on: "1",
     model: "anthropic/claude-haiku-4.5",
     models: "anthropic/claude-haiku-4.5, openai/gpt-4.1-mini, google/gemini-2.5-flash",
     models_known: "anthropic/claude-haiku-4.5, openai/gpt-4.1-mini, google/gemini-2.5-flash, openai/gpt-4.1",
