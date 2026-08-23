@@ -33,7 +33,7 @@ To retarget factory action models after changing provider: Settings → API → 
 - Click a button or press its accelerator (`1`–`9`, `0`, `Q`…`Y`)
 - Type a free-form instruction in the field (modifies any button, or runs alone)
 - **Shift** + action → show the result window instead of pasting (handy when the selection isn’t editable)
-- Tray → **Action editor** → buttons, prompts, apps, refine chips
+- Tray → **Action editor** → buttons, prompts, apps, refine chips. If you pick a key another action already uses, choose **Cancel**, **Swap** (exchange keys) or **Take** (this action gets it, the other is left without a key).
 
 ## Providers
 

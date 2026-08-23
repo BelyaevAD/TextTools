@@ -60,6 +60,7 @@ gHotkeyCurrent := "", gHotkeyRepeatCurrent := "", gUiStrings := Map()
 gStartTick := A_TickCount
 gClipWarned := false
 gPriceIndex := ""
+gTakenKeyHwnd := 0
 
 LANGS := LoadLangs()
 sets := LoadActionSets()
@@ -146,10 +147,26 @@ for hwnd in WinGetList("ahk_class AutoHotkeyGUI") {
 if !dlgHwnd
     throw Error("action dialog not found")
 Shot(dlgHwnd, "05-prompt-editor")
+
+ownerGui := ""
+try ownerGui := GuiFromHwnd(dlgHwnd)
+if !IsObject(ownerGui)
+    ownerGui := gEditorGui
+SetTimer(CapConflict, -700)
+try AskTakenKey(ownerGui, "1", ActionName(ACTIONS[1]), "6")
+Sleep 200
 try WinClose("ahk_id " dlgHwnd)
 Sleep 200
 try gEditorGui.Destroy()
 gEditorGui := ""
+
+CapConflict() {
+    global gTakenKeyHwnd
+    if !gTakenKeyHwnd
+        throw Error("key-conflict dialog not found")
+    Shot(gTakenKeyHwnd, "07-key-conflict")
+    try WinClose("ahk_id " gTakenKeyHwnd)
+}
 
 ShowResult(resTitle, sampleMd, [{role: "user", content: "summarize"}, {role: "assistant", content: sampleMd}], cfg.model)
 Sleep 600

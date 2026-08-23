@@ -31,7 +31,7 @@ cfg := {base_url: "https://api.openai.com/v1", api_key: "", model: "gpt-4.1-mini
 gEditorGui := "", gMenuEdit := "", gMenuFirstBtn := "", gMenuGui := "", gBusy := false
 gBusyGui := "", gBusyText := "", gBusyInfo := "", gBusyDetail := "", gBusyStart := 0
 gHistory := [], gPrevWin := 0, gForeWin := 0, gSel := "", gLastUsage := "", gCallLabel := "", gUiStrings := Map()
-gClipWarned := false, gPriceIndex := "", gStartTick := A_TickCount, gSettingsGui := ""
+gClipWarned := false, gPriceIndex := "", gStartTick := A_TickCount, gSettingsGui := "", gTakenKeyHwnd := 0
 gLastAction := "", gLastInstr := "", gRestoreTimer := "", gHotkeyCurrent := "", gHotkeyRepeatCurrent := ""
 try FileDelete(LANGS_INI)
 LANGS := LoadLangs()

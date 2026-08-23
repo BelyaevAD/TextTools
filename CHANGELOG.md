@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.2.3 — 2026-08-23
+
+If a menu key is already taken, the action card offers **Cancel / Swap / Take** instead of a dead-end warning. Swap exchanges the two accelerators; Take assigns the key here and leaves the other action without one.
+
 ## v0.2.2 — 2026-08-16
 
 Proxy field is gated by a checkbox; API/UI hint text no longer overlaps neighbouring labels.

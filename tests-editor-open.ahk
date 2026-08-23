@@ -32,7 +32,7 @@ gBusyGui := "", gBusyText := "", gBusyInfo := "", gBusyDetail := "", gBusyStart 
 gHistory := [], gPrevWin := 0, gForeWin := 0, gSel := "", gSettingsGui := ""
 gLastUsage := "", gCallLabel := "", gLastAction := "", gLastInstr := "", gRestoreTimer := ""
 gHotkeyCurrent := "", gHotkeyRepeatCurrent := "", gUiStrings := Map()
-gClipWarned := false, gPriceIndex := "", gStartTick := A_TickCount
+gClipWarned := false, gPriceIndex := "", gStartTick := A_TickCount, gTakenKeyHwnd := 0
 try FileDelete(LANGS_INI)
 LANGS := LoadLangs()
 sets := LoadActionSets()

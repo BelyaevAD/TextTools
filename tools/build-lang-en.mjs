@@ -190,7 +190,7 @@ const en = {
   'ed.col.prompt_fix': 'Prompt hint',
   'ed.app_order': 'Order does not matter:',
   'ed.app_order.hint': 'entries with a title are checked first, so Jira wins over generic Chrome',
-  'ed.hint': 'The key is chosen in the action card from {1} possible keys and can be cleared; list order only sets the grid layout. Prompts are written in English so the model follows the instruction more closely.',
+  'ed.hint': 'The key is chosen in the action card from {1} possible keys; a taken key can be swapped or taken. List order only sets the grid layout. Prompts are written in English so the model follows the instruction more closely.',
   'ed.reset': 'Reset to factory',
   'ed.result.window': 'in a window',
   'ed.result.replace': 'replace selection',
@@ -220,7 +220,12 @@ const en = {
   'ed.field.prompt': 'Prompt (what the model should do; written in English):',
   'ed.name_empty': 'Name cannot be empty.',
   'ed.prompt_empty': 'Prompt cannot be empty: without it the action does nothing.',
-  'ed.key_taken': 'Key {1} is already used by “{2}”.\nPick another key or clear it there.',
+  'ed.key_taken': 'Key {1} is already used by “{2}”.',
+  'ed.key_taken.body': 'This action will get {1}.',
+  'ed.key_taken.swap_to': 'Swap: “{1}” will get {2}.',
+  'ed.key_taken.take_to': 'Take: “{1}” will be left without a key.',
+  'ed.key_conflict.swap': 'Swap',
+  'ed.key_conflict.take': 'Take',
   'ed.app.new': 'New application',
   'ed.app.edit': 'Application: ',
   'ed.app.proc': 'Process (exe):',
@@ -267,9 +272,12 @@ const lines = [
   '[ui]',
 ];
 const missing = [];
+function iniValue(s) {
+  return String(s).replace(/\r\n/g, '\n').replace(/\n/g, '\\n');
+}
 for (const k of [...keys.keys()].sort()) {
   if (en[k] === undefined) { missing.push(k); continue; }
-  lines.push(k + ' = ' + en[k]);
+  lines.push(k + ' = ' + iniValue(en[k]));
 }
 fs.mkdirSync(path.join(root, 'lang'), { recursive: true });
 fs.writeFileSync(path.join(root, 'lang', 'en.ini'), lines.join('\r\n') + '\r\n', 'utf8');

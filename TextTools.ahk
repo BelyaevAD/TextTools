@@ -48,6 +48,7 @@ ACTIONS := sets.actions
 QUICK_REFINE := sets.quick
 APPS := LoadApps()
 gEditorGui := ""
+gTakenKeyHwnd := 0
 gSel := ""
 gPrevWin := 0
 gForeWin := 0

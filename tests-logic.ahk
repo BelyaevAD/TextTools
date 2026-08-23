@@ -23,6 +23,7 @@ gLastUsage := "", gCallLabel := "", gLastAction := "", gLastInstr := "", gRestor
 gHotkeyCurrent := "", gHotkeyRepeatCurrent := "", gEditorGui := "", gMenuEdit := "", gMenuFirstBtn := "", gMenuGui := ""
 gClipWarned := false
 gPriceIndex := ""
+gTakenKeyHwnd := 0
 try FileDelete(HISTF)
 try FileDelete(ACTIONS_INI)
 try FileDelete(APPS_INI)
@@ -161,6 +162,30 @@ Check(InStr(pxBlock, "proxy = ") && InStr(pxBlock, "http://user:pass@host:3000")
 Check(EffectiveProxy({proxy: "http://h:1", proxy_on: "0"}) = "", "EffectiveProxy выключен галочкой")
 Check(EffectiveProxy({proxy: "http://h:1", proxy_on: "1"}) = "http://h:1", "EffectiveProxy включён")
 Check(EffectiveProxy({proxy: "http://h:1"}) = "http://h:1", "EffectiveProxy без proxy_on — URL действует")
+
+ks := CloneActions(DEFAULT_ACTIONS)
+proofIdx := 0, promptIdx := 0
+for i, x in ks {
+    if (x.id = "proofread")
+        proofIdx := i
+    if (x.id = "prompt")
+        promptIdx := i
+}
+Check(proofIdx && promptIdx && ks[proofIdx].key = "1" && ks[promptIdx].key = "6",
+    "заводские клавиши: Вычитать=1, Промпт=6")
+Check(FindMenuKeyOwner(ks, "1", promptIdx) = proofIdx, "FindMenuKeyOwner: 1 держит Вычитать")
+Check(FindMenuKeyOwner(ks, "1", proofIdx) = 0, "FindMenuKeyOwner: exceptRow не считает себя")
+Check(FindMenuKeyOwner(ks, "", 0) = 0, "FindMenuKeyOwner: пустая клавиша ничья")
+oldPromptKey := ks[promptIdx].key
+Check(YieldMenuKey(ks, proofIdx, oldPromptKey, "swap"), "YieldMenuKey swap")
+Check(ks[proofIdx].key = oldPromptKey, "swap: Вычитать получает прежнюю клавишу Промпта")
+ks[promptIdx].key := "1"
+Check(FindMenuKeyOwner(ks, "1", promptIdx) = 0, "после swap клавиша 1 свободна для Промпта")
+ks2 := CloneActions(DEFAULT_ACTIONS)
+Check(YieldMenuKey(ks2, proofIdx, ks2[promptIdx].key, "take"), "YieldMenuKey take")
+Check(ks2[proofIdx].key = "", "take: Вычитать остаётся без клавиши")
+Check(!YieldMenuKey(ks2, 0, "1", "take"), "YieldMenuKey: несуществующий ряд")
+Check(!YieldMenuKey(ks2, proofIdx, "1", "nope"), "YieldMenuKey: неизвестный mode")
 
 Say(fails = 0 ? "`nВСЕ ПРОВЕРКИ ПРОШЛИ" : "`nПРОВАЛОВ: " fails)
 ExitApp(fails = 0 ? 0 : 1)

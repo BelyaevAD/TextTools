@@ -24,13 +24,17 @@ A small AutoHotkey v2 script. Select text in any Windows window, hit a hotkey, a
 |---|---|
 | ![UI settings](docs/assets/screenshots/en/03-settings-ui.png) | ![Result window](docs/assets/screenshots/en/06-result-window.png) |
 
+| Key already used |
+|---|
+| ![Taken key](docs/assets/screenshots/en/07-key-conflict.png) |
+
 HTTP goes through system `curl.exe` — more stable than COM/WinHTTP inside the AHK process for this.
 
 ## What it does
 
 - Action grid with key accelerators and a free-form instruction field
 - Repeat last action (`Ctrl+Shift+Space` by default)
-- Button/prompt editor and “where this text came from” profiles
+- Button/prompt editor and “where this text came from” profiles; a taken action key can be **swapped** or **taken**
 - Any OpenAI-compatible endpoint (OpenRouter, OpenAI, Anthropic proxies, local Ollama…)
 - Optional HTTP/HTTPS/SOCKS proxy (checkbox on the API tab; `http://user:pass@host:port` or `socks5h://…`)
 - Default model plus per-action override

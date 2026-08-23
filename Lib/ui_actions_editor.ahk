@@ -69,7 +69,7 @@ ShowActionsEditor(*) {
 
     tab.UseTab()
     g.SetFont("s9 c707070")
-    hintText := Loc("ed.hint", "Клавиша выбирается в карточке действия из {1} возможных и может быть снята; порядок в списке задаёт только раскладку сетки. Промпт пишется на английском: так модель точнее следует инструкции.")
+    hintText := Loc("ed.hint", "Клавиша выбирается в карточке из {1} возможных; занятую можно обменять или забрать. Порядок в списке задаёт только раскладку сетки. Промпт пишется на английском: так модель точнее следует инструкции.")
     hint := g.Add("Text", "x10 y440 w760", StrReplace(hintText, "{1}", MENU_KEYS.Length))
     g.SetFont("s10")
     bSave := g.Add("Button", "x10 y470 w150 Default", Loc("btn.save", "Сохранить"))
@@ -364,25 +364,26 @@ EditActionDialog(parent, a, allActs, selfRow, onSave) {
             return
         }
         key := ddKey.Value > 1 ? MENU_KEYS[ddKey.Value - 1] : ""
-        if (key != "") {
-            for i, other in allActs {
-                if (i != selfRow && other.HasProp("key") && other.key = key) {
-                    MsgBox(Format(Loc("ed.key_taken", "Клавиша {1} уже занята действием «{2}».`nВыбери другую или сними клавишу у него."), StrUpper(key), other.name), "TextTools", "Icon! 262144")
-                    return
-                }
-            }
+        occupant := FindMenuKeyOwner(allActs, key, selfRow)
+        if (occupant) {
+            oldKey := a.HasProp("key") ? a.key : ""
+            choice := AskTakenKey(d, key, ActionName(allActs[occupant]), oldKey)
+            if (choice = "cancel")
+                return
+            YieldMenuKey(allActs, occupant, oldKey, choice)
         }
-        onSave({
-            name: name,
-            icon: Trim(eIcon.Value),
-            prefix: StrReplace(ePrefix.Value, "\n", "`n"),
-            task: task,
-            lang: (ddLang.Value > 1 && ddLang.Value <= langCodes.Length)
-                ? langCodes[ddLang.Value] : "auto",
-            ru: cbRu.Value ? true : false,
-            win: rbWindow.Value ? true : false,
-            key: key,
-            model: ddModel.Value > 1 ? modelList[ddModel.Value - 1] : ""})
+        saved := CloneActions([a])[1]
+        saved.name := name
+        saved.icon := Trim(eIcon.Value)
+        saved.prefix := StrReplace(ePrefix.Value, "\n", "`n")
+        saved.task := task
+        saved.lang := (ddLang.Value > 1 && ddLang.Value <= langCodes.Length)
+            ? langCodes[ddLang.Value] : "auto"
+        saved.ru := cbRu.Value ? true : false
+        saved.win := rbWindow.Value ? true : false
+        saved.key := key
+        saved.model := ddModel.Value > 1 ? modelList[ddModel.Value - 1] : ""
+        onSave(saved)
         Close()
     }
 
@@ -390,6 +391,60 @@ EditActionDialog(parent, a, allActs, selfRow, onSave) {
         parent.Opt("-Disabled")
         d.Destroy()
         try parent.Show()          ; вернуть фокус родителю
+    }
+}
+
+; Конфликт клавиши: native MsgBox даёт только Да/Нет/Отмена без своих подписей.
+; Возвращает "cancel" | "swap" | "take". Swap без своей клавиши недоступен.
+AskTakenKey(owner, key, otherName, oldKey) {
+    global gTakenKeyHwnd
+    choice := "cancel"
+    closed := false
+    g := Gui("+Owner" owner.Hwnd " -MinimizeBox -MaximizeBox", "TextTools")
+    hwnd := g.Hwnd
+    gTakenKeyHwnd := hwnd
+    g.SetFont("s10", "Segoe UI")
+    owner.Opt("+Disabled")
+
+    g.SetFont("s18")
+    g.Add("Text", "x16 y14 w36 h36", "⚠")
+    g.SetFont("s10", "Segoe UI")
+    shown := StrUpper(key)
+    body := Format(Loc("ed.key_taken", "Клавиша {1} уже у «{2}»."), shown, otherName)
+    body .= "`n" Format(Loc("ed.key_taken.body", "Это действие получит {1}."), shown)
+    if (oldKey != "") {
+        body .= "`n`n" Format(Loc("ed.key_taken.swap_to", "Обменять: «{1}» получит {2}."), otherName, StrUpper(oldKey))
+        body .= "`n" Format(Loc("ed.key_taken.take_to", "Забрать: «{1}» останется без клавиши."), otherName)
+    } else {
+        body .= "`n`n" Format(Loc("ed.key_taken.take_to", "Забрать: «{1}» останется без клавиши."), otherName)
+    }
+    g.Add("Text", "x56 y16 w360 h110", body)
+
+    canSwap := oldKey != ""
+    g.Add("Button", "x16 y140 w100", Loc("btn.cancel", "Отмена")).OnEvent("Click", (*) => Finish("cancel"))
+    bSwap := g.Add("Button", "x+8 w110" (canSwap ? " Default" : ""), Loc("ed.key_conflict.swap", "Обменять"))
+    bTake := g.Add("Button", "x+8 w110" (canSwap ? "" : " Default"), Loc("ed.key_conflict.take", "Забрать"))
+    if !canSwap
+        bSwap.Enabled := false
+    bSwap.OnEvent("Click", (*) => Finish("swap"))
+    bTake.OnEvent("Click", (*) => Finish("take"))
+    g.OnEvent("Escape", (*) => Finish("cancel"))
+    g.OnEvent("Close", (*) => Finish("cancel"))
+    g.Show()
+    WinWaitClose("ahk_id " hwnd)
+    gTakenKeyHwnd := 0
+    try owner.Opt("-Disabled")
+    try owner.Show()
+    return choice
+
+    Finish(c) {
+        if closed
+            return
+        closed := true
+        if (c = "swap" && oldKey = "")
+            c := "cancel"
+        choice := c
+        try g.Destroy()
     }
 }
 

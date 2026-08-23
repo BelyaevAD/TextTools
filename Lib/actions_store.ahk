@@ -52,6 +52,30 @@ FreeMenuKey(list) {
     return ""
 }
 
+; Кто держит клавишу пула. exceptRow (1-based) не считается: это текущая карточка.
+FindMenuKeyOwner(list, key, exceptRow := 0) {
+    if (key = "")
+        return 0
+    for i, a in list
+        if (i != exceptRow && a.HasProp("key") && a.key = key)
+            return i
+    return 0
+}
+
+; Уступание занятой клавиши: swap отдаёт владельцу incomingOldKey, take снимает.
+; Текущую карточку не трогает - её ключ записывает вызывающий при сохранении.
+YieldMenuKey(list, occupantRow, incomingOldKey, mode) {
+    if (occupantRow < 1 || occupantRow > list.Length)
+        return false
+    if (mode = "swap")
+        list[occupantRow].key := incomingOldKey
+    else if (mode = "take")
+        list[occupantRow].key := ""
+    else
+        return false
+    return true
+}
+
 CloneQuick(list) {
     out := []
     for q in list
