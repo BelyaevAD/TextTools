@@ -16,7 +16,7 @@ function walk(dir, rel) {
   for (const f of readdirSync(dir)) {
     if (f.endsWith('.ahk') && !skipFile.test(f)) {
       const path = join(dir, f);
-      const lines = readFileSync(path, 'utf8').split('\n');
+      const lines = readFileSync(path, 'utf8').split(/\r?\n/);
       lines.forEach((line, i) => {
         const code = line.replace(/;.*$/, '');
         if (!cyr.test(code)) return;

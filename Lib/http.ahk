@@ -98,7 +98,7 @@ HttpCurl(url, opts := "") {
     if (opts.HasProp("json") && opts.json)
         curlCfg .= 'header = "Content-Type: application/json; charset=utf-8"`n'
     if (opts.HasProp("api_key") && opts.api_key != "")
-        curlCfg .= 'header = "Authorization: Bearer ' opts.api_key '"`n'
+        curlCfg .= 'header = "Authorization: Bearer ' CurlQuote(opts.api_key) '"`n'
     if (opts.HasProp("bodyFile") && opts.bodyFile != "")
         curlCfg .= 'data-binary = "@' StrReplace(opts.bodyFile, "\", "\\") '"`n'
     f := FileOpen(curlF, "w", "UTF-8-RAW")

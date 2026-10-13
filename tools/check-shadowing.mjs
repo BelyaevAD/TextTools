@@ -26,7 +26,7 @@ for (const dir of ['Lib', '.']) {
 // имена функций верхнего уровня: строка начинается с имени и открывающей скобки
 const funcs = new Map();                       // нижний регистр -> как объявлено
 for (const f of files) {
-  for (const line of readFileSync(f.path, 'utf8').split('\n')) {
+  for (const line of readFileSync(f.path, 'utf8').split(/\r?\n/)) {
     const m = /^([A-Za-z_][A-Za-z0-9_]*)\s*\(/.exec(line);
     if (m) funcs.set(m[1].toLowerCase(), m[1]);
   }
@@ -34,7 +34,7 @@ for (const f of files) {
 
 const hits = [];
 for (const f of files) {
-  const lines = readFileSync(f.path, 'utf8').split('\n');
+  const lines = readFileSync(f.path, 'utf8').split(/\r?\n/);
   lines.forEach((line, i) => {
     const code = line.replace(/;.*$/, '');
     // присваивание переменной и переменная цикла for
@@ -109,10 +109,52 @@ const builtins = new Set(('abs asc atan blockinput break caretgetpos ceil chr cl
   + 'valueerror typeerror memberror methoderror propertyerror indexerror keyerror oserror targeterror '
   + 'timeouterror unseterror zerodivisionerror').split(' ').filter(Boolean));
 
+// Параметр функции тоже вызываем: в AHK он может держать func-объект и
+// вызываться как less(a, b) — см. SortBy(arr, less) в Lib/http.ahk. Область
+// учитываем по телу функции, а не глобально: иначе опечатка, совпавшая с
+// именем чужого параметра, прошла бы незамеченной.
+const paramScopes = new Map();            // rel -> [{from, to, names:Set}]
+for (const f of files) {
+  const lines = readFileSync(f.path, 'utf8').split(/\r?\n/);
+  const scopes = [];
+  let depth = 0, cur = null;
+  lines.forEach((line, i) => {
+    const code = line.replace(/;.*$/, '');
+    if (depth === 0) {
+      const d = /^\s*[A-Za-z_][A-Za-z0-9_]*\s*\(([^()]*)\)\s*\{\s*$/.exec(code);
+      if (d) {
+        const names = new Set();
+        for (const part of d[1].split(',')) {
+          const pm = /^\s*&?\s*([A-Za-z_][A-Za-z0-9_]*)/.exec(part);
+          if (pm) names.add(pm[1].toLowerCase());
+        }
+        cur = { from: i + 1, to: i + 1, names };
+      }
+    }
+    for (const ch of code) {
+      if (ch === '{') depth++;
+      else if (ch === '}') depth--;
+    }
+    if (cur && depth === 0) {
+      cur.to = i + 1;
+      scopes.push(cur);
+      cur = null;
+    }
+  });
+  paramScopes.set(f.rel, scopes);
+}
+
+function isParamAt(rel, lineNo, name) {
+  for (const sc of paramScopes.get(rel) || [])
+    if (lineNo >= sc.from && lineNo <= sc.to && sc.names.has(name))
+      return true;
+  return false;
+}
+
 // имена функций и методов, объявленных где угодно, включая вложенные
 const defined = new Set(funcs.keys());
 for (const f of files) {
-  for (const line of readFileSync(f.path, 'utf8').split('\n')) {
+  for (const line of readFileSync(f.path, 'utf8').split(/\r?\n/)) {
     const m = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*\([^()]*\)\s*\{?\s*$/.exec(line.replace(/;.*$/, ''));
     if (m) defined.add(m[1].toLowerCase());
     const fat = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*\([^()]*\)\s*=>/.exec(line);
@@ -122,7 +164,7 @@ for (const f of files) {
 
 const undef = [];
 for (const f of files) {
-  const lines = readFileSync(f.path, 'utf8').split('\n');
+  const lines = readFileSync(f.path, 'utf8').split(/\r?\n/);
   let inCont = false;                       // секция продолжения "( ... )" - это текст промпта
   lines.forEach((line, i) => {
     if (inCont) {
@@ -138,6 +180,7 @@ for (const f of files) {
     while ((m = re.exec(code))) {
       const name = m[1].toLowerCase();
       if (defined.has(name) || builtins.has(name)) continue;
+      if (isParamAt(f.rel, i + 1, name)) continue;
       // ключевые слова со скобками
       if (['if', 'while', 'for', 'return', 'and', 'or', 'not', 'switch', 'case', 'until', 'catch', 'throw',
            'new', 'loop', 'else', 'try', 'in', 'is', 'contains'].includes(name)) continue;

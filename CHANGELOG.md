@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+Fixes to the quality gate itself — it had been unable to fail.
+
+- **CI gate could not fail.** The `Static checks` step ran two checkers in one PowerShell step, so only the last exit code reached the job. `check-shadowing` had been failing — and printing the failure into the log — since 2026-08-16 while every run stayed green. Each check now verifies `$LASTEXITCODE`; `run-tests.ps1` did not check them at all and now does.
+- **Checkers were blind on CRLF.** `check-shadowing` and `check-cyrillic` now read lines with `split(/?
+/)`. With a CRLF working tree the `/;.*$/` comment strip never matched (`.` does not match `` in JS), so comment text was parsed as code — the source of the false `less()` report.
+- **`check-shadowing` understands callable parameters.** `SortBy(arr, less)` may call `less(a, b)`, and only inside its own body.
+- The API key is escaped with `CurlQuote` before it goes into the curl config, like the URL and the proxy already were.
+- Editor card dialogs are checked for overlapping controls; auto-sized windows grow instead of clipping, so overlap is the failure mode worth asserting. The "dialog opened" checks now verify the window exists instead of asserting `true`.
+
 ## v0.2.3 — 2026-08-23
 
 If a menu key is already taken, the action card offers **Cancel / Swap / Take** instead of a dead-end warning. Swap exchanges the two accelerators; Take assigns the key here and leaves the other action without one.

@@ -1,4 +1,4 @@
-#Requires AutoHotkey v2.0
+﻿#Requires AutoHotkey v2.0
 #SingleInstance Off
 ; Регрессионная проверка: редактор действительно открывается и все три вкладки
 ; заполнены. Именно этого не хватило, когда локальная apps затенила глобальный APPS.
@@ -72,10 +72,33 @@ if !(IsObject(gEditorGui)) {
     }
     Check(over = 0, over = 0 ? "контролы не выходят за край (окно " w "x" h ")" : "за краем: " over)
 
+    ; Карточки авторазмерные: разросшееся поле не вылезает за край окна, оно
+    ; наезжает на соседний контрол (так однажды уехала подпись под API key).
+    ; Поэтому проверяем пересечение прямоугольников, а не выход за границу.
+    ; Описание берём заведомо длинное: у незнакомых приложений его пишет модель.
+    snapA := SnapWins()
     EditActionDialog(gEditorGui, ACTIONS[1], ACTIONS, 1, (*) => 0)
-    Check(true, "карточка действия открылась")
-    EditAppDialog(gEditorGui, APPS[1], (*) => 0)
-    Check(true, "карточка приложения открылась")
+    dAct := NewDialogSince(snapA)
+    Check(IsObject(dAct), IsObject(dAct) ? "карточка действия открылась" : "карточка действия не создана")
+    if IsObject(dAct) {
+        ovA := OverlapCount(dAct)
+        Check(ovA = 0, ovA = 0 ? "контролы карточки действия не наезжают друг на друга"
+            : "в карточке действия пересечений: " ovA)
+    }
+
+    longApp := CloneApps([APPS[1]])[1]
+    longApp.desc := "Описание, какое модель пишет для незнакомого приложения: "
+        . "клиент для работы с задачами и документами, используется командой "
+        . "аналитики и разработки, содержит тексты требований и переписку."
+    snapP := SnapWins()
+    EditAppDialog(gEditorGui, longApp, (*) => 0)
+    dApp := NewDialogSince(snapP)
+    Check(IsObject(dApp), IsObject(dApp) ? "карточка приложения открылась" : "карточка приложения не создана")
+    if IsObject(dApp) {
+        ovP := OverlapCount(dApp)
+        Check(ovP = 0, ovP = 0 ? "контролы карточки приложения не наезжают (длинное описание)"
+            : "в карточке приложения пересечений: " ovP)
+    }
 }
 
 ShowSettings()
@@ -144,3 +167,51 @@ ExitApp(fails = 0 ? 0 : 1)
 #Include Lib/ui_settings_ui.ahk
 #Include Lib/recommend.ahk
 #Include Lib/ui_actions_editor.ahk
+
+; --- геометрия диалогов -----------------------------------------------------
+
+SnapWins() {
+    m := Map()
+    for hw in WinGetList()
+        m[hw] := true
+    return m
+}
+
+; Первое наше окно, которого не было в снимке
+NewDialogSince(before) {
+    for hw in WinGetList() {
+        if before.Has(hw)
+            continue
+        g := 0
+        try g := GuiFromHwnd(hw)
+        if IsObject(g)
+            return g
+    }
+    return 0
+}
+
+; Пары пересекающихся контролов. Контейнеры пропускаем: GroupBox и вкладки
+; по устройству лежат под своим содержимым.
+OverlapCount(g) {
+    rects := []
+    for c in g {
+        if (c.Type = "GroupBox" || InStr(c.Type, "Tab") = 1)
+            continue
+        c.GetPos(&x, &y, &cw, &ch)
+        if (cw <= 0 || ch <= 0)
+            continue
+        rects.Push({x: x, y: y, r: x + cw, b: y + ch, t: c.Type})
+    }
+    n := 0, i := 1
+    while (i < rects.Length) {
+        j := i + 1
+        while (j <= rects.Length) {
+            a := rects[i], z := rects[j]
+            if (a.x < z.r && z.x < a.r && a.y < z.b && z.y < a.b)
+                n++
+            j++
+        }
+        i++
+    }
+    return n
+}

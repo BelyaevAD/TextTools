@@ -32,8 +32,13 @@ jobs:
       - name: Static checks
         shell: pwsh
         run: |
-          node tools/check-shadowing.mjs
-          node tools/check-cyrillic.mjs
+          # Код возврата проверяем после КАЖДОЙ проверки: pwsh отдаёт шагу
+          # $LASTEXITCODE только последней нативной команды, и упавшая
+          # check-shadowing проходила как успех.
+          foreach ($check in 'tools/check-shadowing.mjs', 'tools/check-cyrillic.mjs') {
+            node $check
+            if ($LASTEXITCODE -ne 0) { throw "$check failed with exit $LASTEXITCODE" }
+          }
 
       - name: Validate AHK scripts
         shell: pwsh

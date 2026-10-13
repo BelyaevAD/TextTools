@@ -1,4 +1,4 @@
-# Local TextTools test runner. Do not redirect AHK stdout/stderr — GUI hangs on pipes.
+﻿# Local TextTools test runner. Do not redirect AHK stdout/stderr — GUI hangs on pipes.
 # Usage (repo root):
 #   powershell -ExecutionPolicy Bypass -File .\run-tests.ps1
 #   powershell -ExecutionPolicy Bypass -File .\run-tests.ps1 -Gui
@@ -46,8 +46,13 @@ function Invoke-AhkScript([string]$file, [string]$report, [int]$timeoutSec) {
 }
 
 Write-Host "Static checks"
-node (Join-Path $root 'tools\check-shadowing.mjs')
-node (Join-Path $root 'tools\check-cyrillic.mjs')
+# Код возврата проверяем после КАЖДОЙ проверки: в PowerShell несколько нативных
+# команд подряд дают $LASTEXITCODE только последней, и упавшая проверка
+# проходила незамеченной.
+foreach ($check in 'check-shadowing.mjs', 'check-cyrillic.mjs') {
+    node (Join-Path $root (Join-Path 'tools' $check))
+    if ($LASTEXITCODE -ne 0) { throw "$check failed exit $LASTEXITCODE" }
+}
 
 Write-Host "Validate"
 foreach ($f in @('TextTools.ahk', 'tests-logic.ahk', 'tests-editor-open.ahk', 'tests-usage-and-source.ahk', 'capture-screenshots.ahk')) {
