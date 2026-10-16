@@ -11,6 +11,14 @@
 - Some surfaces reject paste (read-only pages, chat bubbles). Use **Shift** + action to open the result window, then copy by hand.
 - History (tray) keeps recent source + result pairs.
 
+## Clipboard gets clobbered
+
+Reading the selection is `Ctrl+C` under the hood, so the clipboard is used as the transport.
+
+- Text already in the clipboard is saved and put back. **Non-text content (an image, files) is lost** — you get a one-off tooltip warning about it.
+- After a paste the previous clipboard is restored about 3 seconds later, and only if the clipboard still holds what was pasted; copy something else in that window and the restore is skipped.
+- Slow apps may hand over the selection too late. Raise **clipboard wait** on the Interface tab (seconds, 0.2–5, default 0.8) if actions report "no text selected" in an app that clearly had a selection.
+
 ## API errors
 
 - **Test API** in Settings isolates key / URL / model / proxy problems.

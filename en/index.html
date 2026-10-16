@@ -45,9 +45,10 @@
             "name": "TextTools",
             "applicationCategory": "UtilitiesApplication",
             "operatingSystem": "Windows 10, Windows 11",
-            "softwareVersion": "0.2.3",
+            "softwareVersion": "0.3.0",
             "url": "https://belyaevad.github.io/TextTools/en/",
-            "downloadUrl": "https://github.com/BelyaevAD/TextTools/releases/tag/v0.2.3",
+            "downloadUrl": "https://github.com/BelyaevAD/TextTools/releases/tag/v0.3.0",
+            "installUrl": "https://github.com/BelyaevAD/TextTools",
             "description": "AutoHotkey v2 script: select text in any Windows window, hotkey, OpenAI-compatible API actions.",
             "license": "https://github.com/BelyaevAD/TextTools/blob/main/LICENSE",
             "isAccessibleForFree": true,
@@ -79,6 +80,17 @@
             "license": "https://github.com/BelyaevAD/TextTools/blob/main/LICENSE",
             "keywords": "AutoHotkey, AHK v2, LLM, OpenAI-compatible, text processing, Windows",
             "inLanguage": ["en", "ru"]
+          },
+          {
+            "@type": "WebSite",
+            "name": "TextTools",
+            "url": "https://belyaevad.github.io/TextTools/en/",
+            "inLanguage": "en",
+            "publisher": {
+              "@type": "Person",
+              "name": "BelyaevAD",
+              "url": "https://github.com/BelyaevAD"
+            }
           }
         ]
       }
@@ -115,7 +127,7 @@
             <h1>TextTools</h1>
             <p class="hero-lead">Select text in any app, hit the hotkey, pick what you want done. Proofreading, rewriting, summaries, tables, explaining code — that sort of thing. The result replaces the selection, or opens in its own window.</p>
             <div class="hero-actions">
-              <a class="button" href="https://github.com/BelyaevAD/TextTools/releases/tag/v0.2.3" target="_blank" rel="noopener noreferrer">Download v0.2.3</a>
+              <a class="button" href="https://github.com/BelyaevAD/TextTools/releases/tag/v0.3.0" target="_blank" rel="noopener noreferrer">Download v0.3.0</a>
               <a class="button secondary" href="https://github.com/BelyaevAD/TextTools/blob/main/docs/USER_GUIDE.md" target="_blank" rel="noopener noreferrer">Docs</a>
             </div>
             <div class="hero-meta" aria-label="Basics">
@@ -207,7 +219,7 @@
             </figure>
             <figure class="shot-card">
               <a href="../assets/screenshots/en/07-key-conflict.png" target="_blank" rel="noopener">
-                <img src="../assets/screenshots/en/07-key-conflict.png" width="480" height="220" alt="TextTools taken-key dialog" loading="lazy">
+                <img src="../assets/screenshots/en/07-key-conflict.png" width="455" height="222" alt="TextTools taken-key dialog" loading="lazy">
               </a>
               <figcaption><strong>Key already used</strong><span>Cancel, swap with the other action, or take the key</span></figcaption>
             </figure>
@@ -270,6 +282,7 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1
             <li>Default hotkey is <code>Ctrl+Alt+Space</code> — <code>Ctrl+Space</code> is often taken by IMEs and other hooks.</li>
             <li>Local Ollama works out of the box at <code>http://127.0.0.1:11434/v1</code>.</li>
             <li>UI language packs live in <code>lang/*.ini</code>; factory UI is English.</li>
+            <li>Token counts are exact — the API returns them. The money figure is an <strong>estimate</strong>: prices come from the OpenRouter catalogue even on another provider, which has no public price endpoint to ask.</li>
           </ul>
         </div>
       </section>

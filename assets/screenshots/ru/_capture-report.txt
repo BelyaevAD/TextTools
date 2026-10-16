@@ -1,8 +1,9 @@
 ﻿start lang=ru strings=0 ACTIONS=16
-OK  01-action-menu.png  16621 bytes
-OK  02-settings-api.png  25586 bytes
-OK  03-settings-ui.png  20947 bytes
-OK  04-actions-editor.png  40215 bytes
-OK  05-prompt-editor.png  25843 bytes
+OK  01-action-menu.png  16708 bytes
+OK  02-settings-api.png  24308 bytes
+OK  03-settings-ui.png  19868 bytes
+OK  04-actions-editor.png  40402 bytes
+OK  05-prompt-editor.png  26046 bytes
+OK  07-key-conflict.png  7416 bytes
 OK  06-result-window.png  19086 bytes
 DONE
