@@ -53,6 +53,17 @@ foreach ($check in 'check-shadowing.mjs', 'check-cyrillic.mjs') {
     node (Join-Path $root (Join-Path 'tools' $check))
     if ($LASTEXITCODE -ne 0) { throw "$check failed exit $LASTEXITCODE" }
 }
+# Сборщик пакета объявлен проверкой в tools/README - значит должен выполняться.
+# Инвариант: пакет на диске уже соответствует ключам Loc() в коде. Сравниваем
+# хеш до и после прогона, а не git diff: на грязном дереве git дал бы ложный провал.
+$pack = Join-Path $root 'lang\en.ini'
+# Без тернарного оператора: локальный прогон идёт и на Windows PowerShell 5.1,
+# где '?' в выражении - синтаксическая ошибка.
+$before = ''
+if (Test-Path $pack) { $before = (Get-FileHash $pack).Hash }
+node (Join-Path $root (Join-Path 'tools' 'build-lang-en.mjs'))
+if ($LASTEXITCODE -ne 0) { throw "build-lang-en.mjs failed exit $LASTEXITCODE" }
+if ((Get-FileHash $pack).Hash -ne $before) { throw 'lang/en.ini was out of date - the generator rewrote it; commit the result' }
 
 Write-Host "Validate"
 foreach ($f in @('TextTools.ahk', 'tests-logic.ahk', 'tests-editor-open.ahk', 'tests-usage-and-source.ahk', 'capture-screenshots.ahk')) {

@@ -25,7 +25,9 @@ ParsePack(path) {
     }
     sec := ""
     for line in StrSplit(txt, "`n") {
-        line := Trim(line, " `r`t`uFEFF")
+        ; BOM снимается явным Chr(0xFEFF): `uFEFF - не escape-последовательность
+        ; AHK, и в наборе обрезаемых символов оказались бы литералы u, F и E
+        line := Trim(line, " `r`t" Chr(0xFEFF))
         if (line = "" || SubStr(line, 1, 1) = ";")
             continue
         if (SubStr(line, 1, 1) = "[") {
@@ -85,7 +87,8 @@ LoadUiLang(code) {
 
 ; Перевод по ключу; ru - текст по умолчанию, он же русская версия
 Loc(key, ru) {
-    global gUiStrings              ; без объявления имя было бы локальным и всегда пустым
+    global gUiStrings              ; ради явности: Loc ничего не присваивает, и имя
+                                   ; читалось бы из глобальной области и без объявления
     if (IsSet(gUiStrings) && IsObject(gUiStrings) && gUiStrings.Has(key))
         return gUiStrings[key]
     return ru

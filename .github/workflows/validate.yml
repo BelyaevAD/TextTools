@@ -23,7 +23,10 @@ jobs:
       - name: Install AutoHotkey v2.0.26
         shell: pwsh
         run: |
+          # Код winget шагу не отдаём: он возвращает ненулевое и при успешной
+          # установке (например "already installed"). Судим по факту - есть ли exe.
           winget install -e --id AutoHotkey.AutoHotkey --version 2.0.26 --accept-package-agreements --accept-source-agreements
+          Write-Host "winget exit: $LASTEXITCODE"
           $ahk = Join-Path $env:LOCALAPPDATA 'Programs\AutoHotkey\v2\AutoHotkey64.exe'
           if (-not (Test-Path $ahk)) { $ahk = 'C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe' }
           if (-not (Test-Path $ahk)) { throw 'AutoHotkey64.exe not found after install' }
@@ -39,6 +42,17 @@ jobs:
             node $check
             if ($LASTEXITCODE -ne 0) { throw "$check failed with exit $LASTEXITCODE" }
           }
+          # tools/README объявляет сборщик пакета проверкой, но он не запускался.
+          # Запускаем и требуем, чтобы он НИЧЕГО не изменил: иначе lang/en.ini в
+          # коммите отстал от ключей Loc() в коде.
+          # Инвариант: пакет на диске уже соответствует ключам Loc() в коде.
+          # Сравниваем хеш до и после прогона, а не git diff - так проверка
+          # одинаково работает и в CI, и на грязном рабочем дереве.
+          $pack = 'lang/en.ini'
+          $before = (Get-FileHash $pack).Hash
+          node tools/build-lang-en.mjs
+          if ($LASTEXITCODE -ne 0) { throw "build-lang-en.mjs failed with exit $LASTEXITCODE" }
+          if ((Get-FileHash $pack).Hash -ne $before) { throw 'lang/en.ini was out of date - the generator rewrote it; commit the result' }
 
       - name: Validate AHK scripts
         shell: pwsh
@@ -66,34 +80,50 @@ jobs:
           Get-CimInstance Win32_Process -Filter "Name = 'AutoHotkey64.exe'" -ErrorAction SilentlyContinue |
             ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 
-      - name: Run logic tests
+      - name: Run test suites
         shell: pwsh
         run: |
-          $report = Join-Path $env:TEMP 'tt_logic_report.txt'
-          if (Test-Path $report) { Remove-Item $report -Force }
-          $p = Start-Process -FilePath $env:AHK -ArgumentList 'tests-logic.ahk' -PassThru -WorkingDirectory $env:GITHUB_WORKSPACE
-          $ok = $p.WaitForExit(120000)
-          if (-not $ok) {
-            Write-Host "TIMEOUT 120s — killing PID $($p.Id)"
-            Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
-            exit 1
+          # Все три набора, а не только logic: оконные раньше лишь валидировались,
+          # то есть их проверки были вне гейта.
+          $suites = @(
+            @{ file = 'tests-logic.ahk';            report = 'tt_logic_report.txt' },
+            @{ file = 'tests-editor-open.ahk';      report = 'tt_eo_report.txt' },
+            @{ file = 'tests-usage-and-source.ahk'; report = 'tt_us_report.txt' }
+          )
+          $failed = @()
+          foreach ($s in $suites) {
+            $report = Join-Path $env:TEMP $s.report
+            if (Test-Path $report) { Remove-Item $report -Force }
+            $p = Start-Process -FilePath $env:AHK -ArgumentList $s.file -PassThru -WorkingDirectory $env:GITHUB_WORKSPACE
+            $ok = $p.WaitForExit(180000)
+            if (-not $ok) {
+              Write-Host "TIMEOUT 180s on $($s.file) - killing PID $($p.Id)"
+              Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+              $failed += "$($s.file): timeout"
+              continue
+            }
+            # Код возврата 0 сам по себе ничего не значит: без отчёта он означает
+            # "проверок не было", а не "провалов нет". Требуем и файл, и сентинел.
+            if (-not (Test-Path $report)) {
+              $failed += "$($s.file): no report (exit $($p.ExitCode)) - the suite did not run"
+              continue
+            }
+            Copy-Item $report (Join-Path $env:GITHUB_WORKSPACE $s.report) -Force
+            $text = Get-Content $report -Raw
+            Write-Host "==== $($s.file) ===="
+            Write-Host $text
+            if ($p.ExitCode -ne 0) { $failed += "$($s.file): exit $($p.ExitCode)" }
+            elseif ($text -notmatch 'ВСЕ ПРОВЕРКИ ПРОШЛИ') { $failed += "$($s.file): report has no success sentinel" }
           }
-          exit $p.ExitCode
+          if ($failed.Count) { throw ("Test suites failed:`n" + ($failed -join "`n")) }
 
-      - name: Print logic report
+      - name: Upload test reports
         if: always()
-        shell: pwsh
-        run: |
-          $report = Join-Path $env:TEMP 'tt_logic_report.txt'
-          if (Test-Path $report) {
-            Get-Content $report
-            Copy-Item $report (Join-Path $env:GITHUB_WORKSPACE 'tt_logic_report.txt') -Force
-          } else { Write-Host "no report at $report" }
-
-      - name: Upload logic report
-        if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: tt-logic-report
-          path: tt_logic_report.txt
+          name: tt-test-reports
+          path: |
+            tt_logic_report.txt
+            tt_eo_report.txt
+            tt_us_report.txt
           if-no-files-found: ignore

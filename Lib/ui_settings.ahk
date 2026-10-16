@@ -286,6 +286,12 @@ ShowSettings(*) {
             MsgBox(Loc("set.hotkey_same", "Хоткей меню и хоткей повтора должны отличаться"), "TextTools", "Iconx 262144")
             return
         }
+        ; пустое значение в INI неотличимо от отсутствующего ключа, а запрос с
+        ; "model":"" провайдер отбивает 400 - проверяем здесь, как и хоткей
+        if (Trim(eModel.Value) = "") {
+            MsgBox(Loc("set.model_empty", "Модель по умолчанию не может быть пустой: запрос без имени модели провайдер отклонит."), "TextTools", "Iconx 262144")
+            return
+        }
         try {
             ApplyHotkeyPair(newHk, newHkR)
         } catch as e {

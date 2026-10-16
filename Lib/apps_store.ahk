@@ -21,7 +21,7 @@ LoadApps() {
     path := APPS_INI
     if !FileExist(path) {
         TT_Log("apps.ini не найден, раскладываю заводской список приложений")
-        SaveApps(DEFAULT_APPS)
+        try SaveApps(DEFAULT_APPS)     ; автозапуск: сбой записи не должен сорвать старт
         return CloneApps(DEFAULT_APPS)
     }
     out := []
@@ -103,8 +103,10 @@ ResolveApp(hwnd) {
     if (found := MatchApp(proc, title))
         return found
     ; новое приложение: нейтральный профиль сразу, описание - в фоне
-    entry := {proc: proc, title: "", name: proc, hint: "",
-        desc: "Добавлено автоматически" (title != "" ? " (окно: " SubStr(title, 1, 60) ")" : "")}
+    autoDesc := Loc("apps.auto_added", "Добавлено автоматически")
+    if (title != "")
+        autoDesc .= " " Format(Loc("apps.auto_added.win", "(окно: {1})"), SubStr(title, 1, 60))
+    entry := {proc: proc, title: "", name: proc, hint: "", desc: autoDesc}
     APPS.Push(entry)
     try SaveApps(APPS)
     TT_Log("новое приложение: " proc " - профиль нейтральный, запрашиваю описание")
@@ -152,6 +154,12 @@ RequestAppDescription(entry, sampleTitle) {
     if (MsgBox(Loc("apps.profile.ask", "Отправить провайдеру сведения о приложении, чтобы подобрать поправку к промпту?")
             . "`n`n" payload, "TextTools", "YesNo Icon? 262144") != "Yes")
         return
+    ; Проверяем ДО создания временных файлов и БЕЗ try: голый try глотал бросок,
+    ; и конфиг curl писался всё равно - проверка не делала ничего. Вызывающий
+    ; ResolveApp обёрнут в try, поэтому исключение здесь не фатально.
+    apiUrl := RTrim(cfg.base_url, "/") "/chat/completions"
+    ValidateCurlValue("URL", apiUrl)
+    ValidateCurlValue("API key", cfg.api_key)
     seq += 1
     tag := "TextTools_app_" seq "_" A_TickCount
     reqF := A_Temp "\" tag "_req.json"
@@ -165,27 +173,35 @@ RequestAppDescription(entry, sampleTitle) {
         . '{"role":"system","content":"' JsonEsc(APP_DESC_PROMPT) '"},'
         . '{"role":"user","content":"' JsonEsc(user) '"}'
         . '],"stream":false}'
-    f := FileOpen(reqF, "w", "UTF-8-RAW")
-    f.Write(body)
-    f.Close()
-    try ValidateCurlValue("URL", RTrim(cfg.base_url, "/") "/chat/completions")
-    try ValidateCurlValue("API key", cfg.api_key)
-    curlCfg := 'url = "' CurlQuote(RTrim(cfg.base_url, "/") "/chat/completions") '"`n'
+    ; Ключ экранируется CurlQuote, как URL и прокси: внутри кавычек curl читает
+    ; обратный слэш как escape, и ключ уехал бы искажённым (см. Lib/http.ahk)
+    curlCfg := 'url = "' CurlQuote(apiUrl) '"`n'
         . "silent`nshow-error`nmax-time = 60`n"
         . 'header = "Content-Type: application/json; charset=utf-8"`n'
-        . (cfg.api_key != "" ? 'header = "Authorization: Bearer ' cfg.api_key '"`n' : "")
-        . CurlProxyCfg(RTrim(cfg.base_url, "/") "/chat/completions", EffectiveProxy(cfg))
+        . (cfg.api_key != "" ? 'header = "Authorization: Bearer ' CurlQuote(cfg.api_key) '"`n' : "")
+        . CurlProxyCfg(apiUrl, EffectiveProxy(cfg))
         . 'data-binary = "@' StrReplace(reqF, "\", "\\") '"`n'
         . 'output = "' StrReplace(respF, "\", "\\") '"`n'
-    f := FileOpen(curlF, "w", "UTF-8-RAW")
-    f.Write(curlCfg)
-    f.Close()
-    ; .cmd-обёртка вместо голого curl: маркер появляется в любом случае, и по
-    ; нему видно, что файл ответа дописан целиком, а не читается на середине
-    f := FileOpen(cmdF, "w", "UTF-8-RAW")
-    f.Write("@echo off`r`n" Format('"{1}" -K "{2}"`r`necho done> "{3}"`r`n', CurlExe(), curlF, markF))
-    f.Close()
-    Run(cmdF, , "Hide")
+    ; Срыв на любом шаге чистит файлы сразу: curlF держит API-ключ, и ждать для
+    ; него CleanupTextToolsTemp() следующего запуска слишком долго (как в HttpCurl)
+    try {
+        f := FileOpen(reqF, "w", "UTF-8-RAW")
+        f.Write(body)
+        f.Close()
+        f := FileOpen(curlF, "w", "UTF-8-RAW")
+        f.Write(curlCfg)
+        f.Close()
+        ; .cmd-обёртка вместо голого curl: маркер появляется в любом случае, и по
+        ; нему видно, что файл ответа дописан целиком, а не читается на середине
+        f := FileOpen(cmdF, "w", "UTF-8-RAW")
+        f.Write("@echo off`r`n" Format('"{1}" -K "{2}"`r`necho done> "{3}"`r`n', CurlExe(), curlF, markF))
+        f.Close()
+        Run(cmdF, , "Hide")
+    } catch as e {
+        CleanupAppTmp([reqF, curlF, cmdF], respF, markF)
+        TT_Log("описание для " entry.proc " не запрошено (" e.Message ")")
+        return
+    }
     SetTimer(CheckAppDescription.Bind(entry, respF, markF, [reqF, curlF, cmdF], A_TickCount), 1200)
 }
 

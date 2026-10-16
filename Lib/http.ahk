@@ -101,11 +101,13 @@ HttpCurl(url, opts := "") {
         curlCfg .= 'header = "Authorization: Bearer ' CurlQuote(opts.api_key) '"`n'
     if (opts.HasProp("bodyFile") && opts.bodyFile != "")
         curlCfg .= 'data-binary = "@' StrReplace(opts.bodyFile, "\", "\\") '"`n'
-    f := FileOpen(curlF, "w", "UTF-8-RAW")
-    f.Write(curlCfg)
-    f.Close()
     code := 0
+    ; запись конфига - ВНУТРИ try: в нем лежит ключ API, и упавший Write
+    ; оставлял его файлом в %TEMP% до следующего запуска
     try {
+        f := FileOpen(curlF, "w", "UTF-8-RAW")
+        f.Write(curlCfg)
+        f.Close()
         attempt := 0
         loop {
             attempt++

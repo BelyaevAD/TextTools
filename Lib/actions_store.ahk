@@ -91,7 +91,10 @@ LoadActionSets() {
         acts := CloneActions(DEFAULT_ACTIONS)
         try ApplyFactoryRoles(acts, cfg.base_url)
         try EnsureModelsForActions(acts)
-        SaveActionSets(acts, DEFAULT_QUICK)
+        ; try: раскладка идёт из автозапуска ДО SetupTray и регистрации хоткеев,
+        ; и невозможность записи (папка только для чтения, файл занят) не должна
+        ; оставлять процесс без трея и без хоткея
+        try SaveActionSets(acts, DEFAULT_QUICK)
         return {actions: acts, quick: CloneQuick(DEFAULT_QUICK)}
     }
     acts := [], quicks := []
@@ -145,7 +148,10 @@ LoadActionSets() {
         TT_Log("в actions.ini нет ни одного действия, беру заводские")
         acts := CloneActions(DEFAULT_ACTIONS)
     }
-    if (quicks.Length = 0)
+    ; Осознанно пустой набор уточнений отличается от битого файла по [quick] count:
+    ; count=0 пишет сам редактор, отсутствие ключа - старый или испорченный файл.
+    ; Иначе удаление всех уточнений откатывалось бы заводским набором при рестарте.
+    if (quicks.Length = 0 && Trim(IniRead(path, "quick", "count", "")) != "0")
         quicks := CloneQuick(DEFAULT_QUICK)
     TT_Log("загружено действий: " acts.Length ", быстрых уточнений: " quicks.Length)
     return {actions: acts, quick: quicks}

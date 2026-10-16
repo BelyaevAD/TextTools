@@ -19,7 +19,10 @@ SettingsApiTab(sg) {
     eModel := sg.Add("Edit", "x25 y238 w590 h24 -Multi", cfg.model)
     sg.Add("Text", "x25 y272 w590 h20",
         Loc("set.models", "Модели, доступные действиям (отмеченные видны в карточке действия):"))
-    lvM := sg.Add("ListView", "x25 y292 w590 h76 Checked -Multi",
+    ; NoSort: встроенная сортировка по клику на заголовок переставляет СТРОКИ, не
+    ; трогая modelRows, а они сопоставлены ПО ИНДЕКСУ (SyncChecks, DoMakeDefault).
+    ; Своя сортировка по числам живёт в OnColClick - событие ColClick NoSort не снимает.
+    lvM := sg.Add("ListView", "x25 y292 w590 h76 Checked -Multi NoSort",
         [Loc("set.col.model", "Модель"), Loc("set.col.ctx", "Контекст"),
          Loc("set.col.in", "$/1M вх"), Loc("set.col.out", "$/1M вых")])
     lvM.ModifyCol(1, 300), lvM.ModifyCol(2, 90), lvM.ModifyCol(3, 80), lvM.ModifyCol(4, 85)

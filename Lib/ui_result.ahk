@@ -46,17 +46,21 @@ ShowResult(title, text, convo := 0, model := "") {
     yRow := 488
     eAsk := "", bAsk := ""
     if hasConvo {
-        ; ряд быстрых уточнений: тот же диалог, инструкция задана заранее
-        g.SetFont("s9", "Segoe UI")
-        g.Add("Text", "x10 y" (yRow + 6), Loc("res.quick", "Быстро:"))
-        first := true
-        for qr in QUICK_REFINE {
-            chip := g.Add("Button", (first ? "x68 y" yRow " h26" : "x+6 yp h26"), qr.label)
-            chip.OnEvent("Click", QuickRefine.Bind(qr))
-            first := false
+        ; ряд быстрых уточнений: тот же диалог, инструкция задана заранее.
+        ; Набор можно опустошить в редакторе - тогда и подписи быть не должно,
+        ; иначе над полем висит «Быстро:» без единой кнопки
+        if QUICK_REFINE.Length {
+            g.SetFont("s9", "Segoe UI")
+            g.Add("Text", "x10 y" (yRow + 6), Loc("res.quick", "Быстро:"))
+            first := true
+            for qr in QUICK_REFINE {
+                chip := g.Add("Button", (first ? "x68 y" yRow " h26" : "x+6 yp h26"), qr.label)
+                chip.OnEvent("Click", QuickRefine.Bind(qr))
+                first := false
+            }
+            g.SetFont("s10", "Segoe UI")
+            yRow += 34
         }
-        g.SetFont("s10", "Segoe UI")
-        yRow += 34
 
         g.Add("Text", "x10 y" (yRow + 4), Loc("res.refine", "Уточнить:"))
         eAsk := g.Add("Edit", "x85 y" yRow " w567 h26", "")
@@ -126,12 +130,19 @@ ShowResult(title, text, convo := 0, model := "") {
         rc := (model != "" && model != cfg.model)
             ? {base_url: cfg.base_url, api_key: cfg.api_key, proxy: CfgFlag(cfg, "proxy", ""),
                 proxy_on: CfgFlag(cfg, "proxy_on", "0"), model: model} : cfg
+        ; Снимок usage делаем внутри try, пока gBusy ещё держит очередь: после
+        ; finally второй запрос из этого же окна успевает перезаписать глобал,
+        ; и в первую запись истории ушли бы токены второго запроса
         gBusy := true
-        try r := CallApiMsgs(rc, TrimConvo(convo))
-        catch as e
+        usage := ""
+        try {
+            r := CallApiMsgs(rc, TrimConvo(convo))
+            usage := gLastUsage
+        } catch as e {
             err := e.Message
-        finally
+        } finally {
             gBusy := false
+        }
         BusyHide()
         alive := WinExist("ahk_id " hw)
         if alive
@@ -148,7 +159,7 @@ ShowResult(title, text, convo := 0, model := "") {
         convo.Push({role: "assistant", content: r})
         text := r
         SaveLastResult(r)
-        HistoryAdd(title " (" (label != "" ? label : "уточнение") ")", q, r, rc.model, gLastUsage)
+        HistoryAdd(title " (" (label != "" ? label : Loc("res.refine_busy", "уточнение")) ")", q, r, rc.model, usage)
         TT_Log("уточнение ok, ответ " StrLen(r) " символов")
         if !alive {
             TT_Log("окно уточнения закрыто, результат сохранен в историю")

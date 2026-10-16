@@ -93,8 +93,11 @@ ActionCfg(a) {
     m := (IsObject(a) && a.HasProp("model") && a.model != "") ? a.model : cfg.model
     if (m = cfg.model)
         return cfg
+    ; fallback "1", а не "0": по правилу EffectiveProxy отсутствие proxy_on
+    ; означает «URL действует». С "0" конфиг без галочки терял прокси ровно
+    ; тогда, когда у действия своя модель, и сохранял его для модели по умолчанию.
     return {base_url: cfg.base_url, api_key: cfg.api_key,
-        proxy: CfgFlag(cfg, "proxy", ""), proxy_on: CfgFlag(cfg, "proxy_on", "0"), model: m}
+        proxy: CfgFlag(cfg, "proxy", ""), proxy_on: CfgFlag(cfg, "proxy_on", "1"), model: m}
 }
 
 ; Пусто, если галочка снята. Нет поля proxy_on — URL используется как раньше (тесты, старые объекты).

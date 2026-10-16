@@ -14,7 +14,17 @@ PricesRefresh(force := false) {
     }
     tmp := A_Temp "\TextTools_prices_dl.json"
     try FileDelete(tmp)
-    res := HttpCurl("https://openrouter.ai/api/v1/models", {timeout: 20, retries: 1})
+    ; Каталог цен - дело необязательное, поэтому исключение наружу не выпускаем.
+    ; HttpCurl бросает на битом прокси из INI (NormalizeProxy) или кавычке в
+    ; URL/ключе, а зовут PricesRefresh() без try окно настроек и статистика:
+    ; раньше настройки просто не открывались - то есть починить этот прокси
+    ; было уже негде.
+    res := ""
+    try res := HttpCurl("https://openrouter.ai/api/v1/models", {timeout: 20, retries: 1})
+    catch as e {
+        TT_Log("прайс: запрос каталога не выполнен (" e.Message ")")
+        return FileExist(PRICESF) ? true : false
+    }
     if (res.curl != 0 || res.body = "") {
         TT_Log("прайс: загрузка каталога не удалась (curl " res.curl ")")
         return FileExist(PRICESF) ? true : false
@@ -95,16 +105,12 @@ PricesEnsureIndex() {
         }
         cq := InStr(txt, '"context_length"', true, q2)
         if (cq && cq < stop) {
-            i := cq + 16
-            while (i < stop && !IsDigit(SubStr(txt, i, 1)))
-                i++
-            num := ""
-            while (i < stop && IsDigit(SubStr(txt, i, 1))) {
-                num .= SubStr(txt, i, 1)
-                i++
-            }
-            if (num != "")
-                rec.ctx := Integer(num)
+            ; цифры должны идти сразу после ключа: прежний скан «до первой
+            ; цифры» на "context_length":null подхватывал число из следующего
+            ; поля записи (например 3 из "tokenizer":"Qwen3")
+            n := JsonIntAfter(txt, '"context_length"', cq)
+            if (n > 0)
+                rec.ctx := n
         }
         gPriceIndex[slug] := rec
         pos := q2

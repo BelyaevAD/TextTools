@@ -15,7 +15,7 @@ CloneLangs(list) {
 LoadLangs() {
     if !FileExist(LANGS_INI) {
         TT_Log("langs.ini не найден, раскладываю заводской список")
-        SaveLangs(DEFAULT_LANGS)
+        try SaveLangs(DEFAULT_LANGS)   ; автозапуск: сбой записи не должен сорвать старт
         return CloneLangs(DEFAULT_LANGS)
     }
     out := []

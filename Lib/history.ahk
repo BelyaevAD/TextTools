@@ -1,4 +1,4 @@
-; TextTools - История результатов, последний результат и статистика использования по логу.
+﻿; TextTools - История результатов, последний результат и статистика использования по логу.
 ; Подключается из TextTools.ahk, отдельно не запускается.
 
 ; Последний результат всегда дублируется в файл: если процесс упадет
@@ -11,8 +11,11 @@ SaveLastResult(t) {
 
 ShowLastResult(*) {
     lastF := A_ScriptDir "\TextTools_last.txt"
+    ; пункт трея, который может ничего не показать, отвечает ОКНОМ: ToolTip у
+    ; трея неотличим от «пункт меню не работает» (та же грабля, что с историей)
     if !FileExist(lastF) {
-        Flash(Loc("msg.no_results", "Результатов еще не было"))
+        ShowResult(Loc("hist.last", "Последний результат"), "# " Loc("hist.no_last.title", "Результатов ещё не было") "`n`n"
+            . Loc("hist.no_last.body", "Текст последнего ответа модели дублируется в файл TextTools_last.txt рядом со скриптом: его можно достать, даже если окно результата закрылось вместе с процессом.`n`nФайла пока нет — после этого запуска ни одно действие не выполнялось. Выделите текст, нажмите хоткей меню и выберите действие."))
         return
     }
     ShowResult(Loc("hist.last", "Последний результат"), FileRead(lastF, "UTF-8"))
@@ -114,9 +117,11 @@ ShowHistory(*) {
         return
     }
     snap := gHistory.Clone()
-    hg := Gui("+AlwaysOnTop", "TextTools - " Loc("hist.title", "история"))
+    hg := Gui("+AlwaysOnTop", "TextTools - " Loc("hist.title", "История"))
     hg.SetFont("s10", "Segoe UI")
-    lv := hg.Add("ListView", "x10 y10 w960 r16 -Multi",
+    ; NoSort: строки сопоставлены со snap по индексу (Sel), а колонки показывают
+    ; форматированный текст - встроенная сортировка открывала бы чужую запись
+    lv := hg.Add("ListView", "x10 y10 w960 r16 -Multi NoSort",
         [Loc("hist.col.time", "Время"), Loc("hist.col.action", "Действие"), Loc("set.col.model", "Модель"), Loc("hist.col.tokens", "Токены"), Loc("hist.col.cost", "Стоимость"), Loc("hist.col.source", "Исходник"), Loc("hist.col.result", "Результат")])
     for rec in snap {
         model := rec.HasProp("model") && rec.model != "" ? rec.model : "—"
@@ -172,9 +177,12 @@ ShowHistory(*) {
 
 ; Расход пишем отдельным файлом: по TextTools.log его не восстановить, а для
 ; отчета нужны модель и токены, а не текст запроса. Строка на запрос.
+; Разделитель полей - "|", поэтому подпись и модель идут через HEsc: действие,
+; переименованное в "A|B", сдвигало поля, Integer() доставался текст модели и
+; бросал исключение - окно статистики не открывалось вообще.
 UsageRecord(model, u, label := "") {
-    line := FormatTime(, "yyyy-MM-dd HH:mm:ss") "|" (label != "" ? label : "запрос")
-        . "|" model "|" u.prompt "|" u.completion "`n"
+    line := FormatTime(, "yyyy-MM-dd HH:mm:ss") "|" HEsc(label != "" ? label : "запрос")
+        . "|" HEsc(model) "|" u.prompt "|" u.completion "`n"
     try FileAppend(line, USAGEF, "UTF-8")
 }
 
@@ -183,30 +191,46 @@ UsageReport() {
     txt := ""
     try txt := FileRead(USAGEF, "UTF-8")
     if (Trim(txt) = "")
-        return "`n## Расход токенов`n`nПока пусто: расход пишется начиная с версии, где появился этот отчет.`n"
+        return "`n## " Loc("usage.title", "Расход токенов") "`n`n"
+            . Loc("usage.empty", "Пока пусто: расход пишется начиная с версии, где появился этот отчет.") "`n"
     agg := Map()
     for line in StrSplit(txt, "`n") {
         f := StrSplit(Trim(line, " `r`t"), "|")
         if (f.Length < 5)
             continue
-        model := f[3]
+        ; в строке старого файла "|" из имени действия сдвинул поля, и на месте
+        ; чисел стоит текст: такую строку пропускаем, а не роняем весь отчёт
+        pt := 0, ct := 0
+        try {
+            pt := Integer(f[4])
+            ct := Integer(f[5])
+        } catch {
+            continue
+        }
+        model := JsonUnesc(f[3])       ; в старых строках модель писалась без HEsc
         if !agg.Has(model)
             agg[model] := {n: 0, p: 0, c: 0}
         rec := agg[model]
         rec.n += 1
-        rec.p += Integer(f[4])
-        rec.c += Integer(f[5])
+        rec.p += pt
+        rec.c += ct
     }
     if (agg.Count = 0)
-        return "`n## Расход токенов`n`nВ файле расхода нет разбираемых строк.`n"
+        return "`n## " Loc("usage.title", "Расход токенов") "`n`n"
+            . Loc("usage.unparsed", "В файле расхода нет разбираемых строк.") "`n"
     PricesRefresh()                  ; каталог тянется не чаще раза в сутки
     rows := []
     for model, rec in agg
         rows.Push({model: model, n: rec.n, p: rec.p, c: rec.c, cost: CostOf(model, rec.p, rec.c)})
     i := 2                            ; сортировка по суммарным токенам, по убыванию
     SortBy(rows, (a, b) => (a.p + a.c) > (b.p + b.c))
-    md := "`n## Расход токенов по моделям`n`n"
-        . "| Модель | Запросов | Промпт | Ответ | Всего | Стоимость |`n|---|---:|---:|---:|---:|---:|`n"
+    md := "`n## " Loc("usage.by_model", "Расход токенов по моделям") "`n`n"
+        . "| " Loc("set.col.model", "Модель")
+        . " | " Loc("usage.col.calls", "Запросов")
+        . " | " Loc("usage.col.prompt", "Промпт")
+        . " | " Loc("usage.col.completion", "Ответ")
+        . " | " Loc("usage.col.total", "Всего")
+        . " | " Loc("usage.col.cost", "Стоимость") " |`n|---|---:|---:|---:|---:|---:|`n"
     grand := 0.0, unknown := false, tn := 0, tp := 0, tc := 0
     for r in rows {
         if (r.cost >= 0)
@@ -215,18 +239,17 @@ UsageReport() {
             unknown := true
         tn += r.n, tp += r.p, tc += r.c
         md .= "| " r.model " | " r.n " | " NumFmt(r.p) " | " NumFmt(r.c) " | " NumFmt(r.p + r.c)
-            . " | " (r.cost >= 0 ? MoneyFmt(r.cost) : "цена неизвестна") " |`n"
+            . " | " (r.cost >= 0 ? MoneyFmt(r.cost) : Loc("usage.no_price", "цена неизвестна")) " |`n"
     }
-    md .= "| **Итого** | **" tn "** | **" NumFmt(tp) "** | **" NumFmt(tc) "** | **" NumFmt(tp + tc)
+    md .= "| **" Loc("usage.total", "Итого") "** | **" tn "** | **" NumFmt(tp) "** | **" NumFmt(tc) "** | **" NumFmt(tp + tc)
         . "** | **" MoneyFmt(grand) (unknown ? " +" : "") "** |`n`n"
     stamp := PricesStamp()
-    md .= "> Стоимость - **оценка**. Токены точные: их возвращает само API в поле usage."
-        . " Цены берутся из каталога OpenRouter (/api/v1/models), потому что у OpenAI"
-        . " публичного прайс-эндпоинта нет."
-        . (stamp != "" ? " Каталог загружен " stamp ", обновляется не чаще раза в сутки." : "")
-        . " Со счётом провайдера возможны расхождения.`n"
+    md .= "> " Loc("usage.note.est", "Стоимость - **оценка**. Токены точные: их возвращает само API в поле usage.")
+        . " " Loc("usage.note.catalog", "Цены берутся из каталога OpenRouter (/api/v1/models), потому что у OpenAI публичного прайс-эндпоинта нет.")
+        . (stamp != "" ? " " Format(Loc("usage.note.stamp", "Каталог загружен {1}, обновляется не чаще раза в сутки."), stamp) : "")
+        . " " Loc("usage.note.diff", "Со счётом провайдера возможны расхождения.") "`n"
     if unknown
-        md .= "`n> Для части моделей цены в каталоге не нашлось - они не вошли в итог (отмечен плюсом).`n"
+        md .= "`n> " Loc("usage.note.unknown", "Для части моделей цены в каталоге не нашлось - они не вошли в итог (отмечен плюсом).") "`n"
     return md
 }
 
@@ -245,15 +268,18 @@ ShowStats(*) {
         name := StrReplace(name, " (+инструкция)")
         counts[name] := counts.Get(name, 0) + 1
     }
+    ; тот же пункт трея: пусто - нормальное состояние, но отвечать надо окном,
+    ; а не подсказкой у трея, которую не отличить от «ничего не произошло»
     if (counts.Count = 0 && !FileExist(USAGEF)) {
-        Flash(Loc("hist.no_actions", "В логе еще нет действий"))
+        ShowResult(Loc("hist.stats", "Статистика"), "# " Loc("hist.no_actions", "В логе еще нет действий") "`n`n"
+            . Loc("hist.no_actions.body", "Статистика считается по двум файлам рядом со скриптом: TextTools.log — сколько раз запускалось каждое действие, TextTools_usage.log — сколько токенов и денег ушло на каждую модель.`n`nНи одного запуска пока не записано. Обработайте любой текст, и цифры появятся здесь."))
         return
     }
     rows := []
     for name, n in counts
         rows.Push({name: name, n: n})
     SortBy(rows, (a, b) => a.n > b.n)
-    md := "# " Loc("hist.stats", "Статистика использования") "`n`n## " Loc("hist.runs", "Запуски действий") "`n`n" Loc("hist.by_log", "По логу TextTools.log.") "`n`n"
+    md := "# " Loc("hist.stats.heading", "Статистика использования") "`n`n## " Loc("hist.runs", "Запуски действий") "`n`n" Loc("hist.by_log", "По логу TextTools.log.") "`n`n"
         . "| " Loc("hist.col.action", "Действие") " | " Loc("hist.runs_n", "Запусков") " |`n|---|---:|`n"
     for r in rows
         md .= "| " r.name " | " r.n " |`n"
@@ -272,6 +298,6 @@ ClearHistory(*) {
 ClearLog(*) {
     try FileDelete(LOGF)
     try FileDelete(LOGF ".old")
-    ShowResult(Loc("tray.log", "Лог"), "# " Loc("log.cleared.title", "Лог очищен") "`n`n"
+    ShowResult(Loc("log.title", "лог"), "# " Loc("log.cleared.title", "Лог очищен") "`n`n"
         . Loc("log.cleared.body", "TextTools.log удалён. Новые события начнут писаться с этого момента."))
 }

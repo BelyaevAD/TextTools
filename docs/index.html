@@ -45,9 +45,9 @@
             "name": "TextTools",
             "applicationCategory": "UtilitiesApplication",
             "operatingSystem": "Windows 10, Windows 11",
-            "softwareVersion": "0.2.3",
+            "softwareVersion": "0.3.0",
             "url": "https://belyaevad.github.io/TextTools/",
-            "downloadUrl": "https://github.com/BelyaevAD/TextTools/releases/tag/v0.2.3",
+            "downloadUrl": "https://github.com/BelyaevAD/TextTools/releases/tag/v0.3.0",
             "installUrl": "https://github.com/BelyaevAD/TextTools",
             "description": "Скрипт AutoHotkey v2: выделение текста в любом окне Windows, хоткей и действия через OpenAI-совместимый API.",
             "license": "https://github.com/BelyaevAD/TextTools/blob/main/LICENSE",
@@ -127,7 +127,7 @@
             <h1>TextTools</h1>
             <p class="hero-lead">Выдели текст в любом приложении, нажми хоткей — появится сетка действий. Вычитка, переписывание, краткое изложение, таблица, разбор кода и остальное. Результат либо встанет вместо выделения, либо откроется в отдельном окне.</p>
             <div class="hero-actions">
-              <a class="button" href="https://github.com/BelyaevAD/TextTools/releases/tag/v0.2.3" target="_blank" rel="noopener noreferrer">Скачать v0.2.3</a>
+              <a class="button" href="https://github.com/BelyaevAD/TextTools/releases/tag/v0.3.0" target="_blank" rel="noopener noreferrer">Скачать v0.3.0</a>
               <a class="button secondary" href="https://github.com/BelyaevAD/TextTools/blob/main/docs/USER_GUIDE.md" target="_blank" rel="noopener noreferrer">Документация</a>
             </div>
             <div class="hero-meta" aria-label="Кратко">
@@ -219,7 +219,7 @@
             </figure>
             <figure class="shot-card">
               <a href="assets/screenshots/ru/07-key-conflict.png" target="_blank" rel="noopener">
-                <img src="assets/screenshots/ru/07-key-conflict.png" width="480" height="220" alt="Конфликт клавиши действия TextTools" loading="lazy">
+                <img src="assets/screenshots/ru/07-key-conflict.png" width="455" height="222" alt="Конфликт клавиши действия TextTools" loading="lazy">
               </a>
               <figcaption><strong>Клавиша занята</strong><span>Отмена, обменять с другим действием или забрать себе</span></figcaption>
             </figure>
@@ -282,6 +282,7 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1
             <li>По умолчанию хоткей <code>Ctrl+Alt+Space</code>: <code>Ctrl+Space</code> часто уже занят IME и другими хуками.</li>
             <li>Локальный Ollama работает из коробки: <code>http://127.0.0.1:11434/v1</code>.</li>
             <li>Язык интерфейса — пакеты <code>lang/*.ini</code>; заводской UI на английском.</li>
+            <li>Токены считаются точно — их возвращает само API. Деньги это <strong>оценка</strong>: цены берутся из каталога OpenRouter даже на другом провайдере, потому что публичного прайс-эндпоинта у него нет.</li>
           </ul>
         </div>
       </section>

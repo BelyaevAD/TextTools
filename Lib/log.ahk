@@ -16,20 +16,6 @@ TT_Log(msg) {
     }
 }
 
-WithBusy(fn) {
-    global gBusy
-    if gBusy {
-        Flash(Loc("msg.busy", "Запрос уже выполняется"))
-        return ""
-    }
-    gBusy := true
-    try {
-        return fn()
-    } finally {
-        gBusy := false
-    }
-}
-
 ErrorLogger(e, mode) {
     extra := ""
     try extra := (e.Extra != "" ? " | " e.Extra : "") " @ " e.File ":" e.Line

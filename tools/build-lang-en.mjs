@@ -11,16 +11,44 @@ import path from 'node:path';
 const root = new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 
 const keys = new Map();
-function collect(file) {
-  const s = fs.readFileSync(file, 'utf8');
-  const re = new RegExp('Loc\\("([^"]+)",\\s*"((?:[^"\\\\]|\\\\.)*)"\\)', 'g');
-  let m;
-  while ((m = re.exec(s))) if (!keys.has(m[1])) keys.set(m[1], m[2]);
+const texts = new Map();                  // ключ -> Map(русский текст -> [file:line])
+function collect(file, rel) {
+  const lines = fs.readFileSync(file, 'utf8').split(/\r?\n/);
+  lines.forEach((line, i) => {
+    const re = new RegExp('Loc\\("([^"]+)",\\s*"((?:[^"\\\\]|\\\\.)*)"\\)', 'g');
+    let m;
+    while ((m = re.exec(line))) {
+      if (!keys.has(m[1])) keys.set(m[1], m[2]);
+      if (!texts.has(m[1])) texts.set(m[1], new Map());
+      const t = texts.get(m[1]);
+      if (!t.has(m[2])) t.set(m[2], []);
+      t.get(m[2]).push(`${rel}:${i + 1}`);
+    }
+  });
 }
 for (const f of fs.readdirSync(path.join(root, 'Lib'))) {
-  if (f.endsWith('.ahk')) collect(path.join(root, 'Lib', f));
+  if (f.endsWith('.ahk')) collect(path.join(root, 'Lib', f), 'Lib/' + f);
 }
-collect(path.join(root, 'TextTools.ahk'));
+collect(path.join(root, 'TextTools.ahk'), 'TextTools.ahk');
+
+// Один ключ - один текст. Иначе в пакете окажется перевод первого попавшегося
+// вхождения, и во втором месте встанет чужая подпись: tray.log = "Открыть лог"
+// уходит в заголовок окна, где по коду стоит "Лог". Сборщик берёт первое
+// вхождение (keys.has выше), так что молча расходится именно второе.
+//
+// Известные расхождения перечислены явно: новое обязано ронять сборку, а эти
+// три живут в Lib/ и правятся там же - строку можно будет убрать после починки.
+// Конфликтов быть не должно: один ключ — один русский текст. Набор пуст
+// намеренно; если сюда что-то добавляют, это откладывание дефекта, а не
+// исключение — в английском пакете у ключа всё равно одно значение.
+const KNOWN_CONFLICTS = new Set([]);
+const conflicts = [];
+for (const [k, t] of texts) {
+  if (t.size < 2) continue;
+  const where = [...t].map(([text, locs]) => `"${text.slice(0, 60)}" (${locs.join(', ')})`).join(' ≠ ');
+  conflicts.push(`${k}: ${where}`);
+}
+const newConflicts = conflicts.filter(c => !KNOWN_CONFLICTS.has(c.split(':')[0]));
 
 const en = {
   'tray.history': 'History…',
@@ -47,6 +75,7 @@ const en = {
   'msg.request_failed': 'Request failed:',
   'msg.copied': 'Copied',
   'msg.no_results': 'No results yet',
+  'msg.empty_result': 'The model returned an empty response. The selected text was not changed.',
   'run.preparing': 'preparing the request…',
   'run.done': 'done',
   'busy.sec': '{:.1f} s',
@@ -67,6 +96,8 @@ const en = {
   'clip.nontext': 'Clipboard has no text (image or files). TextTools keeps only text — non-text clipboard contents will be lost.',
   'clip.result': 'Result',
   'apps.profile.ask': 'Send the provider this app info so it can suggest a prompt hint?',
+  'apps.auto_added': 'Added automatically',
+  'apps.auto_added.win': '(window: {1})',
   'http.401': 'HTTP 401: key rejected. Check the API key in Settings.',
   'http.402': 'HTTP 402: the provider account is out of credit.',
   'http.404': 'HTTP 404: model or URL not found. Check the model name and Base URL.',
@@ -84,7 +115,28 @@ const en = {
   'hist.empty.body': 'The last 20 operations collect here: source text, result, model and cost.\n\nNothing yet — no action has run since this start. Process any text and it will show up here.\n\nHistory lives in TextTools_history.txt next to the script and survives a restart (tray → “Open script folder”).',
   'hist.orig_suffix': 'original',
   'hist.no_actions': 'The log has no actions yet',
-  'hist.stats': 'Usage statistics',
+  'hist.no_actions.body': 'Statistics are built from two files next to the script: TextTools.log — how many times each action ran, TextTools_usage.log — how many tokens and how much money went to each model.\n\nNot a single run has been recorded yet. Process any text and the numbers will show up here.',
+  'hist.no_last.title': 'No results yet',
+  'hist.no_last.body': 'The text of the model’s last answer is also written to TextTools_last.txt next to the script, so it can be recovered even if the result window died with the process.\n\nThere is no such file yet — no action has run since this start. Select some text, press the menu hotkey and pick an action.',
+  'usage.title': 'Token usage',
+  'usage.empty': 'Empty so far: usage is recorded starting from the version that introduced this report.',
+  'usage.unparsed': 'The usage file has no parsable lines.',
+  'usage.by_model': 'Token usage by model',
+  'usage.col.calls': 'Requests',
+  'usage.col.prompt': 'Prompt',
+  'usage.col.completion': 'Answer',
+  'usage.col.total': 'Total',
+  'usage.col.cost': 'Cost',
+  'usage.no_price': 'price unknown',
+  'usage.total': 'Total',
+  'usage.note.est': 'The cost is an **estimate**. The token counts are exact: the API returns them in the usage field.',
+  'usage.note.catalog': 'Prices come from the OpenRouter catalogue (/api/v1/models), because OpenAI has no public price endpoint.',
+  'usage.note.stamp': 'Catalogue downloaded {1}, refreshed at most once a day.',
+  'usage.note.diff': 'Differences from the provider’s own invoice are possible.',
+  'usage.note.unknown': 'For some models no price was found in the catalogue — they are left out of the total (marked with a plus).',
+  'hist.stats': 'Statistics',
+  'hist.stats.heading': 'Usage statistics',
+  'log.title': 'log',
   'hist.runs': 'Action runs',
   'hist.by_log': 'From TextTools.log.',
   'hist.runs_n': 'Runs',
@@ -92,7 +144,7 @@ const en = {
   'hist.cleared.body': 'TextTools_history.txt was deleted. New operations will appear here again.',
   'log.cleared.title': 'Log cleared',
   'log.cleared.body': 'TextTools.log was deleted. New events will be written from this moment.',
-  'hist.title': 'history',
+  'hist.title': 'History',
   'hist.col.time': 'Time',
   'hist.col.action': 'Action',
   'hist.col.tokens': 'Tokens',
@@ -112,6 +164,7 @@ const en = {
   'set.proxy.hint': 'http://user:pass@host:port  ·  socks5h://host:port',
   'set.proxy.bad': 'Invalid proxy:',
   'set.model': 'Default model:',
+  'set.model_empty': 'The default model cannot be empty: a request without a model name will be rejected by the provider.',
   'set.models': 'Models available to actions (checked ones appear in the action card):',
   'set.col.model': 'Model',
   'set.col.ctx': 'Context',
@@ -282,7 +335,12 @@ for (const k of [...keys.keys()].sort()) {
 fs.mkdirSync(path.join(root, 'lang'), { recursive: true });
 fs.writeFileSync(path.join(root, 'lang', 'en.ini'), lines.join('\r\n') + '\r\n', 'utf8');
 console.log('ключей в коде:', keys.size, '| записано:', lines.length - 9);
+if (conflicts.length) {
+  console.log('ОДИН КЛЮЧ - РАЗНЫЕ ТЕКСТЫ' + (newConflicts.length ? ':' : ' (известные, см. KNOWN_CONFLICTS):'));
+  for (const c of conflicts) console.log('  ' + c);
+}
 if (missing.length) {
   console.log('БЕЗ ПЕРЕВОДА:', missing.join(', '));
-  process.exit(1);
 }
+if (missing.length || newConflicts.length)
+  process.exit(1);

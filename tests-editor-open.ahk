@@ -99,6 +99,91 @@ if !(IsObject(gEditorGui)) {
         Check(ovP = 0, ovP = 0 ? "контролы карточки приложения не наезжают (длинное описание)"
             : "в карточке приложения пересечений: " ovP)
     }
+
+    ; --- ряд N списка = запись N набора --------------------------------------
+    ; Это и есть инвариант, который ломала сортировка по клику на заголовок:
+    ; Изменить / Удалить / Вверх / Вниз берут запись по НОМЕРУ РЯДА, а AHK по
+    ; умолчанию переставляет только строки, не трогая acts/quicks/appList, -
+    ; и редактор начинал править чужую запись и сохранял это на диск.
+    ;
+    ; Сам клик по заголовку здесь не подделывается: NoSort - внутренний флаг AHK,
+    ; в стиле окна его не видно (это не LVS_NOSORTHEADER), а синтетический
+    ; WM_NOTIFY/LVN_COLUMNCLICK проверял бы нашу подделку, а не поведение AHK, и
+    ; при ошибке в ней тест прошёл бы вхолостую. Наличие NoSort у всех шести
+    ; списков проверяется по исходникам в tests-logic.ahk; здесь - следствие,
+    ; на которое опираются обработчики кнопок.
+    edLv := []
+    for c in gEditorGui
+        if (c.Type = "ListView")
+            edLv.Push(c)
+    Check(edLv.Length = 3, "в редакторе ровно три списка: " edLv.Length)
+    if (edLv.Length = 3) {
+        aMapBad := ""
+        for i, a in ACTIONS {
+            aWant := a.key != "" ? StrUpper(a.key) : "—"
+            aGot := edLv[1].GetText(i, 1)
+            if (aGot != aWant)
+                aMapBad .= " ряд " i ": «" aGot "» вместо «" aWant "»"
+        }
+        Check(aMapBad = "", "действия: ряд N отвечает ACTIONS[N] по клавише" aMapBad)
+        aNameBad := ""
+        for i, a in ACTIONS
+            if !InStr(edLv[1].GetText(i, 2), ActionName(a))
+                aNameBad .= " ряд " i ": «" edLv[1].GetText(i, 2) "» без «" ActionName(a) "»"
+        Check(aNameBad = "", "действия: ряд N отвечает ACTIONS[N] и по названию" aNameBad)
+        qMapBad := ""
+        for i, q in QUICK_REFINE
+            if (edLv[2].GetText(i, 1) != q.label)
+                qMapBad .= " ряд " i ": «" edLv[2].GetText(i, 1) "» вместо «" q.label "»"
+        Check(qMapBad = "", "уточнения: ряд N отвечает QUICK_REFINE[N]" qMapBad)
+        pMapBad := ""
+        for i, p in APPS
+            if (edLv[3].GetText(i, 1) != p.proc)
+                pMapBad .= " ряд " i ": «" edLv[3].GetText(i, 1) "» вместо «" p.proc "»"
+        Check(pMapBad = "", "приложения: ряд N отвечает APPS[N] по имени процесса" pMapBad)
+    }
+
+    ; --- модель по умолчанию в карточке действия (ADR 032) -------------------
+    ; У действия, чья model равна cfg.model, список моделей не должен показывать
+    ; её отдельной строкой, а выбор обязан стоять на «по умолчанию»: именно из
+    ; Value = 1 DoSave получает model := "" - по ADR 032 умолчание хранится
+    ; пустой строкой, а не снимком текущего значения. Нажать «Сохранить» отсюда
+    ; нечем (обработчик - замыкание внутри диалога), поэтому проверяется Value,
+    ; из которого запись и выводится.
+    aDef := CloneActions([ACTIONS[1]])[1]
+    aDef.model := cfg.model
+    snapM := SnapWins()
+    EditActionDialog(gEditorGui, aDef, ACTIONS, 1, (*) => 0)
+    dMod := NewDialogSince(snapM)
+    Check(IsObject(dMod), IsObject(dMod) ? "карточка действия с моделью по умолчанию открылась"
+        : "карточка с моделью по умолчанию не создана")
+    if IsObject(dMod) {
+        ddModelItems := "", ddModelVal := -1
+        for c in dMod {
+            ; Тип выпадающего списка в AHK v2 называется "DDL": по строке
+            ; "DropDownList" фильтр не совпадал никогда и проверка шла вхолостую.
+            if (c.Type != "DDL")
+                continue
+            ddItems := ControlGetItems(c)
+            if (ddItems.Length && InStr(ddItems[1], Loc("ed.model.default_of", "по умолчанию"))) {
+                ddModelItems := ddItems
+                ddModelVal := c.Value
+            }
+        }
+        Check(IsObject(ddModelItems), "список моделей в карточке найден по строке «по умолчанию»")
+        dupModel := 0
+        if IsObject(ddModelItems)
+            for it in ddModelItems
+                if (it = cfg.model)
+                    dupModel++
+        Check(IsObject(ddModelItems) && dupModel = 0,
+            "модель по умолчанию не дублируется отдельной строкой списка (найдено " dupModel ")")
+        Check(ddModelVal = 1,
+            "выбрана строка «по умолчанию», значит DoSave запишет model = «» (Value = " ddModelVal ")")
+        Check(IsObject(ddModelItems) && ddModelItems.Length = 1 + ExtraModels().Length,
+            "в списке ровно «по умолчанию» плюс дополнительные модели ("
+            . (IsObject(ddModelItems) ? ddModelItems.Length : -1) " при " ExtraModels().Length " дополнительных)")
+    }
 }
 
 ShowSettings()
@@ -140,6 +225,38 @@ if !IsObject(gSettingsGui) {
     ; и «Добавить свой…» + «Удалить» на языках.
     Check(onPage = 7, onPage = 7 ? "кнопки вкладок ровно те, что нужны (" onPage ")"
         : "кнопок на вкладках всего " onPage)
+
+    ; Ряд N = язык N: SyncChecks переписывает langRows[A_Index].on по номеру ряда,
+    ; а «Удалить» снимает langRows[row]. Переставь строки сортировкой - и галочки
+    ; лягут на другие языки, а удалится не тот.
+    setLv := []
+    for c in gSettingsGui
+        if (c.Type = "ListView")
+            setLv.Push(c)
+    Check(setLv.Length = 2, "в настройках ровно два списка: " setLv.Length)
+    if (setLv.Length = 2) {
+        lgMapBad := ""
+        for i, lg in LANGS {
+            lgGot := setLv[2].GetText(i, 2)
+            if (lgGot != lg.code)
+                lgMapBad .= " ряд " i ": «" lgGot "» вместо «" lg.code "»"
+        }
+        Check(lgMapBad = "", "языки: ряд N отвечает LANGS[N] по коду" lgMapBad)
+        lgNameBad := ""
+        for i, lg in LANGS
+            if (setLv[2].GetText(i, 1) != lg.name)
+                lgNameBad .= " ряд " i ": «" setLv[2].GetText(i, 1) "» вместо «" lg.name "»"
+        Check(lgNameBad = "", "языки: ряд N отвечает LANGS[N] и по названию" lgNameBad)
+        lgChecked := 0, lgRow := 0
+        loop {
+            lgRow := setLv[2].GetNext(lgRow, "Checked")
+            if !lgRow
+                break
+            lgChecked++
+        }
+        Check(lgChecked = CountOn(LANGS),
+            "галочек в списке столько же, сколько включённых языков (" lgChecked " и " CountOn(LANGS) ")")
+    }
 }
 try FileDelete(ACTIONS_INI)
 try FileDelete(APPS_INI)

@@ -30,7 +30,10 @@ ShowActionsEditor(*) {
 
     ; --- вкладка 1: действия ---
     tab.UseTab(1)
-    lvA := g.Add("ListView", "x25 y45 w560 r16 -Multi",
+    ; NoSort во всех трёх списках: строки сопоставлены с acts/quicks/appList ПО ИНДЕКСУ
+    ; (правка, удаление, Вверх/Вниз), а встроенная сортировка по клику на заголовок
+    ; переставляет только строки - дальше редактор работал бы с чужой записью
+    lvA := g.Add("ListView", "x25 y45 w560 r16 -Multi NoSort",
         [Loc("ed.col.key", "Клавиша"), Loc("ed.col.name", "Название"),
          Loc("ed.col.result", "Результат"), Loc("ed.col.lang", "Язык"),
          Loc("ed.col.model", "Модель")])
@@ -44,7 +47,7 @@ ShowActionsEditor(*) {
 
     ; --- вкладка 2: быстрые уточнения ---
     tab.UseTab(2)
-    lvQ := g.Add("ListView", "x25 y45 w560 r16 -Multi",
+    lvQ := g.Add("ListView", "x25 y45 w560 r16 -Multi NoSort",
         [Loc("ed.col.name", "Название"), Loc("ed.col.instr", "Инструкция модели")])
     bQAdd := g.Add("Button", "x595 y45 w160", Loc("ed.add", "Добавить"))
     bQEdit := g.Add("Button", "x595 y+6 w160", Loc("ed.edit", "Изменить…"))
@@ -55,7 +58,7 @@ ShowActionsEditor(*) {
 
     ; --- вкладка 3: приложения-источники ---
     tab.UseTab(3)
-    lvP := g.Add("ListView", "x25 y45 w560 r16 -Multi",
+    lvP := g.Add("ListView", "x25 y45 w560 r16 -Multi NoSort",
         [Loc("ed.col.proc", "Процесс"), Loc("ed.col.title_has", "Заголовок содержит"),
          Loc("ed.col.name", "Название"), Loc("ed.col.prompt_fix", "Поправка к промпту")])
     bPAdd := g.Add("Button", "x595 y45 w160", Loc("ed.add", "Добавить"))
@@ -177,6 +180,10 @@ ShowActionsEditor(*) {
         if !row
             return
         copy := CloneActions([acts[row]])[1]
+        ; id есть только у заводских действий. С ним копия показывалась бы под
+        ; переведённым заводским названием (суффикс «(копия)» терялся, две строки
+        ; выглядели одинаково), а её модель переписывал бы «Перенастроить действия»
+        copy.id := ""
         copy.name .= Loc("ed.copy_suffix", " (копия)")
         copy.key := FreeMenuKey(acts)           ; клавиша занята оригиналом
         acts.InsertAt(row + 1, copy)
@@ -310,7 +317,10 @@ EditActionDialog(parent, a, allActs, selfRow, onSave) {
 
     ; Модель действия. Первый пункт - следовать настройкам, а не фиксировать имя:
     ; тогда смена модели по умолчанию подхватится всеми обычными действиями.
-    curModel := (a.HasProp("model") && a.model != "") ? a.model : ""
+    ; Модель, совпавшая с моделью по умолчанию, НЕ становится вторым пунктом:
+    ; иначе в списке два внешне одинаковых варианта, а сохранение закрепило бы
+    ; снимок текущего умолчания - ADR 032 требует хранить пустую строку
+    curModel := (a.HasProp("model") && a.model != "" && a.model != cfg.model) ? a.model : ""
     modelItems := [Loc("ed.model.default_of", "по умолчанию") " (" cfg.model ")"]
     modelList := ExtraModels()
     ; модель, заданная раньше и убранная из настроек, не должна молча потеряться

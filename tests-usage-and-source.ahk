@@ -1,4 +1,4 @@
-#Requires AutoHotkey v2.0
+﻿#Requires AutoHotkey v2.0
 #SingleInstance Off
 ; Регрессионная проверка учета расхода и трекера окна-источника: разбор usage
 ; из ответа API, цены из каталога, отчет по моделям, окно статистики и отбор
@@ -102,7 +102,7 @@ found := 0
 for hw in WinGetList() {
     t := ""
     try t := WinGetTitle("ahk_id " hw)
-    if InStr(t, "Статистика")
+    if InStr(t, Loc("hist.stats", "Статистика"))
         found++
 }
 Check(found > 0, "окно статистики открылось")
@@ -241,13 +241,43 @@ Check(HTime(FormatTime(, "yyyy-MM-dd") " 09:05") = "09:05", "сегодняшн�
 Check(HTime("2026-01-02 09:05") = "02.01 09:05", "прошлое время с датой")
 ShowHistory()
 foundH := 0
+histGui := 0
 for hw in WinGetList() {
     t := ""
     try t := WinGetTitle("ahk_id " hw)
-    if InStr(t, "история")
-        foundH++
+    if !InStr(t, Loc("hist.title", "История"))
+        continue
+    foundH++
+    if !IsObject(histGui)
+        try histGui := GuiFromHwnd(hw)
 }
 Check(foundH > 0, "окно истории открылось")
+
+; Ряд N окна истории = запись N снимка. «Открыть результат», «Открыть оригинал»
+; и «Копировать» берут запись через Sel() по НОМЕРУ РЯДА (snap[row]), поэтому
+; любая перестановка строк (встроенная сортировка AHK по клику на заголовок)
+; открывала бы и копировала чужую запись. Отсюда NoSort у списка; сам клик
+; подделывать нечем, а наличие NoSort во всех шести списках проверяется по
+; исходникам в tests-logic.ahk.
+Check(IsObject(histGui), "окно истории найдено как объект Gui")
+if IsObject(histGui) {
+    histLv := 0
+    for c in histGui
+        if (c.Type = "ListView")
+            histLv := c
+    Check(IsObject(histLv), "в окне истории есть список")
+    if IsObject(histLv) {
+        Check(histLv.GetCount() = gHistory.Length,
+            "строк в списке столько же, сколько записей (" histLv.GetCount() " и " gHistory.Length ")")
+        hMapBad := ""
+        for i, rec in gHistory {
+            hGot := histLv.GetText(i, 2)
+            if (hGot != rec.action)
+                hMapBad .= " ряд " i ": «" hGot "» вместо «" rec.action "»"
+        }
+        Check(hMapBad = "", "история: ряд N отвечает записи N по действию" hMapBad)
+    }
+}
 
 ; пустая история обязана открывать окно, а не отвечать всплывающей подсказкой:
 ; подсказку дважды приняли за неработающий пункт меню
@@ -258,7 +288,7 @@ foundE := 0
 for hw in WinGetList() {
     t := ""
     try t := WinGetTitle("ahk_id " hw)
-    if InStr(t, "История")
+    if InStr(t, Loc("hist.title", "История"))
         foundE++
 }
 Check(foundE > 0, "пустая история тоже открывает окно с объяснением")
@@ -365,6 +395,47 @@ if WinActive("ahk_id " own2.Hwnd) {
 }
 own2.Destroy()
 Check(FocusSource(0) = false, "несуществующее окно не активируется")
+
+; --- пункты трея, которым нечего показать, обязаны отвечать ОКНОМ ------------
+; Подсказку у трея пользователь дважды принял за «пункт меню не работает».
+; Считаем ПРИРОСТ числа подходящих окон: окна от предыдущих проверок никуда не
+; делись, и простое «окно нашлось» прошло бы вхолостую.
+CountWinsWith(needle) {
+    n := 0
+    for hw in WinGetList() {
+        t := ""
+        try t := WinGetTitle("ahk_id " hw)
+        if InStr(t, needle)
+            n++
+    }
+    return n
+}
+
+; Путь последнего результата зашит в Lib/history.ahk как A_ScriptDir - тестом
+; его не перенаправить, поэтому настоящий файл убираем в сторону и возвращаем.
+lastF := A_ScriptDir "\TextTools_last.txt"
+lastBak := A_Temp "\tt_us_last_backup.txt"
+try FileDelete(lastBak)
+if FileExist(lastF)
+    try FileMove(lastF, lastBak, true)
+Check(!FileExist(lastF), "подготовка: файла последнего результата нет")
+lastBefore := CountWinsWith(Loc("hist.last", "Последний результат"))
+ShowLastResult()
+lastAfter := CountWinsWith(Loc("hist.last", "Последний результат"))
+Check(lastAfter > lastBefore,
+    "ShowLastResult без файла открывает окно, а не подсказку у трея (" lastBefore " → " lastAfter ")")
+if FileExist(lastBak)
+    try FileMove(lastBak, lastF, true)
+
+; Ни лога, ни файла расхода: ShowStats обязан объяснить это окном.
+try FileDelete(USAGEF)
+try FileDelete(LOGF)
+Check(!FileExist(USAGEF), "подготовка: файла расхода нет")
+statsBefore := CountWinsWith(Loc("hist.stats", "Статистика"))
+ShowStats()
+statsAfter := CountWinsWith(Loc("hist.stats", "Статистика"))
+Check(statsAfter > statsBefore,
+    "ShowStats без лога и без расхода открывает окно с объяснением (" statsBefore " → " statsAfter ")")
 
 try FileDelete(USAGEF)
 try FileDelete(PRICESF)

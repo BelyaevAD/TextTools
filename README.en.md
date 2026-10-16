@@ -38,8 +38,10 @@ HTTP goes through system `curl.exe` — more stable than COM/WinHTTP inside the 
 - Any OpenAI-compatible endpoint (OpenRouter, OpenAI, Anthropic proxies, local Ollama…)
 - Optional HTTP/HTTPS/SOCKS proxy (checkbox on the API tab; `http://user:pass@host:port` or `socks5h://…`)
 - Default model plus per-action override
-- Token usage and cost estimate (OpenRouter catalog)
-- UI language via `lang/*.ini` packs
+- Per-action output language: 18 in the list, the ticked ones show up in the action card
+- Last 20 operations, the last result, and a usage report — all from the tray
+- Token usage and cost estimate: token counts are exact (the API returns them in `usage`), but prices come from the OpenRouter catalog even when your provider is someone else — so the money figure is an estimate, not billing
+- UI language via `lang/*.ini` packs (Russian is built into the code, so there is no `ru.ini`)
 
 ## Requirements
 
@@ -63,6 +65,8 @@ The script copies into `%LOCALAPPDATA%\Scripts\TextTools\`, registers autostart,
 
 Without install: double-click `TextTools.ahk` if AHK v2 is already there (state files still land next to the script).
 
+To remove: `powershell -ExecutionPolicy Bypass -File .\uninstall.ps1` — it drops the autostart entry and deletes `%LOCALAPPDATA%\Scripts\TextTools` entirely, settings, history and log included. AutoHotkey itself stays.
+
 ## Usage
 
 | Action | Default |
@@ -81,7 +85,7 @@ More detail: [docs/USER_GUIDE.md](docs/USER_GUIDE.md). Common pitfalls: [docs/TR
 - A proxy URL with user/password is the same kind of secret as the key — don’t commit it
 - Text goes to your provider when you run an action
 - Profiling new apps (exe name and window title) is **off by default**. If you enable it in Settings, you see what will be sent before it goes
-- On-disk history holds processed texts — don’t commit it; clear history and the log from the tray
+- On-disk history holds processed texts — don’t commit it; clear history and the log from the tray. The last result also sits in `TextTools_last.txt`, which “Clear history” does not remove
 
 ## Credits
 
