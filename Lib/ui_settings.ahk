@@ -1,4 +1,4 @@
-; TextTools - Окно настроек поверх TextTools.ini и langs.ini.
+﻿; TextTools - Окно настроек поверх TextTools.ini и langs.ini.
 ; Вкладки собраны в ui_settings_api.ahk / _langs.ahk / _ui.ahk.
 ; Подключается из TextTools.ahk, отдельно не запускается.
 
@@ -14,10 +14,13 @@ ShowSettings(*) {
     PricesRefresh()
     modelRows := CollectModelRows()
     starred := cfg.model
+    ; адрес, которому принадлежит список в modelRows: по нему видно, что
+    ; список остался от прежнего провайдера и его нельзя дополнять
+    modelsUrl := Trim(CfgFlag(cfg, "models_url", ""))
     sortCol := 0, sortDesc := false
     langRows := CloneLangs(LANGS)
 
-    tab := sg.Add("Tab3", "x10 y10 w620 h470", [Loc("set.tab.api", "API"), Loc("set.tab.langs", "Языки ответа"), Loc("set.tab.ui", "Интерфейс")])
+    tab := sg.Add("Tab3", "x10 y10 w620 h560", [Loc("set.tab.api", "API"), Loc("set.tab.langs", "Языки ответа"), Loc("set.tab.ui", "Интерфейс")])
     tab.UseTab(1)
     api := SettingsApiTab(sg)
     tab.UseTab(2)
@@ -25,7 +28,7 @@ ShowSettings(*) {
     tab.UseTab(3)
     ui := SettingsUiTab(sg)
     tab.UseTab()
-    bSave := sg.Add("Button", "x10 y490 w160 Default", Loc("btn.save", "Сохранить"))
+    bSave := sg.Add("Button", "x10 y580 w160 Default", Loc("btn.save", "Сохранить"))
     sg.Add("Button", "x+8 w120", Loc("btn.cancel", "Отмена")).OnEvent("Click", (*) => sg.Destroy())
 
     eUrl := api.eUrl, eKey := api.eKey, cbProxy := api.cbProxy, eProxy := api.eProxy, eModel := api.eModel, lvM := api.lvM
@@ -75,7 +78,7 @@ ShowSettings(*) {
 
     DoRecommend(*) {
         SyncChecks()
-        url := Trim(eUrl.Value)
+        url := Trim(eUrl.Text)
         rec := RecommendedFor(url)
         if !rec.Length {
             MsgBox(Loc("set.rec_unknown", "Провайдер по адресу не опознан, рекомендовать нечего.")
@@ -108,7 +111,7 @@ ShowSettings(*) {
 
     DoRetarget(*) {
         global ACTIONS
-        url := Trim(eUrl.Value)
+        url := Trim(eUrl.Text)
         ApplyFactoryRoles(ACTIONS, url)
         EnsureModelsForActions(ACTIONS)
         try SaveActionSets(ACTIONS, QUICK_REFINE)
@@ -174,7 +177,7 @@ ShowSettings(*) {
             return
         }
         SyncChecks()
-        tmp := {base_url: Trim(eUrl.Value), api_key: Trim(eKey.Value),
+        tmp := {base_url: Trim(eUrl.Text), api_key: Trim(eKey.Value),
             proxy: Trim(eProxy.Value), proxy_on: cbProxy.Value ? "1" : "0",
             model: Trim(eModel.Value)}
         try {
@@ -197,6 +200,26 @@ ShowSettings(*) {
             MsgBox(Loc("set.models_failed", "Не удалось получить список моделей:") "`n`n" err, "TextTools", "Iconx 262144")
             return
         }
+        ; Список моделей принадлежит конкретному адресу. Сменился адрес -
+        ; прежние модели новому провайдеру не подходят, и «долить» к ним свежие
+        ; нельзя: в карточке действия остались бы имена, на которые провайдер
+        ; ответит 400. Поэтому при смене провайдера список заменяется целиком,
+        ; включая отметки - сохранять их тут опаснее, чем снять.
+        if (modelsUrl != "" && modelsUrl != tmp.base_url) {
+            fresh := []
+            for id in ids
+                fresh.Push(EnrichModel({id: id, on: false}))
+            modelRows := fresh
+            modelsUrl := tmp.base_url
+            SortModelRows()
+            FillModels()
+            swMsg := Loc("set.models_switched", "Провайдер сменился, список заменён целиком: моделей {1}. Прежние отметки сняты, они относились к {2}.")
+            MsgBox(Format(swMsg, ids.Length, modelsUrl) "`n`n"
+                . Loc("set.models_switched.hint", "Действия, которые ссылаются на модели прежнего провайдера, перенастройте кнопкой «Перенастроить действия под провайдера»."),
+                "TextTools", "Iconi 262144")
+            return
+        }
+        modelsUrl := tmp.base_url
         added := 0
         for id in ids {
             known := false
@@ -306,7 +329,7 @@ ShowSettings(*) {
         all := []
         for m in modelRows
             all.Push(m.id)
-        cfg.base_url := Trim(eUrl.Value)
+        cfg.base_url := Trim(eUrl.Text)
         cfg.api_key := Trim(eKey.Value)
         cfg.proxy_on := cbProxy.Value ? "1" : "0"
         try cfg.proxy := (cfg.proxy_on = "1")
@@ -318,6 +341,7 @@ ShowSettings(*) {
         }
         cfg.model := Trim(eModel.Value)
         cfg.models := JoinList(picked)
+        cfg.models_url := modelsUrl
         cfg.models_known := JoinList(all)
         cfg.hotkey := newHk
         cfg.hotkey_repeat := newHkR
@@ -349,7 +373,7 @@ ShowSettings(*) {
             Flash(Loc("msg.busy", "Запрос уже выполняется"))
             return
         }
-        tmp := {base_url: Trim(eUrl.Value), api_key: Trim(eKey.Value),
+        tmp := {base_url: Trim(eUrl.Text), api_key: Trim(eKey.Value),
             proxy: Trim(eProxy.Value), proxy_on: cbProxy.Value ? "1" : "0",
             model: Trim(eModel.Value)}
         try {

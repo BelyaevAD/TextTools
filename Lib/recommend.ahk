@@ -1,4 +1,4 @@
-; TextTools - Рекомендуемые модели по провайдерам.
+﻿; TextTools - Рекомендуемые модели по провайдерам.
 ; Подключается из TextTools.ahk, отдельно не запускается.
 ;
 ; Набор из четырёх ролей под задачи именно этого инструмента: тексты 0.5-4К
@@ -35,6 +35,20 @@ ProviderOf(baseUrl) {
     if InStr(u, "localhost") || InStr(u, "127.0.0.1") || InStr(u, ":11434")
         return "ollama"
     return ""
+}
+
+; Популярные адреса для выпадающего списка в настройках. Список и ProviderOf()
+; обязаны знать одни и те же адреса: выбранный мышью провайдер, который детектор
+; не узнаёт, молча лишает действия ролевых моделей. Сверяется тестом.
+ProviderUrls() {
+    return [{url: "https://api.openai.com/v1", key: "openai"},
+            {url: "https://openrouter.ai/api/v1", key: "openrouter"},
+            {url: "https://api.anthropic.com/v1", key: "anthropic"},
+            {url: "https://generativelanguage.googleapis.com/v1beta/openai", key: "google"},
+            {url: "https://api.deepseek.com/v1", key: "deepseek"},
+            {url: "https://api.mistral.ai/v1", key: "mistral"},
+            {url: "https://api.x.ai/v1", key: "xai"},
+            {url: "http://localhost:11434/v1", key: "ollama"}]
 }
 
 ProviderName(key) {

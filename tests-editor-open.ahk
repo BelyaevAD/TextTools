@@ -203,6 +203,47 @@ if !IsObject(gSettingsGui) {
     Check(setLists.Length = 2, setLists.Length = 2 ? "списки моделей и языков: строк " setLists[1] " / " setLists[2]
         : "списков в настройках " setLists.Length)
     Check(setLists.Length = 2 && setLists[2] = LANGS.Length, "список языков заполнен")
+    ; Список моделей должен показывать 6-7 строк: с высотой на три строки
+    ; выбирать модель было невозможно. Считаем по фактической высоте контрола.
+    lvModels := 0
+    for c in gSettingsGui {
+        if (c.Type != "ListView")
+            continue
+        lvModels := c
+        break
+    }
+    if IsObject(lvModels) {
+        lvModels.GetPos(, , , &lvH)
+        ; шапка ~20 px, строка ~17 px
+        rowsVisible := Floor((lvH - 20) / 17)
+        Check(rowsVisible >= 6, rowsVisible >= 6
+            ? "в списке моделей помещается строк: " rowsVisible " (высота " lvH ")"
+            : "список моделей показывает всего " rowsVisible " строк (высота " lvH ")")
+    } else {
+        Check(false, "список моделей не найден в окне настроек")
+    }
+
+    ; Адрес провайдера - редактируемый ComboBox: выбор из популярных плюс свой.
+    urlCombo := 0
+    for c in gSettingsGui {
+        if (c.Type != "ComboBox")
+            continue
+        urlCombo := c
+        break
+    }
+    Check(IsObject(urlCombo), IsObject(urlCombo) ? "адрес провайдера - выпадающий список"
+        : "ComboBox адреса не найден")
+    if IsObject(urlCombo) {
+        comboItems := ControlGetItems(urlCombo)
+        Check(comboItems.Length = ProviderUrls().Length,
+            "в списке адресов столько же строк, сколько в ProviderUrls (" comboItems.Length ")")
+        Check(comboItems.Length && comboItems[1] = ProviderUrls()[1].url,
+            "первый адрес списка совпадает с ProviderUrls")
+        ; .Text, а не .Value: у ComboBox Value - это номер строки, и чтение
+        ; через Value вернуло бы 0 для адреса, вписанного руками
+        Check(urlCombo.Text = cfg.base_url, "в поле адреса стоит текущий base_url: " urlCombo.Text)
+    }
+
 
     tx := 0, ty := 0, tw := 0, th := 0
     for c in gSettingsGui

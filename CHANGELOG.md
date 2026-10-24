@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+Settings usability, after a month of daily use.
+
+- **The model list showed two or three rows**, which made choosing a model impractical. It now fits eight; the window grew to match and the output-languages list fills the taller tab.
+- **Switching provider no longer leaves foreign models behind.** Loading models used to merge the new list into the old one, so models the new provider does not serve stayed selectable in the action card and failed with HTTP 400 when used. The list now belongs to an address: when that address changes, the list is replaced outright and the previous ticks are cleared, with a pointer to the retarget button.
+- **Base URL is an editable dropdown** of the eight providers the app already detects, and still accepts any address typed by hand. The dropdown and the provider detector share one source, and a test asserts they agree — an address picked from the list that the detector did not recognise would silently leave factory actions without their role models.
+
 ## v0.3.0 — 2026-10-16
 
 A full audit of the code, the tests and the documentation. The quality gate itself turned out to be the largest defect: it could not fail, and the checkers it ran were partly blind.

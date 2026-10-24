@@ -463,6 +463,26 @@ cfg.app_profiling := "0"
 ; ===========================================================================
 ; Рекомендуемые модели
 ; ===========================================================================
+; Выпадающий список адресов и детектор провайдера обязаны знать одно и то же:
+; адрес, выбранный мышью, но не опознанный ProviderOf, молча лишает заводские
+; действия ролевых моделей и делает кнопку рекомендаций бесполезной.
+puSeen := Map(), puBad := "", puNoRec := ""
+for pu in ProviderUrls() {
+    if (ProviderOf(pu.url) != pu.key)
+        puBad .= " " pu.url "->" ProviderOf(pu.url) "(ждали " pu.key ")"
+    if puSeen.Has(pu.url)
+        puBad .= " дубль:" pu.url
+    puSeen[pu.url] := true
+    if (RecommendedFor(pu.url).Length = 0)
+        puNoRec .= " " pu.key
+}
+Check(ProviderUrls().Length >= 6, "адресов провайдеров в списке: " ProviderUrls().Length)
+Check(puBad = "", puBad = "" ? "каждый адрес из списка опознаётся как заявленный провайдер"
+    : "расхождение списка и детектора:" puBad)
+Check(puNoRec = "", puNoRec = "" ? "у каждого адреса из списка есть рекомендации"
+    : "без рекомендаций:" puNoRec)
+Check(CfgDefaults().HasProp("models_url"), "в конфиге есть поле models_url: адрес, которому принадлежит список моделей")
+
 Check(ProviderOf("https://api.openai.com/v1") = "openai", "ProviderOf OpenAI")
 Check(ProviderOf("http://localhost:11434/v1") = "ollama", "ProviderOf локальная Ollama")
 Check(ProviderOf("https://api.example.com/v1") = "", "ProviderOf: чужой адрес не угадывается")

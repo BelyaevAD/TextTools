@@ -1,4 +1,4 @@
-; TextTools - Чтение и запись TextTools.ini.
+﻿; TextTools - Чтение и запись TextTools.ini.
 ; Подключается из TextTools.ahk, отдельно не запускается.
 
 CfgDefaults() {
@@ -10,6 +10,7 @@ CfgDefaults() {
         model: "anthropic/claude-haiku-4.5",
         models: "",
         models_known: "",
+        models_url: "",
         hotkey: "^!Space",
         hotkey_repeat: "^+Space",
         markdown: "1",
@@ -32,6 +33,9 @@ LoadCfg() {
         model:    IniRead(INI, "api", "model", d.model),
         models:   IniRead(INI, "api", "models", d.models),
         models_known: IniRead(INI, "api", "models_known", d.models_known),
+        ; адрес, которому принадлежит загруженный список моделей:
+        ; по нему видно, что список остался от прежнего провайдера
+        models_url: IniRead(INI, "api", "models_url", d.models_url),
         hotkey:   IniRead(INI, "ui", "hotkey", d.hotkey),
         hotkey_repeat: IniRead(INI, "ui", "hotkey_repeat", d.hotkey_repeat),
         markdown: IniRead(INI, "ui", "markdown", d.markdown),
@@ -66,6 +70,7 @@ SaveCfg(c) {
     IniWrite(c.model,    INI, "api", "model")
     IniWrite(c.models,   INI, "api", "models")
     IniWrite(c.models_known, INI, "api", "models_known")
+    IniWrite(CfgFlag(c, "models_url", ""), INI, "api", "models_url")
     IniWrite(c.hotkey,   INI, "ui", "hotkey")
     IniWrite(c.hotkey_repeat, INI, "ui", "hotkey_repeat")
     IniWrite(c.markdown, INI, "ui", "markdown")
