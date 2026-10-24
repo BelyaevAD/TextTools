@@ -73,13 +73,29 @@ The report text itself is currently Russian only — it does not go through the 
 
 ## Providers
 
-Any OpenAI-compatible `…/v1` base URL works. Examples:
+Any OpenAI-compatible `…/v1` base URL works. **Base URL is an editable dropdown**: pick one of the eight providers
+the app recognises, or type any other address by hand.
 
-| Provider | Base URL sketch |
+| Provider | Base URL |
 |---|---|
 | OpenRouter | `https://openrouter.ai/api/v1` |
 | OpenAI | `https://api.openai.com/v1` |
-| Ollama | `http://127.0.0.1:11434/v1` (any non-empty string as the “key”) |
+| Anthropic | `https://api.anthropic.com/v1` |
+| Google Gemini | `https://generativelanguage.googleapis.com/v1beta/openai` |
+| DeepSeek | `https://api.deepseek.com/v1` |
+| Mistral | `https://api.mistral.ai/v1` |
+| xAI | `https://api.x.ai/v1` |
+| Ollama | `http://localhost:11434/v1` (any non-empty string as the “key”) |
+
+The dropdown holds exactly the addresses the provider detector knows, so **Recommended models** and the role
+models of factory actions work for every entry. A hand-typed address is fine, but an unrecognised provider has
+no recommended set and no role mapping — actions fall back to the default model.
+
+**The model list belongs to the address it was loaded from.** Change the Base URL and press **Load from
+provider**: the list is replaced outright and the previous ticks are cleared, because the former provider’s
+models are not served by the new one — they would fail with HTTP 400 the first time an action used them.
+Afterwards run **Retarget actions for this provider**. While the address is unchanged, loading merges: a model
+that is ticked is never dropped, since an action may be holding it.
 
 Optional `proxy` in Settings (checkbox **Proxy** / `proxy_on=1` in `TextTools.ini` `[api]`): `http://user:pass@host:port`, `https://host:port`, `socks5://…`, `socks5h://…`. `host:port` without a scheme is treated as HTTP. Loopback targets are not proxied. The URL is kept when the checkbox is off.
 
