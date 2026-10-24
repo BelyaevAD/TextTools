@@ -48,7 +48,7 @@ HTTP goes through system `curl.exe` — more stable than COM/WinHTTP inside the 
 - Windows 10/11
 - [AutoHotkey v2](https://www.autohotkey.com/download/) (tested on 2.0.26)
 - System `curl.exe`
-- An API key for your provider (or local Ollama)
+- An API key for your provider (or local Ollama). The base URL is picked from a dropdown of eight providers, or typed by hand
 
 ## Install
 

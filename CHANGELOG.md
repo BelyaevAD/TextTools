@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.3.1 — 2026-10-24
 
 Settings usability, after a month of daily use.
 
