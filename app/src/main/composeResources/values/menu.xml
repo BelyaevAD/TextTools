@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="menu_instruction">Instruction:</string>
+    <string name="menu_hint">The key on a button runs the action. Shift — show the result in a window instead of replacing the selection.</string>
+    <string name="menu_editor">⚙  Action editor</string>
+</resources>

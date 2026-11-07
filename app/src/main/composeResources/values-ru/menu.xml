@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="menu_instruction">Инструкция:</string>
+    <string name="menu_hint">Клавиша на кнопке запускает действие. Shift — показать результат в окне, не заменяя выделение.</string>
+    <string name="menu_editor">⚙  Редактор действий</string>
+</resources>
