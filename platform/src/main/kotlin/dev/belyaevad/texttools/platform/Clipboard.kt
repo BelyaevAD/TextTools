@@ -16,12 +16,32 @@ interface ClipIo {
 
     /** True when the remembered source window became active. */
     fun activateSource(): Boolean
+
+    /** True when the clipboard holds an image or a file list and no usable text is required to notice it. */
+    fun hasImageOrFiles(): Boolean = false
+
+    /**
+     * True when the source window belongs to another process and is elevated,
+     * or its token cannot be read. Paste must not be sent.
+     */
+    fun elevatedForeign(): Boolean = false
 }
+
+/** Shown once per [ClipboardProtocol] when a capture finds an image or files and no text. */
+const val NON_TEXT_CLIPBOARD_WARNING =
+    "В буфере нет текста (картинка или файлы). TextTools сохраняет только текст."
 
 /** Result of trying to put text back into the source window. */
 sealed class PasteAttempt {
-    /** The paste chord was sent. */
-    data object Sent : PasteAttempt()
+    /**
+     * The paste chord was sent.
+     * [saved] is the clipboard from before the paste. [pasted] is the text we put there.
+     * Call [ClipboardProtocol.restoreAfterPaste] once the target has had time to read it.
+     */
+    data class Sent(
+        val saved: String,
+        val pasted: String,
+    ) : PasteAttempt()
 
     /** The source window could not take the text, so the UI must show it. */
     data object ShowInWindow : PasteAttempt()
@@ -30,42 +50,126 @@ sealed class PasteAttempt {
 /**
  * The AHK clipboard order: remember, clear, copy, wait, read, restore.
  * A locked clipboard does not start an action.
+ * The wait sleeps. An image or a file list is left in place and warned about once.
  */
-class ClipboardProtocol(
+class ClipboardProtocol internal constructor(
     private val io: ClipIo,
+    private val wait: WaitClock,
 ) {
-    /** Reads the selection. Returns an empty string when the copy did not arrive. */
+    constructor(io: ClipIo) : this(io, SystemWaitClock)
+
+    private var warnedNonText = false
+    private var pendingNonText: String? = null
+
+    /**
+     * Reads the selection.
+     * [waitSeconds] is the caller's `clipWaitSeconds` value, already clamped to 0.2–5.
+     * Returns an empty string when the copy did not arrive.
+     */
+    fun captureSeconds(waitSeconds: Double): String = capture(secondsToMillis(waitSeconds))
+
+    /** Reads the selection. [waitMillis] is the caller's wait, in milliseconds. */
     fun capture(waitMillis: Long): String {
-        val saved = io.readText() ?: return ""
+        val nonText = io.hasImageOrFiles()
+        val saved = io.readText()
+        if ((saved == null || saved.isEmpty()) && nonText) {
+            warnNonTextOnce()
+            return ""
+        }
+        if (saved == null) return ""
         if (!io.writeText("")) {
             io.writeText(saved)
             return ""
         }
         io.sendCopy()
-        val started = System.currentTimeMillis()
-        var text = ""
-        while (System.currentTimeMillis() - started < waitMillis) {
-            val current = io.readText()
-            if (!current.isNullOrEmpty()) {
-                text = current
-                break
-            }
-        }
+        val text = waitForCopy(waitMillis)
         io.writeText(saved)
         return text
     }
 
-    /** Puts the result into the source window, or asks the UI to show it. */
+    /**
+     * The one-shot notice for an image or a file list, or null when this session already delivered it.
+     * The text is fixed. Clipboard contents are not included.
+     */
+    fun takeNonTextWarning(): String? {
+        val notice = pendingNonText
+        pendingNonText = null
+        return notice
+    }
+
+    /**
+     * Puts the result into the source window, or asks the UI to show it.
+     * A locked clipboard is left untouched. An elevated foreign window is not pasted into.
+     */
     fun paste(text: String): PasteAttempt {
-        val saved = io.readText() ?: ""
+        val saved = io.readText() ?: return PasteAttempt.ShowInWindow
+        if (io.elevatedForeign()) return PasteAttempt.ShowInWindow
         if (!io.writeText(text)) return PasteAttempt.ShowInWindow
         if (!io.activateSource()) {
             io.writeText(saved)
             return PasteAttempt.ShowInWindow
         }
         io.sendPaste()
-        return PasteAttempt.Sent
+        return PasteAttempt.Sent(saved, text)
     }
+
+    /**
+     * Restores [saved] only while the clipboard still holds [pasted].
+     * Matches the AHK timer: if the user copied something else, that copy stays.
+     */
+    fun restoreAfterPaste(
+        saved: String,
+        pasted: String,
+    ) {
+        val current = io.readText() ?: return
+        if (current == pasted) {
+            io.writeText(saved)
+        }
+    }
+
+    private fun warnNonTextOnce() {
+        if (warnedNonText) return
+        warnedNonText = true
+        pendingNonText = NON_TEXT_CLIPBOARD_WARNING
+    }
+
+    private fun waitForCopy(waitMillis: Long): String {
+        val limit = waitMillis.coerceAtLeast(0)
+        val deadline = wait.nowMillis() + limit
+        while (true) {
+            val current = io.readText()
+            if (!current.isNullOrEmpty()) return current
+            val now = wait.nowMillis()
+            if (now >= deadline) return ""
+            val slice = minOf(CLIP_POLL_MILLIS, deadline - now)
+            if (slice <= 0L) return ""
+            wait.sleepMillis(slice)
+        }
+    }
+}
+
+/** Clock for the copy wait. Production sleeps. Tests advance time only inside [sleepMillis]. */
+internal interface WaitClock {
+    fun nowMillis(): Long
+
+    fun sleepMillis(millis: Long)
+}
+
+private const val CLIP_POLL_MILLIS = 20L
+
+private object SystemWaitClock : WaitClock {
+    override fun nowMillis(): Long = System.currentTimeMillis()
+
+    override fun sleepMillis(millis: Long) {
+        Thread.sleep(millis)
+    }
+}
+
+private fun secondsToMillis(waitSeconds: Double): Long {
+    if (waitSeconds <= 0.0) return 0L
+    val millis = waitSeconds * 1000.0
+    if (millis >= Long.MAX_VALUE) return Long.MAX_VALUE
+    return millis.toLong()
 }
 
 /** Which desktop session the process is in. Wayland is not treated as X11. */
