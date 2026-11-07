@@ -15,6 +15,7 @@ subprojects {
         google()
     }
 
+    // ktlint-gradle 12.1.2 lints SQLDelight output under data/build even with a src-only filter.
     if (name != "data") {
         apply(plugin = "org.jlleitschuh.gradle.ktlint")
     }

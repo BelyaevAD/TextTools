@@ -6,7 +6,6 @@ import dev.belyaevad.texttools.domain.OutputLanguage
 import dev.belyaevad.texttools.domain.Settings
 import dev.belyaevad.texttools.domain.providerOf
 import dev.belyaevad.texttools.domain.roleModel
-
 import java.util.Locale
 
 /** One interface language in the dropdown. [name] is the language's own name. */
@@ -33,8 +32,7 @@ data class SettingsProbe(
     val proxy: String,
     val proxyOn: Boolean,
 ) {
-    override fun toString(): String =
-        "SettingsProbe(baseUrl=$baseUrl, model=$model, proxyOn=$proxyOn, apiKeySet=${apiKey.isNotEmpty()})"
+    override fun toString(): String = "SettingsProbe(baseUrl=$baseUrl, model=$model, proxyOn=$proxyOn, apiKeySet=${apiKey.isNotEmpty()})"
 }
 
 /**

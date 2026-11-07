@@ -43,6 +43,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.belyaevad.texttools.domain.CatalogEntry
+import dev.belyaevad.texttools.domain.providerUrls
+import org.jetbrains.compose.resources.stringResource
 import texttools.app.generated.resources.Res
 import texttools.app.generated.resources.settings_api_key
 import texttools.app.generated.resources.settings_base_url
@@ -60,9 +63,6 @@ import texttools.app.generated.resources.settings_proxy_hint
 import texttools.app.generated.resources.settings_recommend
 import texttools.app.generated.resources.settings_retarget
 import texttools.app.generated.resources.settings_test
-import dev.belyaevad.texttools.domain.CatalogEntry
-import dev.belyaevad.texttools.domain.providerUrls
-import org.jetbrains.compose.resources.stringResource
 
 /** Buttons on the API tab. The form itself owns the field values. */
 class ApiActions(
@@ -264,7 +264,11 @@ private fun ModelTable(
 @Composable
 private fun ModelHeader() {
     Row(
-        Modifier.fillMaxWidth().height(28.dp).background(Color(0xFFF3F3F3)).padding(end = 6.dp),
+        Modifier
+            .fillMaxWidth()
+            .height(28.dp)
+            .background(Color(0xFFF3F3F3))
+            .padding(end = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Spacer(Modifier.width(28.dp))
@@ -312,8 +316,7 @@ private fun ModelRow(
                         onTap = { onSelect() },
                         onDoubleTap = { onDoubleClick() },
                     )
-                }
-                .padding(end = 6.dp),
+                }.padding(end = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Cell(if (starred) "★ $id" else id, Modifier.weight(3.2f))

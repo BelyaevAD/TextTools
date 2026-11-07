@@ -1,6 +1,8 @@
 package dev.belyaevad.texttools.app.ui.editor
 
 import androidx.compose.runtime.Composable
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
 import texttools.app.generated.resources.Res
 import texttools.app.generated.resources.ed_act_edit
 import texttools.app.generated.resources.ed_act_new
@@ -81,8 +83,6 @@ import texttools.app.generated.resources.ed_tab_quick
 import texttools.app.generated.resources.ed_up
 import texttools.app.generated.resources.ed_window_title
 import texttools.app.generated.resources.ed_yes
-import org.jetbrains.compose.resources.StringResource
-import org.jetbrains.compose.resources.stringResource
 
 internal enum class Ed(
     val res: StringResource,

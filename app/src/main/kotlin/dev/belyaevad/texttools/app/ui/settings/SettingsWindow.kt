@@ -39,6 +39,13 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.rememberWindowState
+import dev.belyaevad.texttools.domain.KnownModel
+import dev.belyaevad.texttools.domain.OutputLanguage
+import dev.belyaevad.texttools.domain.Settings
+import dev.belyaevad.texttools.domain.providerOf
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.stringResource
 import texttools.app.generated.resources.Res
 import texttools.app.generated.resources.settings_busy
 import texttools.app.generated.resources.settings_cancel
@@ -80,13 +87,6 @@ import texttools.app.generated.resources.settings_test_fail
 import texttools.app.generated.resources.settings_test_ok
 import texttools.app.generated.resources.settings_testing
 import texttools.app.generated.resources.settings_title
-import dev.belyaevad.texttools.domain.KnownModel
-import dev.belyaevad.texttools.domain.OutputLanguage
-import dev.belyaevad.texttools.domain.Settings
-import dev.belyaevad.texttools.domain.providerOf
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.launch
-import org.jetbrains.compose.resources.stringResource
 
 /**
  * One settings window: API, output languages, and interface, with Save and Cancel under the tabs.

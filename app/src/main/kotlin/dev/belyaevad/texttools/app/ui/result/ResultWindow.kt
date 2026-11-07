@@ -46,26 +46,17 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.rememberWindowState
-import texttools.app.generated.resources.Res
-import texttools.app.generated.resources.result_close
-import texttools.app.generated.resources.result_copy
-import texttools.app.generated.resources.result_markup
-import texttools.app.generated.resources.result_paste
-import texttools.app.generated.resources.result_quick
-import texttools.app.generated.resources.result_refine
-import texttools.app.generated.resources.result_send
-import texttools.app.generated.resources.result_source
 import dev.belyaevad.texttools.domain.ChatMessage
 import dev.belyaevad.texttools.domain.MdBlock
 import dev.belyaevad.texttools.domain.QuickRefine
@@ -78,6 +69,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
+import texttools.app.generated.resources.Res
+import texttools.app.generated.resources.result_close
+import texttools.app.generated.resources.result_copy
+import texttools.app.generated.resources.result_markup
+import texttools.app.generated.resources.result_paste
+import texttools.app.generated.resources.result_quick
+import texttools.app.generated.resources.result_refine
+import texttools.app.generated.resources.result_send
+import texttools.app.generated.resources.result_source
 
 private val Ink = Color(0xFF1B1B1B)
 private val Chrome = Color(0xFFF0F0F0)
@@ -260,8 +260,8 @@ private fun launchRefine(
         live.text = answer
         live.conversation =
             previous +
-                ChatMessage(role = "user", content = instruction) +
-                ChatMessage(role = "assistant", content = answer)
+            ChatMessage(role = "user", content = instruction) +
+            ChatMessage(role = "assistant", content = answer)
         live.draft = ""
     }
 }
@@ -452,8 +452,7 @@ private fun RefineRow(
                         } else {
                             false
                         }
-                    }
-                    .border(1.dp, Frame)
+                    }.border(1.dp, Frame)
                     .background(Color.White)
                     .padding(horizontal = 6.dp),
             decorationBox = { inner ->

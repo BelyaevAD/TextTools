@@ -226,8 +226,7 @@ private fun modelSpend(
         .map { model ->
             val acc = totals.getValue(model)
             ModelSpend(model, acc.requests, acc.prompt, acc.completion, priced(model, acc, price))
-        }
-        .sortedByDescending { it.promptTokens + it.completionTokens }
+        }.sortedByDescending { it.promptTokens + it.completionTokens }
 }
 
 private fun priced(

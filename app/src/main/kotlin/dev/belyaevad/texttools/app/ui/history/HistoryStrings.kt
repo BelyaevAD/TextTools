@@ -1,6 +1,8 @@
 package dev.belyaevad.texttools.app.ui.history
 
 import androidx.compose.runtime.Composable
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
 import texttools.app.generated.resources.Res
 import texttools.app.generated.resources.hist_by_log
 import texttools.app.generated.resources.hist_cleared_body
@@ -47,8 +49,6 @@ import texttools.app.generated.resources.usage_note_stamp
 import texttools.app.generated.resources.usage_note_unknown
 import texttools.app.generated.resources.usage_title
 import texttools.app.generated.resources.usage_total
-import org.jetbrains.compose.resources.StringResource
-import org.jetbrains.compose.resources.stringResource
 
 internal enum class Hist(
     val res: StringResource,

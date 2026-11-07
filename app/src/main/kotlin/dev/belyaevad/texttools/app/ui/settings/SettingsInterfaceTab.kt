@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.jetbrains.compose.resources.stringResource
 import texttools.app.generated.resources.Res
 import texttools.app.generated.resources.settings_clip_wait
 import texttools.app.generated.resources.settings_endpoints
@@ -39,7 +40,6 @@ import texttools.app.generated.resources.settings_markdown
 import texttools.app.generated.resources.settings_profiling
 import texttools.app.generated.resources.settings_ui_lang
 import texttools.app.generated.resources.settings_ui_lang_hint
-import org.jetbrains.compose.resources.stringResource
 
 /**
  * Interface tab. Hotkey fields keep AutoHotkey text such as `^!Space`.

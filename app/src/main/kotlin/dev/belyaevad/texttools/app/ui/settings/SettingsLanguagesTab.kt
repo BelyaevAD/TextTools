@@ -33,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.jetbrains.compose.resources.stringResource
 import texttools.app.generated.resources.Res
 import texttools.app.generated.resources.settings_add_own
 import texttools.app.generated.resources.settings_col_code
@@ -40,7 +41,6 @@ import texttools.app.generated.resources.settings_col_lang
 import texttools.app.generated.resources.settings_col_prompt
 import texttools.app.generated.resources.settings_delete
 import texttools.app.generated.resources.settings_langs_hint
-import org.jetbrains.compose.resources.stringResource
 
 /**
  * Output languages. A tick stays on its row. Delete removes the selected row,
@@ -108,7 +108,11 @@ fun SettingsLanguagesTab(
 @Composable
 private fun LanguageHeader() {
     Row(
-        Modifier.fillMaxWidth().height(28.dp).background(Color(0xFFF3F3F3)).padding(end = 6.dp),
+        Modifier
+            .fillMaxWidth()
+            .height(28.dp)
+            .background(Color(0xFFF3F3F3))
+            .padding(end = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Spacer(Modifier.width(28.dp))

@@ -44,13 +44,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.belyaevad.texttools.domain.Action
+import org.jetbrains.compose.resources.stringResource
 import texttools.app.generated.resources.Res
 import texttools.app.generated.resources.menu_editor
 import texttools.app.generated.resources.menu_hint
 import texttools.app.generated.resources.menu_instruction
-import dev.belyaevad.texttools.domain.Action
 import java.util.Locale
-import org.jetbrains.compose.resources.stringResource
 
 private val ButtonWidth = 150.dp
 private val ButtonHeight = 34.dp
@@ -99,8 +99,7 @@ fun actionMenu(
                         onRun = onRun,
                         dismiss = dismiss,
                     )
-                }
-                .padding(10.dp),
+                }.padding(10.dp),
         verticalArrangement = Arrangement.spacedBy(GridGap),
     ) {
         Row(
