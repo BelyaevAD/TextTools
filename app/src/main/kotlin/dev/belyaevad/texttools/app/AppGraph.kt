@@ -16,6 +16,11 @@ import dev.belyaevad.texttools.platform.win.openUserSecretStore
 import dev.belyaevad.texttools.platform.win.windowsClipboard
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
+import okhttp3.Authenticator
+import okhttp3.Credentials
+import okhttp3.Request
+import okhttp3.Response
+import okhttp3.Route
 import java.io.IOException
 import java.net.InetSocketAddress
 import java.net.Proxy
@@ -26,11 +31,6 @@ import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
-import okhttp3.Authenticator
-import okhttp3.Credentials
-import okhttp3.Request
-import okhttp3.Response
-import okhttp3.Route
 
 /**
  * Desktop wiring. Construction does not call [WinHotkeys.start], [ForegroundWatch.start], or open a window.
@@ -178,28 +178,30 @@ private fun proxyEndpoint(secrets: UserSecrets): ProxyEndpoint {
         try {
             normalizeProxy(raw)
         } catch (_: IllegalArgumentException) {
-            throw IllegalArgumentException("Прокси не разобран")
+            return badProxy()
         }
     if (value.isEmpty()) return ProxyEndpoint(Proxy.NO_PROXY, null, null)
     val uri =
         try {
             URI(value)
         } catch (_: IllegalArgumentException) {
-            throw IllegalArgumentException("Прокси не разобран")
+            return badProxy()
         }
-    val host = uri.host ?: throw IllegalArgumentException("Прокси не разобран")
+    val host = uri.host ?: return badProxy()
     val scheme = uri.scheme?.lowercase().orEmpty()
     val port =
         when {
             uri.port != -1 -> uri.port
             else -> defaultProxyPort(scheme)
         }
-    if (port == -1) throw IllegalArgumentException("Прокси не разобран")
+    if (port == -1) return badProxy()
     val type = if (scheme.startsWith("socks")) Proxy.Type.SOCKS else Proxy.Type.HTTP
     val proxy = Proxy(type, InetSocketAddress.createUnresolved(host, port))
     val decoded = decodeUserInfo(uri.rawUserInfo)
     return ProxyEndpoint(proxy, decoded?.first, decoded?.second)
 }
+
+private fun badProxy(): Nothing = throw IllegalArgumentException("Прокси не разобран")
 
 private fun decodeUserInfo(info: String?): Pair<String, String>? {
     if (info.isNullOrEmpty()) return null

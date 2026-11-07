@@ -17,6 +17,8 @@ dependencies {
     implementation(libs.sqldelight.driver)
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.okhttp)
+    testImplementation(libs.kotlin.test)
+    testImplementation(libs.coroutines)
 }
 
 kotlin {
