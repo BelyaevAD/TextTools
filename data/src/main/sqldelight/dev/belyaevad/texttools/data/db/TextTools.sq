@@ -1,0 +1,50 @@
+CREATE TABLE action (
+  position INTEGER NOT NULL PRIMARY KEY,
+  factory_id TEXT,
+  name TEXT NOT NULL,
+  icon TEXT NOT NULL,
+  prefix TEXT NOT NULL,
+  task TEXT NOT NULL,
+  menu_key TEXT,
+  model TEXT,
+  lang TEXT NOT NULL,
+  style_on INTEGER NOT NULL,
+  open_in_window INTEGER NOT NULL
+);
+
+CREATE TABLE quick_refine (
+  position INTEGER NOT NULL PRIMARY KEY,
+  label TEXT NOT NULL,
+  instruction TEXT NOT NULL
+);
+
+CREATE TABLE setting (
+  key TEXT NOT NULL PRIMARY KEY,
+  value TEXT NOT NULL
+);
+
+selectAllActions:
+SELECT position, factory_id, name, icon, prefix, task, menu_key, model, lang, style_on, open_in_window
+FROM action ORDER BY position;
+
+deleteActions:
+DELETE FROM action;
+
+insertAction:
+INSERT INTO action(position, factory_id, name, icon, prefix, task, menu_key, model, lang, style_on, open_in_window)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+selectQuick:
+SELECT position, label, instruction FROM quick_refine ORDER BY position;
+
+deleteQuick:
+DELETE FROM quick_refine;
+
+insertQuick:
+INSERT INTO quick_refine(position, label, instruction) VALUES (?, ?, ?);
+
+selectSetting:
+SELECT value FROM setting WHERE key = ?;
+
+upsertSetting:
+INSERT OR REPLACE INTO setting(key, value) VALUES (?, ?);

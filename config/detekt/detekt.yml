@@ -1,0 +1,26 @@
+style:
+  WildcardImport:
+    active: true
+  MaxLineLength:
+    active: false
+  MagicNumber:
+    active: false
+  ReturnCount:
+    active: false
+  LoopWithTooManyJumpStatements:
+    active: false
+complexity:
+  CyclomaticComplexMethod:
+    active: false
+  LongMethod:
+    active: false
+  TooManyFunctions:
+    active: false
+naming:
+  MatchingDeclarationName:
+    active: false
+  FunctionNaming:
+    active: false
+exceptions:
+  TooGenericExceptionCaught:
+    active: false

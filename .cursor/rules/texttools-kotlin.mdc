@@ -1,0 +1,7 @@
+---
+description: TextTools Kotlin module boundaries
+globs: "**/*.{kt,kts,sq,md}"
+alwaysApply: false
+---
+
+Edit only the module you were given. The domain module must not depend on Compose, Ktor or SQLDelight. A slice is unfinished without docs/dev. Read old AHK with git show archive/ahk:path.

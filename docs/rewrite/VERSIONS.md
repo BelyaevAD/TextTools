@@ -1,0 +1,1 @@
+Kotlin 2.2.20, Compose Multiplatform 1.12.2, Material (not Material3 1.12.0-alpha03), SQLDelight 2.4.1 sqlite-driver, Ktor 3.6.1, Dokka 2.2.0, JDK 21. Compose 1.13-beta was not taken. Detekt 2.0.0-alpha.1 is the release built for Kotlin 2.2.20. That alpha does not ship UndocumentedPublicClass, so KDoc stays in the sources and in review rather than in that config.

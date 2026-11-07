@@ -1,22 +1,8 @@
-# Runtime / user state — never commit
-TextTools.ini
-TextTools.log
-TextTools_last.txt
-TextTools_history.txt
-TextTools_usage.log
-actions.ini
-apps.ini
-langs.ini
-prices.json
-*.local
-lang/user/*.ini
-!lang/user/README.txt
-
-docs/assets/screenshots/**/_capture-report.txt
-
-# OS / editor junk
-Thumbs.db
-Desktop.ini
-.DS_Store
-*.swp
-*~
+.gradle/
+build/
+**/build/
+.kotlin/
+*.db
+texttools.db
+.idea/
+*.iml
