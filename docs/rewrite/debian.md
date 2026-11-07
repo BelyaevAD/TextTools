@@ -1,0 +1,1 @@
+Full capture and paste are for an X11 session. On Wayland the menu can open and text is not injected into other windows. `desktopSession` already treats Wayland as its own case. A live probe was not run on this Windows host.
