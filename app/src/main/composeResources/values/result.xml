@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="result_quick">Quick:</string>
+    <string name="result_refine">Refine:</string>
+    <string name="result_send">Send</string>
+    <string name="result_copy">Copy</string>
+    <string name="result_paste">Paste into window</string>
+    <string name="result_source">Source</string>
+    <string name="result_markup">Markup</string>
+    <string name="result_close">Close</string>
+</resources>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="result_quick">Быстро:</string>
+    <string name="result_refine">Уточнить:</string>
+    <string name="result_send">Отправить</string>
+    <string name="result_copy">Копировать</string>
+    <string name="result_paste">Вставить в окно</string>
+    <string name="result_source">Исходник</string>
+    <string name="result_markup">Разметка</string>
+    <string name="result_close">Закрыть</string>
+</resources>
