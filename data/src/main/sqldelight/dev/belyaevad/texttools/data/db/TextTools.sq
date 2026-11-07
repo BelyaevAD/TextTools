@@ -23,6 +23,58 @@ CREATE TABLE setting (
   value TEXT NOT NULL
 );
 
+CREATE TABLE app_profile (
+  position INTEGER NOT NULL PRIMARY KEY,
+  proc TEXT NOT NULL,
+  title TEXT NOT NULL,
+  name TEXT NOT NULL,
+  description TEXT NOT NULL,
+  hint TEXT NOT NULL
+);
+
+CREATE TABLE output_language (
+  position INTEGER NOT NULL PRIMARY KEY,
+  code TEXT NOT NULL,
+  name TEXT NOT NULL,
+  prompt TEXT NOT NULL,
+  enabled INTEGER NOT NULL
+);
+
+CREATE TABLE known_model (
+  base_url TEXT NOT NULL,
+  position INTEGER NOT NULL,
+  model_id TEXT NOT NULL,
+  selected INTEGER NOT NULL,
+  PRIMARY KEY (base_url, position)
+);
+
+CREATE TABLE history (
+  position INTEGER NOT NULL PRIMARY KEY,
+  at_epoch_ms INTEGER NOT NULL,
+  action_name TEXT NOT NULL,
+  model TEXT NOT NULL,
+  prompt_tokens INTEGER,
+  completion_tokens INTEGER,
+  cost REAL,
+  source TEXT NOT NULL,
+  result TEXT NOT NULL
+);
+
+CREATE TABLE usage_log (
+  position INTEGER NOT NULL PRIMARY KEY,
+  at_epoch_ms INTEGER NOT NULL,
+  label TEXT NOT NULL,
+  model TEXT NOT NULL,
+  prompt_tokens INTEGER NOT NULL,
+  completion_tokens INTEGER NOT NULL
+);
+
+CREATE TABLE price_cache (
+  id INTEGER NOT NULL PRIMARY KEY,
+  body TEXT NOT NULL,
+  fetched_at INTEGER NOT NULL
+);
+
 selectAllActions:
 SELECT position, factory_id, name, icon, prefix, task, menu_key, model, lang, style_on, open_in_window
 FROM action ORDER BY position;
@@ -48,3 +100,69 @@ SELECT value FROM setting WHERE key = ?;
 
 upsertSetting:
 INSERT OR REPLACE INTO setting(key, value) VALUES (?, ?);
+
+selectApps:
+SELECT position, proc, title, name, description, hint
+FROM app_profile ORDER BY position;
+
+deleteApps:
+DELETE FROM app_profile;
+
+insertApp:
+INSERT INTO app_profile(position, proc, title, name, description, hint)
+VALUES (?, ?, ?, ?, ?, ?);
+
+selectLanguages:
+SELECT position, code, name, prompt, enabled
+FROM output_language ORDER BY position;
+
+deleteLanguages:
+DELETE FROM output_language;
+
+insertLanguage:
+INSERT INTO output_language(position, code, name, prompt, enabled)
+VALUES (?, ?, ?, ?, ?);
+
+selectModels:
+SELECT model_id, selected
+FROM known_model
+WHERE base_url = ?
+ORDER BY position;
+
+deleteModels:
+DELETE FROM known_model WHERE base_url = ?;
+
+insertModel:
+INSERT INTO known_model(base_url, position, model_id, selected)
+VALUES (?, ?, ?, ?);
+
+selectHistory:
+SELECT at_epoch_ms, action_name, model, prompt_tokens, completion_tokens, cost, source, result
+FROM history ORDER BY position;
+
+deleteHistory:
+DELETE FROM history;
+
+insertHistory:
+INSERT INTO history(position, at_epoch_ms, action_name, model, prompt_tokens, completion_tokens, cost, source, result)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+selectUsage:
+SELECT at_epoch_ms, label, model, prompt_tokens, completion_tokens
+FROM usage_log ORDER BY position;
+
+deleteUsage:
+DELETE FROM usage_log;
+
+insertUsage:
+INSERT INTO usage_log(position, at_epoch_ms, label, model, prompt_tokens, completion_tokens)
+VALUES (?, ?, ?, ?, ?, ?);
+
+selectPriceCache:
+SELECT body, fetched_at FROM price_cache WHERE id = 0;
+
+deletePriceCache:
+DELETE FROM price_cache;
+
+insertPriceCache:
+INSERT INTO price_cache(id, body, fetched_at) VALUES (0, ?, ?);
