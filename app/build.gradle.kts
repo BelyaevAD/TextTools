@@ -12,7 +12,11 @@ dependencies {
     implementation(project(":platform"))
     implementation(compose.desktop.currentOs)
     implementation(compose.material)
+    implementation(compose.components.resources)
     implementation(libs.coroutines)
+    implementation(libs.sqldelight.driver)
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.okhttp)
 }
 
 kotlin {
