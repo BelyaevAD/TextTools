@@ -141,6 +141,25 @@ class BehaviorTest {
         }
 
     @Test
+    fun factoryCarriesAhkIconsPromptsAndProfiles() {
+        val proof = Factory.actions.first { it.factoryId == "proofread" }
+        val summary = Factory.actions.first { it.factoryId == "summary" }
+        val concise = Factory.actions.first { it.factoryId == "concise" }
+        assertEquals("\u270F", proof.icon)
+        assertTrue(proof.icon.isNotEmpty())
+        assertTrue(proof.task.lines().size > 1)
+        assertEquals(23, Factory.apps.size)
+        assertNull(summary.role)
+        assertEquals("mech", concise.role)
+        assertEquals("mech", proof.role)
+        assertEquals(
+            listOf("keypoints", "table", "spec", "code", "questions", "reply", "reqreview"),
+            Factory.actions.filter { it.role == "deep" }.map { it.factoryId },
+        )
+        assertTrue((Factory.actions + Factory.custom).all { it.model == null })
+    }
+
+    @Test
     fun domainGradleDoesNotDependOnUiOrStorage() {
         val text = java.io.File("build.gradle.kts").readText()
         assertTrue("ktor" !in text)
