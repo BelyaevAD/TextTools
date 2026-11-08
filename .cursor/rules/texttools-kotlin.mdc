@@ -1,7 +1,7 @@
 ---
-description: TextTools Kotlin module boundaries
+description: TextTools module boundaries and a restart after app edits
 globs: "**/*.{kt,kts,sq,md}"
 alwaysApply: false
 ---
 
-Edit only the module you were given. The domain module must not depend on Compose, Ktor or SQLDelight. A slice is unfinished without docs/dev. Read old AHK with git show archive/ahk:path.
+Edit only the module you were given. The domain module must not depend on Compose, Ktor or SQLDelight. A slice is unfinished without docs/dev. Read old AHK with git show archive/ahk:path. After each app change, stop the running TextTools process and start `./gradlew :app:run` again. A second launch only focuses the first process and exits, so the new windows stay hidden until that process is gone.

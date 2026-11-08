@@ -37,11 +37,11 @@ class ActionRunner(
                 try {
                     model(chosen, listOf(ChatMessage("system", system), ChatMessage("user", user)))
                 } catch (error: Exception) {
-                    return RunOutcome.Failed(error.message ?: "request failed")
+                    return RunOutcome.Failed(error.errorReason(), error.message ?: "request failed", error.errorHttpStatus())
                 }
             val text = raw.trim()
             if (text.isEmpty()) {
-                return RunOutcome.Failed("Модель вернула пустой ответ. Выделенный текст не изменён.")
+                return RunOutcome.Failed(ErrorReason.EMPTY_RESPONSE, "empty response")
             }
             val delivery = if (action.openInWindow || forceWindow) Delivery.Window else Delivery.Paste
             val pasted = deliver(text, delivery)

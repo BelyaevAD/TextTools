@@ -172,9 +172,10 @@ internal fun modelChoices(
             .map { it.trim() }
             .filter { it.isNotEmpty() && !it.equals(fallback, ignoreCase = true) }
             .distinctBy { it.lowercase() }
-    val current = action.model?.trim()?.takeIf { it.isNotEmpty() && !it.equals(fallback, ignoreCase = true) }
-    val missing = current != null && extras.none { it.equals(current, ignoreCase = true) }
-    return if (missing && current != null) extras + current else extras
+    val current =
+        action.model?.trim()?.takeIf { it.isNotEmpty() && !it.equals(fallback, ignoreCase = true) }
+            ?: return extras
+    return if (extras.none { it.equals(current, ignoreCase = true) }) extras + current else extras
 }
 
 internal fun selectedModelIndex(

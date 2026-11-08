@@ -1,6 +1,5 @@
 package dev.belyaevad.texttools.app.ui.history
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -8,7 +7,6 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,15 +18,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollbarAdapter
-import androidx.compose.material.ButtonDefaults
-import androidx.compose.material.ExperimentalMaterialApi
-import androidx.compose.material.LocalMinimumInteractiveComponentEnforcement
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.OutlinedButton
-import androidx.compose.material.Surface
-import androidx.compose.material.Text
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -48,15 +41,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.rememberWindowState
+import dev.belyaevad.texttools.app.ui.AppIcon
+import dev.belyaevad.texttools.app.ui.AppSecondaryButton
+import dev.belyaevad.texttools.app.ui.AppTheme
+import dev.belyaevad.texttools.app.ui.HistoryHeight
+import dev.belyaevad.texttools.app.ui.HistoryWidth
+import dev.belyaevad.texttools.app.ui.fitVisibleFrame
+import dev.belyaevad.texttools.app.ui.keepWindowFrame
+import dev.belyaevad.texttools.app.ui.rememberPlacement
 import dev.belyaevad.texttools.app.ui.result.ResultWindow
 import dev.belyaevad.texttools.data.HistoryRecord
 import dev.belyaevad.texttools.domain.HISTORY_LIMIT
 
 private val Ink = Color(0xFF1B1B1B)
-private val Chrome = Color(0xFFF0F0F0)
 private val Frame = Color(0xFFB4B4B4)
-private val HeaderBg = Color(0xFFF3F3F3)
-private val SelectedBg = Color(0xFF0078D7)
 private val OpenWidth = 170.dp
 private val CopyWidth = 180.dp
 private val CloseWidth = 100.dp
@@ -93,7 +91,6 @@ fun HistoryWindow(
     HistoryTableWindow(shown, hooks)
 }
 
-@OptIn(ExperimentalMaterialApi::class)
 @Composable
 private fun HistoryTableWindow(
     rows: List<HistoryRecord>,
@@ -105,11 +102,14 @@ private fun HistoryTableWindow(
     val columns = historyColumns()
     val suffix = tr(Hist.ORIG_SUFFIX)
     val title = tr(Hist.TITLE)
+    val place = rememberPlacement("history", HistoryWidth, HistoryHeight)
+    val windowState = rememberWindowState(width = place.width, height = place.height, position = place.position)
 
     Window(
         onCloseRequest = hooks.onClose,
         title = "TextTools - $title",
-        state = rememberWindowState(width = 1000.dp, height = 560.dp),
+        icon = AppIcon,
+        state = windowState,
         resizable = true,
         alwaysOnTop = true,
         onPreviewKeyEvent = { event ->
@@ -121,36 +121,36 @@ private fun HistoryTableWindow(
             }
         },
     ) {
-        MaterialTheme {
-            CompositionLocalProvider(LocalMinimumInteractiveComponentEnforcement provides false) {
-                Surface(modifier = Modifier.fillMaxSize(), color = Chrome) {
-                    Column(Modifier.fillMaxSize().padding(10.dp)) {
-                        HistoryTable(
-                            rows = rows,
-                            columns = columns,
-                            selected = index,
-                            onSelect = { selected = it },
-                            onOpen = {
-                                selected = it
-                                opened = OpenedText(rows[it].actionName, rows[it].result)
-                            },
-                            modifier = Modifier.weight(1f).fillMaxWidth(),
-                        )
-                        Row(
-                            Modifier.padding(top = 8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            HistoryButton(tr(Hist.OPEN_RESULT), Modifier.width(OpenWidth)) {
-                                opened = OpenedText(rows[index].actionName, rows[index].result)
-                            }
-                            HistoryButton(tr(Hist.OPEN_SOURCE), Modifier.width(OpenWidth)) {
-                                opened = OpenedText("${rows[index].actionName} - $suffix", rows[index].source)
-                            }
-                            HistoryButton(tr(Hist.COPY), Modifier.width(CopyWidth)) {
-                                hooks.onCopy(rows[index].result)
-                            }
-                            HistoryButton(tr(Hist.CLOSE), Modifier.width(CloseWidth), hooks.onClose)
+        if (!place.restored) fitVisibleFrame(windowState.size) { windowState.size = it }
+        keepWindowFrame("history")
+        AppTheme {
+            Surface(modifier = Modifier.fillMaxSize()) {
+                Column(Modifier.fillMaxSize().padding(10.dp)) {
+                    HistoryTable(
+                        rows = rows,
+                        columns = columns,
+                        selected = index,
+                        onSelect = { selected = it },
+                        onOpen = {
+                            selected = it
+                            opened = OpenedText(rows[it].actionName, rows[it].result)
+                        },
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                    )
+                    Row(
+                        Modifier.padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        HistoryButton(tr(Hist.OPEN_RESULT), Modifier.width(OpenWidth)) {
+                            opened = OpenedText(rows[index].actionName, rows[index].result)
                         }
+                        HistoryButton(tr(Hist.OPEN_SOURCE), Modifier.width(OpenWidth)) {
+                            opened = OpenedText("${rows[index].actionName} - $suffix", rows[index].source)
+                        }
+                        HistoryButton(tr(Hist.COPY), Modifier.width(CopyWidth)) {
+                            hooks.onCopy(rows[index].result)
+                        }
+                        HistoryButton(tr(Hist.CLOSE), Modifier.width(CloseWidth), hooks.onClose)
                     }
                 }
             }
@@ -164,6 +164,7 @@ private fun HistoryTableWindow(
             onCopy = hooks.onCopy,
             onPaste = hooks.onPaste,
             onClose = { opened = null },
+            placementId = "history-text",
         )
     }
 }
@@ -192,7 +193,7 @@ private fun HistoryTable(
     val state = rememberLazyListState()
     Column(modifier.border(1.dp, Frame).background(Color.White)) {
         Row(
-            Modifier.fillMaxWidth().background(HeaderBg).padding(end = 12.dp),
+            Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant).padding(end = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             columns.forEach { column ->
@@ -214,7 +215,7 @@ private fun HistoryTable(
                     Row(
                         Modifier
                             .fillMaxWidth()
-                            .background(if (marked) SelectedBg else Color.White)
+                            .background(if (marked) MaterialTheme.colorScheme.secondaryContainer else Color.White)
                             .pointerInput(row) {
                                 detectTapGestures(
                                     onTap = { onSelect(row) },
@@ -223,7 +224,7 @@ private fun HistoryTable(
                             },
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        val color = if (marked) Color.White else Ink
+                        val color = if (marked) MaterialTheme.colorScheme.onSecondaryContainer else Ink
                         columns.forEach { column ->
                             Text(
                                 column.value(rows[row]),
@@ -252,17 +253,10 @@ private fun HistoryButton(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
-    OutlinedButton(
+    AppSecondaryButton(
+        text = text,
         onClick = onClick,
-        modifier = modifier.height(28.dp),
-        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-        border = BorderStroke(1.dp, Frame),
-        colors =
-            ButtonDefaults.outlinedButtonColors(
-                backgroundColor = Color.White,
-                contentColor = Ink,
-            ),
-    ) {
-        Text(text, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-    }
+        modifier = modifier,
+        fontSize = 13.sp,
+    )
 }

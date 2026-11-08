@@ -1,5 +1,6 @@
 package dev.belyaevad.texttools.app.ui.history
 
+import dev.belyaevad.texttools.data.UsageEvent
 import dev.belyaevad.texttools.data.UsageRecord
 import java.io.IOException
 import java.nio.file.Files
@@ -28,9 +29,9 @@ internal data class ActionRun(
 
 private const val DASH = "—"
 private const val SNIP_AT = 60
-private const val ACTION_MARK = "действие: "
+internal const val ACTION_MARK = "action: "
 private const val CUSTOM_MARK = " (custom)"
-private const val INSTRUCTION_MARK = " (+инструкция)"
+internal const val INSTRUCTION_MARK = " (+instruction)"
 private const val HISTORY_FILE = "TextTools_history.txt"
 private const val LOG_FILE = "TextTools.log"
 private const val LOG_OLD_FILE = "TextTools.log.old"
@@ -80,8 +81,8 @@ internal fun historyMoney(cost: Double?): String {
 internal fun historyModel(model: String): String = if (model.isEmpty()) DASH else model
 
 /**
- * Counts `действие: ` lines in [log]. The name ends at the first comma.
- * ` (custom)` and ` (+инструкция)` are removed. ` (Shift: в окно)` stays.
+ * Counts `action: ` lines in [log]. The name ends at the first comma.
+ * ` (custom)` and ` (+instruction)` are removed. ` (Shift: into window)` stays.
  * The highest count comes first. Equal counts keep the order they first appeared.
  */
 internal fun actionRuns(log: String): List<ActionRun> {
@@ -126,6 +127,16 @@ internal data class StatsPhrases(
     val stamp: String,
     val invoice: String,
     val unknownNote: String,
+    val eventTitle: String,
+    val failedColumn: String,
+    val cancelledColumn: String,
+    val inputColumn: String,
+    val outputColumn: String,
+    val timeColumn: String,
+    val meanColumn: String,
+    val maxColumn: String,
+    val eventNote: String,
+    val speedColumn: String,
 )
 
 /**
@@ -171,6 +182,90 @@ internal fun statsDocument(
         appendModelTable(phrases, spend)
     }
 }
+
+/** Request statistics without localized log markers. */
+internal fun usageDocument(
+    events: List<UsageEvent>,
+    phrases: StatsPhrases,
+): String {
+    val totals =
+        events
+            .groupBy { it.model }
+            .map { (model, rows) ->
+                ModelUsage(
+                    model,
+                    rows.size,
+                    rows.count { it.outcome == "failure" },
+                    rows.count { it.outcome == "cancelled" },
+                    rows.sumOf { it.inputChars.toLong() + it.extraChars },
+                    rows.sumOf { it.outputChars.toLong() },
+                    rows.sumOf { it.durationMs },
+                    rows.maxOf { it.durationMs },
+                    rows.sumOf { it.promptTokens?.toLong() ?: 0L },
+                    rows.sumOf { it.completionTokens?.toLong() ?: 0L },
+                    tokenText(rows),
+                )
+            }.sortedByDescending { it.totalMs }
+    return buildString {
+        append("# ${phrases.eventTitle}\n\n")
+        if (events.isNotEmpty()) {
+            val clock = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(ZoneId.systemDefault())
+            append(clock.format(Instant.ofEpochMilli(events.minOf { it.atEpochMs })))
+            append(" – ")
+            append(clock.format(Instant.ofEpochMilli(events.maxOf { it.atEpochMs })))
+            append("\n\n")
+        }
+        append("| ${phrases.modelColumn} | ${phrases.requestsColumn} | ${phrases.failedColumn} | ${phrases.cancelledColumn} | ")
+        append(
+            "${phrases.inputColumn} | ${phrases.outputColumn} | ${phrases.timeColumn} | ${phrases.meanColumn} | ${phrases.maxColumn} | ${phrases.totalColumn} | ${phrases.speedColumn} |\n",
+        )
+        append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|\n")
+        for (row in totals) {
+            append("| ${row.model} | ${row.count} | ${row.failed} | ${row.cancelled} | ")
+            append("${grouped(row.inputChars)} | ${grouped(row.outputChars)} | ")
+            append("${milliseconds(row.totalMs)} | ${grouped(row.totalMs / row.count)} | ${grouped(row.maxMs)} | ")
+            append("${row.tokens} | ")
+            append(String.format(Locale.US, "%.1f/s", row.outputChars * 1000.0 / row.totalMs.coerceAtLeast(1)))
+            append(" |\n")
+        }
+        if (events.isNotEmpty()) {
+            val totalMs = events.sumOf { it.durationMs }
+            val output = events.sumOf { it.outputChars.toLong() }
+            append("| **${phrases.totalLabel}** | **${events.size}** | **${events.count { it.outcome == "failure" }}** | ")
+            append(
+                "**${events.count { it.outcome == "cancelled" }}** | **${grouped(
+                    events.sumOf { it.inputChars.toLong() + it.extraChars },
+                )}** | ",
+            )
+            append("**${grouped(output)}** | **${milliseconds(totalMs)}** | **${grouped(totalMs / events.size)}** | ")
+            append("**${grouped(events.maxOf { it.durationMs })}** | ")
+            append("**${tokenText(events)}** | ")
+            append("**${String.format(Locale.US, "%.1f/s", output * 1000.0 / totalMs.coerceAtLeast(1))}** |\n")
+        }
+        append("\n> ${phrases.eventNote}\n")
+    }
+}
+
+private data class ModelUsage(
+    val model: String,
+    val count: Int,
+    val failed: Int,
+    val cancelled: Int,
+    val inputChars: Long,
+    val outputChars: Long,
+    val totalMs: Long,
+    val maxMs: Long,
+    val promptTokens: Long,
+    val completionTokens: Long,
+    val tokens: String,
+)
+
+private fun tokenText(rows: List<UsageEvent>): String {
+    if (rows.none { it.promptTokens != null || it.completionTokens != null }) return DASH
+    return grouped(rows.sumOf { (it.promptTokens ?: 0).toLong() + (it.completionTokens ?: 0).toLong() })
+}
+
+private fun milliseconds(value: Long): String = String.format(Locale.US, "%.1f s", value / 1000.0)
 
 /**
  * Deletes `TextTools_history.txt` in [directory] when that path is a file.
@@ -240,6 +335,8 @@ private fun priced(
     return cost
 }
 
+private const val BOLD_JOIN = "** | **"
+
 private fun StringBuilder.appendModelTable(
     phrases: StatsPhrases,
     spend: List<ModelSpend>,
@@ -287,15 +384,15 @@ private fun StringBuilder.appendModelTable(
     val totalMoney = moneyText(grand) + if (unknown) " +" else ""
     append("| **")
     append(phrases.totalLabel)
-    append("** | **")
+    append(BOLD_JOIN)
     append(requests)
-    append("** | **")
+    append(BOLD_JOIN)
     append(grouped(prompt))
-    append("** | **")
+    append(BOLD_JOIN)
     append(grouped(completion))
-    append("** | **")
+    append(BOLD_JOIN)
     append(grouped(prompt + completion))
-    append("** | **")
+    append(BOLD_JOIN)
     append(totalMoney)
     append("** |\n\n> ")
     append(phrases.estimate)

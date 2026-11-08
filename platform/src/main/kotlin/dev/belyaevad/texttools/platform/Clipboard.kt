@@ -29,14 +29,14 @@ interface ClipIo {
 
 /** Shown once per [ClipboardProtocol] when a capture finds an image or files and no text. */
 const val NON_TEXT_CLIPBOARD_WARNING =
-    "В буфере нет текста (картинка или файлы). TextTools сохраняет только текст."
+    "The clipboard has no text (an image or files). TextTools keeps text only."
 
 /** Result of trying to put text back into the source window. */
 sealed class PasteAttempt {
     /**
      * The paste chord was sent.
      * [saved] is the clipboard from before the paste. [pasted] is the text we put there.
-     * Call [ClipboardProtocol.restoreAfterPaste] once the target has had time to read it.
+     * The pasted text stays on the clipboard.
      */
     data class Sent(
         val saved: String,
@@ -105,10 +105,7 @@ class ClipboardProtocol internal constructor(
         val saved = io.readText() ?: return PasteAttempt.ShowInWindow
         if (io.elevatedForeign()) return PasteAttempt.ShowInWindow
         if (!io.writeText(text)) return PasteAttempt.ShowInWindow
-        if (!io.activateSource()) {
-            io.writeText(saved)
-            return PasteAttempt.ShowInWindow
-        }
+        if (!io.activateSource()) return PasteAttempt.ShowInWindow
         io.sendPaste()
         return PasteAttempt.Sent(saved, text)
     }

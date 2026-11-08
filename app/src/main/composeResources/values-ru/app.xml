@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_tray_tip">TextTools - обработка текста через LLM (%1$s)</string>
+    <string name="app_tray_history">История</string>
+    <string name="app_tray_last">Последний результат</string>
+    <string name="app_tray_stats">Статистика</string>
+    <string name="app_tray_editor">Редактор действий</string>
+    <string name="app_tray_settings">Настройки</string>
+    <string name="app_tray_clear_history">Очистить историю</string>
+    <string name="app_tray_clear_log">Очистить лог</string>
+    <string name="app_tray_open_log">Открыть лог</string>
+    <string name="app_tray_open_folder">Открыть папку данных</string>
+    <string name="app_tray_restart">Перезапустить</string>
+    <string name="app_tray_exit">Выход</string>
+    <string name="app_no_selection">Нет выделенного текста</string>
+    <string name="app_no_source">Не нашлось окна с текстом</string>
+    <string name="app_nothing_to_repeat">Повторять нечего — действий ещё не было</string>
+    <string name="app_request_running">Запрос уже выполняется</string>
+    <string name="app_copied">Скопировано</string>
+    <string name="app_need_key">Укажи API key в настройках (иконка в трее)</string>
+    <string name="app_hotkey_fail">Хоткеи не встали. Их уже держит другой TextTools или AutoHotkey.</string>
+    <string name="app_no_log">Лога ещё нет</string>
+    <string name="app_save_failed">Настройки не записались</string>
+    <string name="app_request_failed">Запрос не выполнен</string>
+    <string name="app_copy_failed">Не удалось скопировать</string>
+    <string name="app_folder_failed">Папку не удалось открыть</string>
+    <string name="app_restart_failed">Не удалось перезапустить</string>
+    <string name="app_proxy_unparsed">Прокси не разобран</string>
+    <string name="app_settings_saved">Сохранено. Хоткей меню: %1$s</string>
+    <string name="app_editor_saved">Сохранено: действий %1$s, уточнений %2$s, приложений %3$s</string>
+    <string name="app_run_preparing">готовлю запрос</string>
+    <string name="app_run_done">готово</string>
+    <string name="app_seconds">%1$s с</string>
+    <string name="app_profile_label">описание приложения</string>
+    <string name="error_empty_response">Модель вернула пустой ответ. Выделенный текст не изменён.</string>
+    <string name="error_empty_url">Адрес API пуст</string>
+    <string name="error_invalid_url">Адрес API не разобран</string>
+    <string name="error_invalid_proxy">Прокси не разобран</string>
+    <string name="error_provider_unavailable">Провайдер недоступен</string>
+    <string name="error_unauthorized">Ключ не принят (401).</string>
+    <string name="error_insufficient_funds">Не хватает средств (402).</string>
+    <string name="error_not_found">Адрес или модель не найдены (404).</string>
+    <string name="error_rate_limited">Слишком много запросов (429).</string>
+    <string name="error_http">HTTP %1$s</string>
+    <string name="error_secret_store">Секретное хранилище Windows недоступно</string>
+    <string name="error_unknown">Запрос не выполнен</string>
+</resources>

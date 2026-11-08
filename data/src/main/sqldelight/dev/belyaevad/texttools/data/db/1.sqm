@@ -1,0 +1,14 @@
+CREATE TABLE usage_event (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  at_epoch_ms INTEGER NOT NULL,
+  kind TEXT NOT NULL,
+  model TEXT NOT NULL,
+  outcome TEXT NOT NULL,
+  input_chars INTEGER NOT NULL,
+  extra_chars INTEGER NOT NULL,
+  output_chars INTEGER NOT NULL,
+  duration_ms INTEGER NOT NULL,
+  prompt_tokens INTEGER,
+  completion_tokens INTEGER,
+  sentry_bucket INTEGER
+);

@@ -2,4 +2,12 @@
 
 Linked from docs/README.md. Supersedes TextTools.ahk as the entry.
 
-`Main.kt` is tray-only. The tray opens settings, the editor, history, the last result, and stats. Ctrl+Alt+Space captures the selection and opens the 3-column grid. Ctrl+Shift+Space repeats the last action. Packaging tasks are packageMsi, packageDmg and packageDeb.
+`Main.kt` is tray-only. A second launch focuses the first process and exits. Ctrl+Alt+Space captures the selection and opens the 3-column grid. Ctrl+Shift+Space repeats the last action. Enter in the menu instruction runs the custom action when the text is not blank. Shift, `open_in_window`, or a paste that does not land opens the result window. Empty model text and a failed call are logged, not pasted, and not written to history.
+
+A finished call writes the history row, `TextTools_last.txt`, and a log line. Token usage also appends `usage_log`. Cost is stored from the OpenRouter catalogue, as the data page describes. The busy banner uses the menu's monitor; a repeat with no menu uses the mouse point taken before the clipboard wait. Both are in [windows.md](../dev/windows.md).
+
+`uiLang` selects the bundled English or Russian strings. Number and date formatting stay on the format locale captured at startup. The tray menu is last result, history, and statistics; then the action editor and settings; then the log and the data folder; then clear history and clear log; then restart and exit. The same purple mark is the tray image, the window icon and the packaged application icon. Statistics groups `usage_log` by model for cost, and `usage_event` for request counts, outcomes, character volumes and duration. Request text is not stored in the new table. A left click opens settings. Clear history empties the `history` table and deletes `TextTools_history.txt` when that file exists. `TextTools_last.txt` stays. Clear log deletes `TextTools.log` and `TextTools.log.old`. It does not delete `usage_log`.
+
+The editor has three tabs: menu buttons, quick refinements, and applications. Settings has three tabs: API, output languages, and interface. Cards, the key conflict dialog, and the visible sizes are in [windows.md](../dev/windows.md). Fields and selects go through `AppField` and `AppSelect`. New application profiles are in [profiling.md](../dev/profiling.md). Windows sign-in is in [autostart.md](../dev/autostart.md). Error reports are in [sentry.md](../dev/sentry.md). Stored files are in [schema.md](../db/schema.md).
+
+Packaging tasks are packageMsi, packageDmg and packageDeb.

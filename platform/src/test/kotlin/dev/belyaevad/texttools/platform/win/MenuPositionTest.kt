@@ -87,7 +87,7 @@ class MenuPositionTest {
     }
 
     @Test
-    fun aPointOutsideEveryWorkAreaIsNotClamped() {
+    fun aPointOutsideEveryWorkAreaMovesOntoTheNearest() {
         val point =
             menuPosition(
                 caret = null,
@@ -96,6 +96,19 @@ class MenuPositionTest {
                 menuHeight = 560,
                 workAreas = listOf(desktop),
             )
-        assertEquals(ScreenPoint(-20, -30), point)
+        assertEquals(ScreenPoint(6, 6), point)
+    }
+
+    @Test
+    fun aPointPastTheRightMonitorUsesThatMonitor() {
+        val point =
+            menuPosition(
+                caret = null,
+                cursor = ScreenPoint(4000, 1000),
+                menuWidth = 500,
+                menuHeight = 560,
+                workAreas = listOf(desktop, right),
+            )
+        assertEquals(ScreenPoint(3334, 514), point)
     }
 }

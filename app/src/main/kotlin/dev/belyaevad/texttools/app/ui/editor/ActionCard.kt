@@ -3,17 +3,17 @@ package dev.belyaevad.texttools.app.ui.editor
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.Button
-import androidx.compose.material.Checkbox
-import androidx.compose.material.OutlinedButton
-import androidx.compose.material.RadioButton
-import androidx.compose.material.Text
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -21,9 +21,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.belyaevad.texttools.app.ui.ActionCardHeight
+import dev.belyaevad.texttools.app.ui.ActionCardWidth
+import dev.belyaevad.texttools.app.ui.AppPrimaryButton
+import dev.belyaevad.texttools.app.ui.AppSecondaryButton
 import dev.belyaevad.texttools.domain.Action
 import dev.belyaevad.texttools.domain.Factory
 import dev.belyaevad.texttools.domain.KeyConflict
@@ -116,21 +119,21 @@ fun actionCard(
         onSave(updated)
     }
 
-    framedDialog(title, 740.dp, 600.dp, onCancel) {
+    framedDialog(title, ActionCardWidth, ActionCardHeight, onCancel, placementId = "action-card") {
         Column(
-            Modifier.fillMaxSize().padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            Modifier.fillMaxSize().padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(tr(Ed.FIELD_NAME), modifier = Modifier.width(120.dp))
-                lineField(nameText, { nameText = it }, Modifier.width(240.dp))
+                Text(tr(Ed.FIELD_NAME), modifier = Modifier.width(110.dp))
+                lineField(nameText, { nameText = it }, Modifier.width(250.dp))
                 Text(tr(Ed.ICON), modifier = Modifier.padding(start = 12.dp))
                 lineField(iconText, { iconText = it }, Modifier.padding(start = 8.dp).width(64.dp))
                 Text(tr(Ed.FIELD_KEY), modifier = Modifier.padding(start = 12.dp))
                 picker(keyLabels, keyIndex, { keyIndex = it }, Modifier.padding(start = 8.dp).width(96.dp))
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(tr(Ed.FIELD_RESULT), modifier = Modifier.width(120.dp))
+                Text(tr(Ed.FIELD_RESULT), modifier = Modifier.width(110.dp))
                 RadioButton(selected = !openInWindow, onClick = { openInWindow = false })
                 Text(tr(Ed.RESULT_REPLACE), modifier = Modifier.clickable { openInWindow = false })
                 Spacer(Modifier.width(12.dp))
@@ -138,40 +141,40 @@ fun actionCard(
                 Text(tr(Ed.RESULT_OPEN), modifier = Modifier.clickable { openInWindow = true })
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(tr(Ed.FIELD_LANG), modifier = Modifier.width(120.dp))
+                Text(tr(Ed.FIELD_LANG), modifier = Modifier.width(110.dp))
                 picker(
                     langChoices.map { it.label },
                     langIndex,
                     { langIndex = it },
-                    Modifier.width(220.dp),
+                    Modifier.width(180.dp),
                 )
                 Checkbox(checked = styleOn, onCheckedChange = { styleOn = it })
                 Text(tr(Ed.LANG_STYLE))
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(tr(Ed.FIELD_MODEL), modifier = Modifier.width(120.dp))
+                Text(tr(Ed.FIELD_MODEL), modifier = Modifier.width(110.dp))
                 picker(
                     listOf(defaultChoice) + extras,
                     modelIndex,
                     { modelIndex = it },
-                    Modifier.width(280.dp),
+                    Modifier.width(250.dp),
                 )
                 Text(
                     if (extras.isEmpty()) tr(Ed.MODEL_HINT_EMPTY) else tr(Ed.MODEL_HINT),
-                    color = Color(0xFF707070),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 12.sp,
                     modifier = Modifier.padding(start = 8.dp).weight(1f),
                 )
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(tr(Ed.FIELD_PREFIX), modifier = Modifier.width(120.dp))
+                Text(tr(Ed.FIELD_PREFIX), modifier = Modifier.width(110.dp))
                 lineField(prefixText, { prefixText = it }, Modifier.weight(1f))
             }
             Text(
                 tr(Ed.PREFIX_HINT),
-                color = Color(0xFF707070),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp,
-                modifier = Modifier.padding(start = 120.dp),
+                modifier = Modifier.padding(start = 110.dp),
             )
             Text(tr(Ed.FIELD_PROMPT))
             lineField(
@@ -181,8 +184,18 @@ fun actionCard(
                 singleLine = false,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { publish(null) }, modifier = Modifier.width(150.dp)) { Text(tr(Ed.SAVE)) }
-                OutlinedButton(onClick = onCancel, modifier = Modifier.width(120.dp)) { Text(tr(Ed.CANCEL)) }
+                AppPrimaryButton(
+                    text = tr(Ed.SAVE),
+                    onClick = { publish(null) },
+                    modifier = Modifier.width(150.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                )
+                AppSecondaryButton(
+                    text = tr(Ed.CANCEL),
+                    onClick = onCancel,
+                    modifier = Modifier.width(120.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                )
             }
         }
         val occupant = pending

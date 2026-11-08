@@ -1,5 +1,6 @@
 package dev.belyaevad.texttools.app.ui.history
 
+import dev.belyaevad.texttools.data.UsageEvent
 import dev.belyaevad.texttools.data.UsageRecord
 import java.nio.file.Files
 import java.nio.file.Path
@@ -56,13 +57,13 @@ class HistoryLogicTest {
     fun actionRunsDropTheInstructionMarker() {
         val log =
             listOf(
-                "2026-11-07 19:16:01  действие: Summary (+инструкция) (Shift: в окно), выделено 3 символов, модель m",
-                "x действие: Переписать, выделено 10 символов",
-                "действие: Переписать (custom), выделено 1",
-                "действие завершено",
+                "2026-11-07 19:16:01  action: Summary (+instruction) (Shift: into window), selected 3 characters, model m",
+                "x action: Rewrite, selected 10 characters",
+                "action: Rewrite (custom), selected 1",
+                "action finished",
             ).joinToString("\n")
         assertEquals(
-            listOf(ActionRun("Переписать", 2), ActionRun("Summary (Shift: в окно)", 1)),
+            listOf(ActionRun("Rewrite", 2), ActionRun("Summary (Shift: into window)", 1)),
             actionRuns(log),
         )
     }
@@ -71,7 +72,7 @@ class HistoryLogicTest {
     fun unknownPriceAddsAPlus() {
         val text =
             statsDocument(
-                log = "действие: Summary, выделено 1",
+                log = "action: Summary, selected 1",
                 usage = listOf(UsageRecord(1L, "Summary", "m", 100, 28)),
                 phrases = phrases(),
                 price = { _, _, _ -> null },
@@ -85,7 +86,7 @@ class HistoryLogicTest {
     fun knownPriceHasNoPlus() {
         val text =
             statsDocument(
-                log = "действие: Summary, выделено 1",
+                log = "action: Summary, selected 1",
                 usage =
                     listOf(
                         UsageRecord(1L, "a", "small", 1, 1),
@@ -135,6 +136,18 @@ class HistoryLogicTest {
     }
 
     @Test
+    fun usageReportUsesMillisecondsAndLeavesUnknownTokensBlank() {
+        val text =
+            usageDocument(
+                listOf(UsageEvent(0, "action", "m", "success", 1, 0, 1000, 1500, null, null)),
+                phrases(),
+            )
+        assertTrue("| 1.5 s | 1 500 | 1 500 | — |" in text)
+        assertTrue("1970-01-01" in text)
+        assertFalse("1.5 s | 1.5 s" in text)
+    }
+
+    @Test
     fun clearOnAnEmptyDirectoryDoesNothing() {
         withDir { dir ->
             clearHistoryFile(dir)
@@ -167,6 +180,16 @@ private fun phrases(stamp: String = ""): StatsPhrases =
         stamp = stamp,
         invoice = "invoice",
         unknownNote = "marked with a plus",
+        eventTitle = "Model requests",
+        failedColumn = "Failed",
+        cancelledColumn = "Cancelled",
+        inputColumn = "Input",
+        outputColumn = "Output",
+        timeColumn = "Total",
+        meanColumn = "Mean",
+        maxColumn = "Max",
+        eventNote = "No texts stored",
+        speedColumn = "Chars/s",
     )
 
 private fun withDir(block: (Path) -> Unit) {

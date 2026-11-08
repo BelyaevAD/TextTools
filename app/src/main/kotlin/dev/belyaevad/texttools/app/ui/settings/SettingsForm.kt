@@ -78,6 +78,10 @@ class SettingsForm(
     var markdown by mutableStateOf(settings.markdown)
     var uiLang by mutableStateOf(settings.uiLang.ifBlank { "en" })
     var profiling by mutableStateOf(settings.appProfiling)
+    var profileModel by mutableStateOf(settings.profileModel.trim())
+    var autostart by mutableStateOf(settings.autostart)
+    var sentryErrors by mutableStateOf(settings.sentryErrors)
+    var sentryTraces by mutableStateOf(settings.sentryTraces)
     var clipWait by mutableStateOf(formatClip(settings.clipWaitSeconds))
     var busy by mutableStateOf(false)
 
@@ -249,6 +253,10 @@ class SettingsForm(
                         uiLang = uiLang.trim().ifEmpty { "en" },
                         appProfiling = profiling,
                         clipWaitSeconds = clipWaitSeconds(clip),
+                        sentryErrors = sentryErrors,
+                        sentryTraces = sentryTraces,
+                        autostart = autostart,
+                        profileModel = profileModel.trim(),
                     ),
                 apiKey = apiKey.trim(),
                 models = models.toList(),

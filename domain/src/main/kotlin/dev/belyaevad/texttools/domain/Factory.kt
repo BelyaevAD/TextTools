@@ -1,6 +1,6 @@
 package dev.belyaevad.texttools.domain
 
-/** Factory prompts, actions, languages and app profiles copied from the AHK release. */
+/** Factory prompts, actions, languages and app profiles. Action text and menu keys are the tuned local AHK set. */
 object Factory {
     const val MAX_ACTIONS: Int = 200
     const val DEFAULT_BASE_URL: String = "https://openrouter.ai/api/v1"
@@ -37,261 +37,274 @@ object Factory {
             uiLang = "en",
             appProfiling = false,
             clipWaitSeconds = 0.8,
+            sentryErrors = false,
+            sentryTraces = false,
+            autostart = true,
+            profileModel = "",
         )
 
     val actions: List<Action> =
         listOf(
-            row(
-                "proofread",
-                "Вычитать",
-                "✏",
-                "Proofread the following text:\n\n",
-                """
-                TASK: correct only spelling, punctuation, agreement and typos.
-                KEEP: structure, tone, wording and layout from the author. Do not change substance - a dubious requirement or odd term stays. Leave terms, identifiers, paths, commands, field names, SQL, code and log lines unchanged, including case. Preserve Markdown, line breaks and numbering.
-                """.trimIndent(),
-                "auto",
-                true,
-                false,
-                "mech",
-            ),
-            row(
-                "rewrite",
-                "Переписать",
-                "🔄",
-                "Clarify the following text:\n\n",
-                """
-                TASK: rephrase for clarity for a developer, architect or analyst. One idea per sentence, clear actor and verb, logical order, no duplication. Lift conditions and exceptions out of dense sentences so they stay visible.
-                KEEP: meaning, facts and the argument shape (context, problem, proposal, effect).
-                NEVER: add examples, justifications or conclusions that were not in the source.
-                """.trimIndent(),
-                "auto",
-                true,
-                false,
-                null,
-            ),
-            row(
-                "concise",
-                "Короче",
-                "✂",
-                "Shorten the following text:\n\n",
-                """
-                TASK: shorten by roughly one third to one half. Remove padding, rhetoric and repeated statements.
-                KEEP: requirements, conditions, exceptions, edge cases, numbers, deadlines, names, owners, risks and open questions. Keep if/then constructions complete even when long.
-                """.trimIndent(),
-                "auto",
-                true,
-                false,
-                "mech",
-            ),
-            row(
-                "business",
-                "Деловой тон",
-                "💼",
-                "Rewrite the following as business correspondence:\n\n",
-                """
-                TASK: rewrite as calm professional correspondence for a manager, peer team, architect or security contact. No emotion, no blame, no hedging that hides the ask.
-                FORM: situation; then the request or proposal; then impact and cost of inaction; then what you need from them and by when. Omit any part the source does not support.
-                KEEP: deadlines, system names, constraints, risks and dependencies. Keep technical terms; drop slang.
-                """.trimIndent(),
-                "auto",
-                true,
-                false,
-                null,
-            ),
-            row(
-                "human",
-                "По-человечески",
-                "🙂",
-                "Make the following sound like a natural work message:\n\n",
-                """
-                TASK: remove stiff or machine-like wording so the text reads like a competent engineer writing in a work chat.
-                FORM: mix sentence length, use ordinary connectors, state things directly. Avoid cliches, forced parallelism and bullet lists when prose is enough. Light conversational markers and smileys in parentheses are fine.
-                KEEP: facts, numbers, terms, conditions and names unchanged.
-                """.trimIndent(),
-                "auto",
-                true,
-                false,
-                null,
-            ),
-            row(
+            Row(
                 "prompt",
-                "Промпт",
+                "Prompt",
                 "🤖",
-                "Turn the following into a structured LLM prompt:\n\n",
+                "Turn this into a well-structured prompt:\n\n",
                 """
-                TASK: turn a rough note into a structured LLM prompt: role and context, task, input data (only if present), requirements and constraints, output format.
-                KEEP: every concrete detail - numbers, names, systems, limits. Make implied expectations explicit (audience, depth, answer language) without inventing new subject matter.
-                FORM: short headings or blank lines between blocks. Keep the prompt in the note's language. No wrapping backticks around the whole prompt.
+                TASK: turn a rough note into a structured prompt for a language model: role and context, task, input data (only if present), requirements and constraints, output format.
+                KEEP: every concrete detail - numbers, names, systems, limits. Make implied expectations explicit (audience, depth, answer language) without inventing new requirements or subject matter.
+                FORM: short headings or blank lines between blocks. The prompt stays in the language of the note. No surrounding backticks.
                 """.trimIndent(),
                 "auto",
                 true,
                 false,
                 null,
+                "1",
             ),
-            row(
+            Row(
+                "proofread",
+                "Proofread",
+                "✏",
+                "Make this change to the following text:\n\n",
+                """
+                TASK: proofread only - spelling, punctuation, agreement, typos.
+                KEEP: the author's structure, tone, wording and formatting. Substance stays untouched: a questionable requirement or a misused term stays as written. Terms, identifiers, paths, commands, field names, SQL, code and log lines byte-for-byte, case included. Markdown, line breaks and numbering intact.
+                """.trimIndent(),
+                "auto",
+                true,
+                false,
+                "mech",
+                "6",
+            ),
+            Row(
+                "rewrite",
+                "Improve",
+                "🧬",
+                "Rewrite this text:\n\n",
+                """
+                TASK: rewrite for clarity and structure; the reader is a developer, architect or analyst.
+
+                FORMAT:
+                - Use clear paragraphs and lists where appropriate.
+                - Keep one thought per sentence.
+                - State the actor and action explicitly.
+                - Follow a logical order without repetition.
+                - Pull conditions and exceptions out of long sentences so they cannot be missed.
+
+                KEEP: meaning, facts, key terms, stylistic tone, and the shape of the argument — context, problem, proposal, consequence.
+
+                NEVER: add new examples, justifications or conclusions.
+                """.trimIndent(),
+                "auto",
+                true,
+                false,
+                null,
+                "2",
+            ),
+            Row(
+                "concise",
+                "Shorter",
+                "✂",
+                "Make this text more concise:\n\n",
+                """
+                TASK: compress by 30-50 percent. Cut filler, rhetoric, padding and restatements.
+                KEEP: requirements, conditions, exceptions, edge cases, numbers, deadlines, names, responsibilities, risks and open questions. if / then constructions stay in full even when long.
+                """.trimIndent(),
+                "auto",
+                true,
+                false,
+                "mech",
+                "3",
+            ),
+            Row(
+                "human",
+                "Plain language",
+                "🙂",
+                "Make this text sound human:\n\n",
+                """
+                TASK: strip the machine-generated feel and officialese; the result must pass as written by a competent person in a work chat with engineers.
+                FORM: varied sentence length, ordinary connectors, direct statements. No stock phrases, no parallel constructions, no lists where prose is enough. Conversational connectors and text smileys in brackets are fine.
+                KEEP: facts, numbers, terms, conditions and names exactly.
+                """.trimIndent(),
+                "auto",
+                true,
+                false,
+                null,
+                "5",
+            ),
+            Row(
                 "to_en",
                 "→ EN",
                 "🌐",
-                "Produce English for the following text:\n\n",
+                "Translate this into English:\n\n",
                 """
-                TASK: produce English in the register of tickets, pull requests, specs and vendor mail. Use standard IT wording; avoid calques from Russian and inflated phrasing. If the input is already English, proofread instead of translating.
-                KEEP: identifiers, paths, commands, product names, field names and code untranslated. Keep Markdown, lists and code fences. Distinguish must / should / may.
+                TASK: translate into the register of issues, pull requests, specs and vendor correspondence. Standard IT terminology, no calques from Russian, no inflated wording. If the input is already English, proofread it instead.
+                KEEP: identifiers, paths, commands, product names, field names and code untranslated. Markdown, lists and code blocks intact. must / should / may stay distinct.
                 """.trimIndent(),
                 "en",
                 false,
                 false,
                 null,
+                "7",
             ),
-            row(
+            Row(
                 "to_ru",
                 "→ RU",
                 "🌐",
-                "Produce Russian for the following text:\n\n",
+                "Translate this into Russian:\n\n",
                 """
-                TASK: produce natural technical Russian, not a literal gloss. Keep established English IT terms in Latin script (deploy, pull request, endpoint, middleware, webhook) rather than awkward calques. If the input is already Russian, proofread instead of translating.
-                KEEP: identifiers, paths, commands, product names, field names and code untranslated. Keep Markdown and code fences. Distinguish must / should / may.
+                TASK: translate into natural technical Russian, not word for word. Established English IT terms stay in Latin script (deploy, pull request, endpoint, middleware, webhook) instead of awkward calques. If the input is already Russian, proofread it instead.
+                KEEP: identifiers, paths, commands, product names, field names and code untranslated. Markdown and code blocks intact. must / should / may stay distinct.
                 """.trimIndent(),
                 "ru",
                 true,
                 false,
                 null,
+                "8",
             ),
-            row(
+            Row(
                 "summary",
-                "Суммаризация",
+                "Summary",
                 "📝",
-                "Summarize the following for action:\n\n",
+                "Summarize this:\n\n",
                 """
-                TASK: summarize so a reader can act on the material.
-                KEEP: who, what, by when and under which conditions; every number and limit; causal links when present; risks, dependencies, environment and security constraints. Separate decided items, proposals and open points.
-                FORM: bold key entities; short lists only for true lists; small headings only for long inputs.
+                TASK: summarize the material for someone who has to act on it.
+                KEEP: who, what, by when and under which conditions; every number and limit; the causal chain if there is one; risks, dependencies, environment and security constraints. What is decided, what is merely proposed and what is still open stay clearly apart.
+                FORM: bold for key entities, short lists only for real lists, small headings only for long inputs.
                 """.trimIndent(),
                 "auto",
                 true,
                 true,
                 null,
+                "9",
             ),
-            row(
+            Row(
                 "keypoints",
-                "Тезисы",
+                "Key points",
                 "📋",
-                "Extract working bullets from the following:\n\n",
+                "Extract key points from this:\n\n",
                 """
-                TASK: pull out working bullets - one idea each, at most two nesting levels, each bullet understandable alone.
-                FORM: use only headings that have content among: Facts / current state, Requirements, Decisions, Risks and constraints, Dependencies, Who does what and by when, Open questions.
-                KEEP: numbers, deadlines, names, statuses and conditions as written.
+                TASK: extract the key points as a working checklist - one idea per bullet, at most two levels, each bullet readable without the original.
+                FORM: group under the headings that actually have content: Facts / current state, Requirements, Decisions, Risks and constraints, Dependencies, Who does what and by when, Open questions.
+                KEEP: numbers, deadlines, names, statuses and conditions verbatim.
                 """.trimIndent(),
                 "auto",
                 true,
                 true,
                 "deep",
+                "0",
             ),
-            row(
+            Row(
                 "table",
-                "Таблица",
+                "Table",
                 "▦",
-                "Turn the following into a Markdown table:\n\n",
+                "Convert this into a table:\n\n",
                 """
-                TASK: convert the text into a Markdown table. Detect the real structure first, then choose columns:
-                comparison - one option per row, one criterion per column; requirements - id, requirement, priority, source, acceptance criterion; mapping - source field, target field, rule, notes; process - step, actor, trigger, result, system; action items - item, owner, deadline, status. Otherwise invent columns from the text itself.
-                KEEP: cell values exactly as written - no paraphrase, no normalization. Leave field names and identifiers unchanged. Put a hyphen in empty cells.
+                TASK: turn the text into a Markdown table. First recognise the structure it actually holds, then pick the columns:
+                options - option per row, criterion per column; requirements - id, requirement, priority, source, acceptance criterion; mapping - source field, target field, rule, notes; process - step, actor, trigger, result, system; action items - item, owner, deadline, status. Otherwise derive the columns from the text itself.
+                KEEP: values exactly as written - no rewording, no normalising. Field names and identifiers unchanged. An empty cell gets a hyphen.
                 """.trimIndent(),
                 "auto",
                 true,
                 true,
                 "deep",
+                "q",
             ),
-            row(
+            Row(
                 "spec",
-                "Задача",
+                "Task",
                 "📄",
-                "Turn the following into a development specification:\n\n",
+                "Turn this into a development task specification:\n\n",
                 """
-                TASK: as a systems analyst, turn raw stakeholder notes into a hand-off spec a developer can start from. Use these sections and skip any the source does not support:
-                1. Context (as-is) - current behaviour, people involved, pain.
-                2. Goal - business outcome in one or two sentences.
+                TASK: as a systems analyst, turn raw stakeholder material into a specification a developer can pick up. Use these sections, skipping every one the source says nothing about:
+                1. Context (as-is) - how it works today, who is involved, what the pain is.
+                2. Goal - the business outcome, one or two sentences.
                 3. Scope (to-be) - required behaviour, not implementation.
-                4. Out of scope - only when stated.
+                4. Out of scope - only if stated.
                 5. Actors and permissions.
-                6. Trigger and flow - start event, ordered steps, branches.
+                6. Trigger and flow - starting event, ordered steps, branches.
                 7. Data - entities, fields, source of truth, states and transitions.
-                8. Integrations and dependencies - systems, direction, blockers.
-                9. Acceptance criteria - numbered, if/then, testable without the original discussion.
-                10. Non-functional - volume, timing, security, environment limits.
-                11. Edge cases and errors - only those stated or implied by the source rules.
-                12. Questions for the stakeholder - concrete blockers to starting work.
-                HARD RULE: put every gap or assumption only in section 12, never in the body. Do not choose an implementation the source left open. Keep priorities the source gives; invent none.
+                8. Integrations and dependencies - systems, direction of exchange, blockers.
+                9. Acceptance criteria - numbered, if / then, testable by someone who missed the discussion.
+                10. Non-functional - volumes, timing, security and access, environment limits.
+                11. Edge cases and errors - only those raised by the source or implied by its own rules.
+                12. Questions for the stakeholder - concrete questions on everything that blocks starting.
+                HARD RULE: every gap or assumption goes into section 12, never into the body. Do not pick an implementation the source has not fixed. Keep the priority the source gives, assign none if it gives none.
                 """.trimIndent(),
                 "auto",
                 true,
                 true,
                 "deep",
+                "w",
             ),
-            row(
+            Row(
                 "code",
-                "Разбор кода",
+                "Code explanation",
                 "🔍",
-                "Explain the following code:\n\n",
+                "Explain what this code does:\n\n",
                 """
-                TASK: explain the code for a developer seeing it the first time. One or two sentences on purpose, then the important parts: inputs and outputs, main flow, side effects (I/O, network, shared state), error handling, edge cases and traps.
-                KEEP: identifiers, functions and paths exactly as written. Do not rewrite or 'improve' the code; mention a defect only when needed for the explanation. If behaviour depends on missing callers, schemas or config, say so instead of guessing.
-                FORM: prose first; short lists only when they help.
+                TASK: explain what the code does to a developer seeing it for the first time. One or two sentences on its purpose, then the meaningful parts: inputs and outputs, main flow, side effects (I/O, network, global or shared state), error handling, edge cases and pitfalls.
+                KEEP: identifiers, functions and paths exactly as written. Do not rewrite or improve the code; point at a problem only where the explanation requires it. Where behaviour depends on context that is missing (callers, schemas, config), say so instead of guessing.
+                FORM: prose first, short lists only where they genuinely help.
                 """.trimIndent(),
                 "auto",
                 true,
                 true,
                 "deep",
+                "e",
             ),
-            row(
+            Row(
                 "questions",
-                "Вопросы",
+                "Questions",
                 "❓",
-                "List clarifying questions for the following material:\n\n",
+                "List clarifying questions for this material:\n\n",
                 """
-                TASK: as a systems analyst receiving raw material, list clarifying questions that must be answered before work continues: ambiguities, contradictions, missing scenarios (errors, permissions, migrations, edge cases), hidden assumptions, missing non-functional limits (volume, timing, security, access).
-                FORM: group by addressee using only groups that have content, with these exact headings: К бизнесу / К разработке / К безопасности. Numbered items inside each group; each question self-contained and ready to send.
-                NEVER: answer the questions yourself, ask what the text already answers, or pad the list - only questions that block or change the work.
+                TASK: as a systems analyst receiving raw material, produce the clarifying questions that must be answered before the work can move forward: ambiguities, contradictions, missing scenarios (errors, permissions, migrations, edge cases), unstated assumptions, absent non-functional constraints (volumes, timing, security, access).
+                FORM: group by addressee, using only the groups that have content, with these exact headings: К бизнесу / К разработке / К безопасности. Numbered list inside a group; every question self-contained, specific and ready to be sent as is.
+                NEVER: answer them yourself, ask what the text already answers, or pad the list - only questions that actually block or change the work.
                 """.trimIndent(),
                 "auto",
                 true,
                 true,
                 "deep",
+                "r",
             ),
-            row(
+            Row(
                 "reply",
-                "Ответ",
+                "Reply",
                 "✉",
-                "Draft a reply to the following incoming message:\n\n",
+                "Draft a reply to this incoming message:\n\n",
                 """
-                TASK: the text is an INCOMING message (email or work chat) to the user. Draft a reply as the user. If the user's instruction states intent, write ONE reply that follows it; otherwise write 2-3 labeled variants for plausible intents: agreement / confirmation, clarification with questions, polite pushback with reasons.
-                KEEP: the register and tone of the incoming message. Use only facts from the message or the user instruction; where a needed fact is missing (dates, names, numbers), insert a bracketed placeholder like [указать срок].
-                FORM: ready to paste - no meta comments; label each variant briefly if there are several.
+                TASK: the text is an INCOMING message (email or work chat) addressed to the user. Draft a reply on the user's behalf. If the user's instruction states the intent, write ONE reply following it; otherwise write 2-3 labeled variants covering the plausible intents: agreement / confirmation, clarification with questions, polite pushback with reasoning.
+                KEEP: the register and tone of the incoming message. Use only facts from the message or from the user's instruction; where a needed fact is missing (dates, names, numbers), insert a bracketed placeholder like [указать срок].
+                FORM: ready to send - no meta-comments, nothing around a variant beyond a short label.
                 """.trimIndent(),
                 "auto",
                 true,
                 true,
                 "deep",
+                "t",
             ),
-            row(
+            Row(
                 "reqreview",
-                "Ревью требований",
+                "Requirements review",
                 "🧐",
-                "Review the following specification for defects:\n\n",
+                "Review this specification for defects:\n\n",
                 """
-                TASK: review the text as a senior systems analyst checking a specification before development. Find real defects: wording with more than one reading; internal contradictions; untestable claims; missing error and edge-case handling; undefined data, statuses, roles or permissions; missing non-functional needs (volume, timing, security, access); assumptions presented as facts.
+                TASK: review the text as a senior systems analyst checking a specification before it goes to development. Find real defects: wording that can be read in more than one way; internal contradictions; untestable or unmeasurable statements; missing error and edge-case handling; undefined data, statuses, roles or permissions; missing non-functional requirements (volumes, timing, security, access); hidden assumptions presented as facts.
                 FORM: a Markdown table with columns # | Фрагмент (короткая цитата) | Проблема | Серьезность (критично / важно / мелочь) | Что уточнить или как исправить.
-                List every issue found, including uncertain ones - severity does the filtering. After the table, one short paragraph on whether the text is ready for development.
+                Report every issue found, including uncertain ones - the severity column does the filtering. After the table, one short paragraph: is the text ready to hand over to development.
                 """.trimIndent(),
                 "auto",
                 true,
                 true,
                 "deep",
+                "y",
             ),
-        ).mapIndexed { index, item -> item.copy(menuKey = menuKeys.getOrNull(index)) }
+        ).map { it.toAction() }
 
     val custom: Action =
-        row(
+        Row(
             null,
             "Custom",
             "",
@@ -304,37 +317,37 @@ object Factory {
             true,
             false,
             null,
-        )
+        ).toAction()
 
     val quick: List<QuickRefine> =
         listOf(
             QuickRefine(
-                "Короче",
-                "Cut length noticeably. Drop filler and repeats, but keep every requirement, condition, number, name and open question.",
+                "Shorter",
+                "Make it noticeably shorter. Drop filler and repetition, but keep every requirement, condition, number, name and open question.",
             ),
             QuickRefine(
-                "Подробнее",
-                "Expand with the steps, conditions and consequences a reader needs. Add no facts missing from the source; if something is unknown, say so.",
+                "More detail",
+                "Expand it: spell out the steps, conditions and consequences the reader needs. Add no facts that are absent from the source material - if something is unknown, say so explicitly.",
             ),
             QuickRefine(
-                "Точнее",
-                "Tighten wording: replace vague words with exact terms, name the actor and condition in each claim, remove ambiguity. Invent no new facts.",
+                "More precise",
+                "Make the wording more precise: replace vague words with exact terms, name the actor and the condition in every statement, remove ambiguity. Do not add new facts.",
             ),
             QuickRefine(
-                "Проще",
-                "Simplify for a reader outside the team: shorter sentences, plain words where jargon is optional. Keep facts, numbers and meaningful technical terms.",
+                "Simpler",
+                "Simplify the language for a reader outside the team: shorter sentences, no jargon where a plain word works. Keep all facts, numbers and technical terms that carry meaning.",
             ),
             QuickRefine(
-                "Формальнее",
-                "Raise the register to formal business correspondence without changing the content.",
+                "More formal",
+                "Rewrite in a more formal business register suitable for official correspondence, keeping the content unchanged.",
             ),
             QuickRefine(
-                "Списком",
-                "Reshape the same content as a compact list, one idea per item. Do not add or drop anything.",
+                "As a list",
+                "Restructure the same content as a compact list, one idea per item. Do not add or drop anything.",
             ),
             QuickRefine(
-                "Другой вариант",
-                "Give another version of the same result: different structure and wording, same facts and same task. Avoid repeating the previous phrasing.",
+                "Another version",
+                "Produce a different version of the same result: another structure and other wording, same facts and same task. Do not repeat the previous phrasing.",
             ),
         )
 
@@ -360,31 +373,37 @@ object Factory {
             OutputLanguage("hi", "हिन्दी", "Hindi", false),
         )
 
+    private const val CHROME_EXE = "chrome.exe"
+    private const val IDE_SOURCE =
+        "The text comes from an IDE: treat it as source code, never translate identifiers, and keep formatting and indentation byte-for-byte."
+    private const val SQL_SOURCE =
+        "The text comes from a database tool: it is SQL or query output, so never change table, column or identifier names."
+
     val apps: List<AppProfile> =
         listOf(
             AppProfile(
-                "chrome.exe",
+                CHROME_EXE,
                 "Jira",
                 "Jira (в браузере)",
                 "Задачи и требования в Jira: описания, комментарии, критерии приёмки.",
                 "The text comes from a Jira issue: keep issue keys (like ABC-123), status names and field labels exactly as written.",
             ),
             AppProfile(
-                "chrome.exe",
+                CHROME_EXE,
                 "Confluence",
                 "Confluence (в браузере)",
                 "Страницы вики: спецификации, регламенты, протоколы встреч.",
                 "The text comes from a Confluence page: preserve headings, lists and table structure so the result can be pasted back as a document fragment.",
             ),
             AppProfile(
-                "chrome.exe",
+                CHROME_EXE,
                 "Битрикс24",
                 "Битрикс24 (в браузере)",
                 "Портал Битрикс24: задачи, CRM, комментарии, бизнес-процессы.",
                 "The text comes from Bitrix24: keep entity names, field labels and workflow status names exactly as written, they are part of the system's configuration.",
             ),
             AppProfile(
-                "chrome.exe",
+                CHROME_EXE,
                 "",
                 "Google Chrome",
                 "Браузер: веб-страницы, документация, почта, внутренние порталы.",
@@ -402,21 +421,21 @@ object Factory {
                 "",
                 "IntelliJ IDEA",
                 "IDE: код, конфигурация, комментарии.",
-                "The text comes from an IDE: treat it as source code, never translate identifiers, and keep formatting and indentation byte-for-byte.",
+                IDE_SOURCE,
             ),
             AppProfile(
                 "phpstorm64.exe",
                 "",
                 "PhpStorm",
                 "IDE для PHP: код Bitrix24-проекта, конфиги.",
-                "The text comes from an IDE: treat it as source code, never translate identifiers, and keep formatting and indentation byte-for-byte.",
+                IDE_SOURCE,
             ),
             AppProfile(
                 "pycharm64.exe",
                 "",
                 "PyCharm",
                 "IDE для Python: скрипты, конфиги.",
-                "The text comes from an IDE: treat it as source code, never translate identifiers, and keep formatting and indentation byte-for-byte.",
+                IDE_SOURCE,
             ),
             AppProfile(
                 "OUTLOOK.EXE",
@@ -458,21 +477,21 @@ object Factory {
                 "",
                 "DataGrip",
                 "SQL-клиент: запросы, схемы, результаты выборок.",
-                "The text comes from a database tool: it is SQL or query output, so never change table, column or identifier names.",
+                SQL_SOURCE,
             ),
             AppProfile(
                 "dbeaver.exe",
                 "",
                 "DBeaver",
                 "SQL-клиент: запросы, схемы, результаты выборок.",
-                "The text comes from a database tool: it is SQL or query output, so never change table, column or identifier names.",
+                SQL_SOURCE,
             ),
             AppProfile(
                 "heidisql.exe",
                 "",
                 "HeidiSQL",
                 "SQL-клиент для MySQL/MariaDB.",
-                "The text comes from a database tool: it is SQL or query output, so never change table, column or identifier names.",
+                SQL_SOURCE,
             ),
             AppProfile(
                 "Postman.exe",
@@ -525,15 +544,18 @@ object Factory {
             ),
         )
 
-    private fun row(
-        factoryId: String?,
-        name: String,
-        icon: String,
-        prefix: String,
-        task: String,
-        lang: String,
-        styleOn: Boolean,
-        openInWindow: Boolean,
-        role: String?,
-    ): Action = Action(factoryId, name, icon, prefix, task, lang, styleOn, openInWindow, null, null, role)
+    private data class Row(
+        val factoryId: String?,
+        val name: String,
+        val icon: String,
+        val prefix: String,
+        val task: String,
+        val lang: String,
+        val styleOn: Boolean,
+        val openInWindow: Boolean,
+        val role: String?,
+        val menuKey: String? = null,
+    )
+
+    private fun Row.toAction(): Action = Action(factoryId, name, icon, prefix, task, lang, styleOn, openInWindow, menuKey, null, role)
 }

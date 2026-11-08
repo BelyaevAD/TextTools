@@ -1,6 +1,7 @@
 package dev.belyaevad.texttools.platform.win
 
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -11,5 +12,26 @@ class ShellClassTest {
         assertTrue(isShellClass("Shell_TrayWnd"))
         assertTrue(isShellClass("Progman"))
         assertFalse(isShellClass("Notepad"))
+    }
+}
+
+/** The profile match uses the file name, not the full path. */
+class ExeFileNameTest {
+    @Test
+    fun keepsTheFileName() {
+        assertEquals("chrome.exe", exeFileName("C:\\Program Files\\Google\\Chrome\\chrome.exe"))
+        assertEquals("chrome.exe", exeFileName("/usr/bin/chrome.exe"))
+        assertEquals("", exeFileName("  "))
+        assertFalse(windowsHost("Linux"))
+        assertTrue(windowsHost("Windows 11"))
+    }
+}
+
+/** The invisible border is the outer rectangle minus the visible one. */
+class FrameSlackTest {
+    @Test
+    fun dropsTheInvisibleBorder() {
+        assertEquals(16 to 8, frameSlack(818, 640, 802, 632))
+        assertEquals(0 to 0, frameSlack(100, 80, 120, 90))
     }
 }

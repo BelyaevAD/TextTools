@@ -37,61 +37,98 @@ fun parseMarkdown(source: String): List<MdBlock> {
     val blocks = mutableListOf<MdBlock>()
     var index = 0
     while (index < lines.size) {
-        val line = lines[index]
-        if (line.startsWith("```")) {
-            val body = mutableListOf<String>()
+        val taken = takeBlock(lines, index)
+        if (taken == null) {
             index += 1
-            while (index < lines.size && !lines[index].startsWith("```")) {
-                body += lines[index]
-                index += 1
-            }
-            if (index < lines.size) index += 1
-            blocks += MdBlock.Code(body.joinToString("\n"))
-            continue
+        } else {
+            blocks += taken.first
+            index = taken.second
         }
-        if (index + 1 < lines.size && line.trim().startsWith("|") && lines[index + 1].contains("---")) {
-            val header = splitRow(line)
-            val rows = mutableListOf<List<String>>()
-            index += 2
-            while (index < lines.size && lines[index].trim().startsWith("|")) {
-                rows += splitRow(lines[index])
-                index += 1
-            }
-            blocks += MdBlock.Table(header, rows)
-            continue
-        }
-        if (line.startsWith("- ")) {
-            val items = mutableListOf<String>()
-            while (index < lines.size && lines[index].startsWith("- ")) {
-                items += lines[index].removePrefix("- ")
-                index += 1
-            }
-            blocks += MdBlock.ListBlock(false, items)
-            continue
-        }
-        if (line.matches(Regex("""\d+\. .+"""))) {
-            val items = mutableListOf<String>()
-            while (index < lines.size && lines[index].matches(Regex("""\d+\. .+"""))) {
-                items += lines[index].substringAfter(". ")
-                index += 1
-            }
-            blocks += MdBlock.ListBlock(true, items)
-            continue
-        }
-        if (line.startsWith("#")) {
-            val level = line.takeWhile { it == '#' }.length
-            blocks += MdBlock.Heading(level, line.drop(level).trim())
-            index += 1
-            continue
-        }
-        if (line.isBlank()) {
-            index += 1
-            continue
-        }
-        blocks += MdBlock.Paragraph(line)
-        index += 1
     }
     return blocks
+}
+
+private fun takeBlock(
+    lines: List<String>,
+    index: Int,
+): Pair<MdBlock, Int>? {
+    readFence(lines, index)?.let { return it }
+    readTable(lines, index)?.let { return it }
+    readBullets(lines, index)?.let { return it }
+    readNumbers(lines, index)?.let { return it }
+    val line = lines[index]
+    readHeading(line, index)?.let { return it }
+    if (line.isBlank()) return null
+    return MdBlock.Paragraph(line) to (index + 1)
+}
+
+private fun readFence(
+    lines: List<String>,
+    index: Int,
+): Pair<MdBlock, Int>? {
+    if (!lines[index].startsWith("```")) return null
+    val body = mutableListOf<String>()
+    var cursor = index + 1
+    while (cursor < lines.size && !lines[cursor].startsWith("```")) {
+        body += lines[cursor]
+        cursor += 1
+    }
+    if (cursor < lines.size) cursor += 1
+    return MdBlock.Code(body.joinToString("\n")) to cursor
+}
+
+private fun readTable(
+    lines: List<String>,
+    index: Int,
+): Pair<MdBlock, Int>? {
+    val line = lines[index]
+    if (index + 1 >= lines.size || !line.trim().startsWith("|") || !lines[index + 1].contains("---")) return null
+    val header = splitRow(line)
+    val rows = mutableListOf<List<String>>()
+    var cursor = index + 2
+    while (cursor < lines.size && lines[cursor].trim().startsWith("|")) {
+        rows += splitRow(lines[cursor])
+        cursor += 1
+    }
+    return MdBlock.Table(header, rows) to cursor
+}
+
+private fun readBullets(
+    lines: List<String>,
+    index: Int,
+): Pair<MdBlock, Int>? {
+    if (!lines[index].startsWith("- ")) return null
+    val items = mutableListOf<String>()
+    var cursor = index
+    while (cursor < lines.size && lines[cursor].startsWith("- ")) {
+        items += lines[cursor].removePrefix("- ")
+        cursor += 1
+    }
+    return MdBlock.ListBlock(ordered = false, items) to cursor
+}
+
+private fun readNumbers(
+    lines: List<String>,
+    index: Int,
+): Pair<MdBlock, Int>? {
+    val pattern = Regex("""\d+\. .+""")
+    if (!pattern.matches(lines[index])) return null
+    val items = mutableListOf<String>()
+    var cursor = index
+    while (cursor < lines.size && pattern.matches(lines[cursor])) {
+        items += lines[cursor].substringAfter(". ")
+        cursor += 1
+    }
+    return MdBlock.ListBlock(ordered = true, items) to cursor
+}
+
+private fun readHeading(
+    line: String,
+    index: Int,
+): Pair<MdBlock, Int>? {
+    if (!line.startsWith("#")) return null
+    val level = line.takeWhile { it == '#' }.length
+    return MdBlock.Heading(level, line.drop(level).trim()) to (index + 1)
 }
 
 private fun splitRow(line: String): List<String> =

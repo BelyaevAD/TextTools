@@ -45,4 +45,15 @@
     <string name="usage_note_stamp">Каталог загружен %1$s, обновляется не чаще раза в сутки.</string>
     <string name="usage_note_diff">Со счётом провайдера возможны расхождения.</string>
     <string name="usage_note_unknown">Для части моделей цены в каталоге не нашлось - они не вошли в итог (отмечен плюсом).</string>
+    <string name="usage_event_title">Запросы к моделям</string>
+    <string name="usage_col_failed">Ошибки</string>
+    <string name="usage_col_cancelled">Отменено</string>
+    <string name="usage_col_input">Символов на входе</string>
+    <string name="usage_col_output">Символов на выходе</string>
+    <string name="usage_col_time">Общее время</string>
+    <string name="usage_col_mean">Среднее, мс</string>
+    <string name="usage_col_max">Максимум, мс</string>
+    <string name="usage_col_speed">Символов/с на выходе</string>
+    <string name="usage_event_note">Сохраняются только число запросов, идентификаторы моделей, длительность и длины текста. Сам текст не сохраняется. Время охватывает только вызов провайдера.</string>
+    <string name="settings_traces_hint_note">Только почасовые агрегаты: количество, модели, длительность, длины текста и токены. Тексты запросов не отправляются. Внешняя доставка зависит от поддержки метрик сервером; сброс очереди SDK не подтверждает доставку.</string>
 </resources>

@@ -1,28 +1,24 @@
 package dev.belyaevad.texttools.app.ui.editor
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.Button
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.OutlinedButton
-import androidx.compose.material.Surface
-import androidx.compose.material.Text
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -31,6 +27,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.rememberWindowState
+import dev.belyaevad.texttools.app.ui.AppDangerButton
+import dev.belyaevad.texttools.app.ui.AppIcon
+import dev.belyaevad.texttools.app.ui.AppPrimaryButton
+import dev.belyaevad.texttools.app.ui.AppSecondaryButton
+import dev.belyaevad.texttools.app.ui.AppTabs
+import dev.belyaevad.texttools.app.ui.AppTheme
+import dev.belyaevad.texttools.app.ui.EditorHeight
+import dev.belyaevad.texttools.app.ui.EditorWidth
+import dev.belyaevad.texttools.app.ui.fitVisibleFrame
+import dev.belyaevad.texttools.app.ui.keepWindowFrame
+import dev.belyaevad.texttools.app.ui.rememberPlacement
 import dev.belyaevad.texttools.domain.Action
 import dev.belyaevad.texttools.domain.AppProfile
 import dev.belyaevad.texttools.domain.Factory
@@ -54,30 +61,38 @@ fun editorWindow(
     defaultModel: String,
     onSave: (List<Action>, List<QuickRefine>, List<AppProfile>) -> Unit,
     onCancel: () -> Unit,
+    language: String,
 ) {
-    var draftActions by remember { mutableStateOf(actions.toList()) }
-    var draftQuick by remember { mutableStateOf(quick.toList()) }
-    var draftApps by remember { mutableStateOf(apps.toList()) }
-    var tab by remember { mutableStateOf(0) }
-    var actionIndex by remember { mutableStateOf(-1) }
-    var quickIndex by remember { mutableStateOf(-1) }
-    var appIndex by remember { mutableStateOf(-1) }
-    var card by remember { mutableStateOf<OpenCard?>(null) }
-    var deleteActionAt by remember { mutableStateOf<Int?>(null) }
-    var deleteAppAt by remember { mutableStateOf<Int?>(null) }
-    var confirmReset by remember { mutableStateOf(false) }
-    var notice by remember { mutableStateOf<String?>(null) }
+    val lists =
+        EditorLists(
+            actions = remember { mutableStateOf(actions.toList()) },
+            quick = remember { mutableStateOf(quick.toList()) },
+            apps = remember { mutableStateOf(apps.toList()) },
+            actionIndex = remember { mutableStateOf(-1) },
+            quickIndex = remember { mutableStateOf(-1) },
+            appIndex = remember { mutableStateOf(-1) },
+        )
+    val dialogs =
+        EditorDialogs(
+            card = remember { mutableStateOf<OpenCard?>(null) },
+            deleteActionAt = remember { mutableStateOf<Int?>(null) },
+            deleteAppAt = remember { mutableStateOf<Int?>(null) },
+            confirmReset = remember { mutableStateOf(false) },
+            notice = remember { mutableStateOf<String?>(null) },
+        )
+    val tab = remember { mutableStateOf(0) }
     val copySuffix = tr(Ed.COPY_SUFFIX)
     val lastActionText = tr(Ed.LAST_ACTION)
-    val dialogOpen = deleteActionAt != null || deleteAppAt != null || confirmReset || notice != null
-    val blocked = card != null || dialogOpen
+    val place = rememberPlacement("editor", EditorWidth, EditorHeight)
+    val windowState = rememberWindowState(width = place.width, height = place.height, position = place.position)
 
     Window(
         onCloseRequest = onCancel,
         title = tr(Ed.WINDOW_TITLE),
-        state = rememberWindowState(width = 860.dp, height = 620.dp),
+        icon = AppIcon,
+        state = windowState,
         onPreviewKeyEvent = { event ->
-            if (!blocked && event.type == KeyEventType.KeyDown && event.key == Key.Escape) {
+            if (!editorBlocked(dialogs) && event.type == KeyEventType.KeyDown && event.key == Key.Escape) {
                 onCancel()
                 true
             } else {
@@ -85,240 +100,350 @@ fun editorWindow(
             }
         },
     ) {
-        MaterialTheme {
-            Surface(Modifier.fillMaxSize()) {
-                Column(Modifier.fillMaxSize().padding(10.dp)) {
-                    editorTabs(
-                        selected = tab,
-                        labels = listOf(tr(Ed.TAB_ACTIONS), tr(Ed.TAB_QUICK), tr(Ed.TAB_APPS)),
-                        onSelect = { tab = it },
-                    )
-                    Box(
-                        Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                            .padding(top = 6.dp)
-                            .border(1.dp, Color(0xFFB0B0B0))
-                            .padding(8.dp),
-                    ) {
-                        when (tab) {
-                            0 ->
-                                actionsPage(
-                                    rows = draftActions,
-                                    languages = languages,
-                                    selected = actionIndex,
-                                    onSelect = { actionIndex = it },
-                                    onOpen = { row ->
-                                        actionIndex = row
-                                        card = OpenCard.ActionRow(row, draftActions[row])
-                                    },
-                                    onAdd = {
-                                        card =
-                                            OpenCard.ActionRow(
-                                                -1,
-                                                Action(
-                                                    factoryId = null,
-                                                    name = "",
-                                                    icon = "",
-                                                    prefix = "",
-                                                    task = "",
-                                                    lang = "auto",
-                                                    styleOn = true,
-                                                    openInWindow = false,
-                                                    menuKey = freeMenuKey(draftActions),
-                                                    model = null,
-                                                    role = null,
-                                                ),
-                                            )
-                                    },
-                                    onDuplicate = {
-                                        val next = duplicated(draftActions, actionIndex, copySuffix) ?: return@actionsPage
-                                        draftActions = next
-                                        actionIndex += 1
-                                    },
-                                    onDelete = {
-                                        if (!canDeleteAction(draftActions.size)) {
-                                            notice = lastActionText
-                                        } else if (actionIndex in draftActions.indices) {
-                                            deleteActionAt = actionIndex
-                                        }
-                                    },
-                                    onUp = {
-                                        val moved = moveItem(draftActions, actionIndex, -1) ?: return@actionsPage
-                                        draftActions = moved.first
-                                        actionIndex = moved.second
-                                    },
-                                    onDown = {
-                                        val moved = moveItem(draftActions, actionIndex, 1) ?: return@actionsPage
-                                        draftActions = moved.first
-                                        actionIndex = moved.second
-                                    },
-                                )
-                            1 ->
-                                quickPage(
-                                    rows = draftQuick,
-                                    selected = quickIndex,
-                                    onSelect = { quickIndex = it },
-                                    onOpen = { row ->
-                                        quickIndex = row
-                                        card = OpenCard.QuickRow(row, draftQuick[row])
-                                    },
-                                    onAdd = { card = OpenCard.QuickRow(-1, QuickRefine("", "")) },
-                                    onDelete = {
-                                        if (quickIndex !in draftQuick.indices) return@quickPage
-                                        val index = quickIndex
-                                        val next = draftQuick.toMutableList()
-                                        next.removeAt(index)
-                                        draftQuick = next
-                                        quickIndex = index.coerceAtMost(next.lastIndex)
-                                    },
-                                    onUp = {
-                                        val moved = moveItem(draftQuick, quickIndex, -1) ?: return@quickPage
-                                        draftQuick = moved.first
-                                        quickIndex = moved.second
-                                    },
-                                    onDown = {
-                                        val moved = moveItem(draftQuick, quickIndex, 1) ?: return@quickPage
-                                        draftQuick = moved.first
-                                        quickIndex = moved.second
-                                    },
-                                )
-                            else ->
-                                appsPage(
-                                    rows = draftApps,
-                                    selected = appIndex,
-                                    onSelect = { appIndex = it },
-                                    onOpen = { row ->
-                                        appIndex = row
-                                        card = OpenCard.AppRow(row, draftApps[row])
-                                    },
-                                    onAdd = { card = OpenCard.AppRow(-1, AppProfile("", "", "", "", "")) },
-                                    onDelete = {
-                                        if (appIndex in draftApps.indices) deleteAppAt = appIndex
-                                    },
-                                )
-                        }
-                    }
-                    Text(
-                        tr(Ed.HINT, Factory.menuKeys.size),
-                        color = Color(0xFF707070),
-                        fontSize = 12.sp,
-                        modifier = Modifier.padding(top = 8.dp),
-                    )
-                    Row(
-                        Modifier.padding(top = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Button(
-                            onClick = { onSave(draftActions.toList(), draftQuick.toList(), draftApps.toList()) },
-                            modifier = Modifier.width(150.dp),
+        if (!place.restored) fitVisibleFrame(windowState.size) { windowState.size = it }
+        keepWindowFrame("editor")
+        key(language) {
+            AppTheme {
+                Surface(Modifier.fillMaxSize()) {
+                    Column(Modifier.fillMaxSize().padding(10.dp)) {
+                        editorTabs(
+                            selected = tab.value,
+                            labels = listOf(tr(Ed.TAB_ACTIONS), tr(Ed.TAB_QUICK), tr(Ed.TAB_APPS)),
+                            onSelect = { tab.value = it },
+                        )
+                        Box(
+                            Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                                .padding(top = 6.dp)
+                                .border(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                                .padding(8.dp),
                         ) {
-                            Text(tr(Ed.SAVE))
+                            editorPage(lists, dialogs, tab.value, languages, copySuffix, lastActionText)
                         }
-                        OutlinedButton(onClick = onCancel, modifier = Modifier.width(120.dp)) {
-                            Text(tr(Ed.CANCEL))
-                        }
-                        OutlinedButton(
-                            onClick = { confirmReset = true },
-                            modifier = Modifier.width(200.dp),
+                        Text(
+                            tr(Ed.HINT, Factory.menuKeys.size),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(top = 8.dp),
+                        )
+                        Row(
+                            Modifier.padding(top = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            Text(tr(Ed.RESET))
+                            AppPrimaryButton(
+                                text = tr(Ed.SAVE),
+                                onClick = {
+                                    onSave(lists.actions.value.toList(), lists.quick.value.toList(), lists.apps.value.toList())
+                                },
+                                modifier = Modifier.width(150.dp),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                            )
+                            AppSecondaryButton(
+                                text = tr(Ed.CANCEL),
+                                onClick = onCancel,
+                                modifier = Modifier.width(120.dp),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                            )
+                            AppSecondaryButton(
+                                text = tr(Ed.RESET),
+                                onClick = { dialogs.confirmReset.value = true },
+                                modifier = Modifier.width(200.dp),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                            )
                         }
                     }
                 }
             }
+            editorOverlays(lists, dialogs, languages, models, defaultModel)
         }
-        when (val open = card) {
-            is OpenCard.ActionRow ->
-                actionCard(
-                    action = open.action,
-                    actions = draftActions,
-                    index = open.index,
-                    languages = languages,
-                    models = models,
-                    defaultModel = defaultModel,
-                    onSave = { updated ->
-                        draftActions = updated
-                        if (open.index < 0) actionIndex = updated.lastIndex
-                        card = null
-                    },
-                    onCancel = { card = null },
-                )
-            is OpenCard.QuickRow ->
-                quickCard(
-                    item = open.item,
-                    onSave = { item ->
-                        val next = draftQuick.toMutableList()
-                        if (open.index in next.indices) next[open.index] = item else next.add(item)
-                        draftQuick = next
-                        quickIndex = if (open.index in next.indices) open.index else next.lastIndex
-                        card = null
-                    },
-                    onCancel = { card = null },
-                )
-            is OpenCard.AppRow ->
-                appCard(
-                    profile = open.profile,
-                    onSave = { profile ->
-                        val next = draftApps.toMutableList()
-                        if (open.index in next.indices) next[open.index] = profile else next.add(profile)
-                        draftApps = next
-                        appIndex = if (open.index in next.indices) open.index else next.lastIndex
-                        card = null
-                    },
-                    onCancel = { card = null },
-                )
-            null -> Unit
-        }
-        deleteActionAt?.let { index ->
-            confirmWindow(
-                text = tr(Ed.DEL_ACTION, draftActions.getOrNull(index)?.name.orEmpty()),
-                yes = tr(Ed.YES),
-                no = tr(Ed.NO),
-                onYes = {
-                    deleteActionAt = null
-                    val next = draftActions.toMutableList()
-                    if (index in next.indices) next.removeAt(index)
-                    draftActions = next
-                    actionIndex = index.coerceAtMost(next.lastIndex)
-                },
-                onNo = { deleteActionAt = null },
-            )
-        }
-        deleteAppAt?.let { index ->
-            confirmWindow(
-                text = tr(Ed.DEL_APP, draftApps.getOrNull(index)?.name.orEmpty()),
-                yes = tr(Ed.YES),
-                no = tr(Ed.NO),
-                onYes = {
-                    deleteAppAt = null
-                    val next = draftApps.toMutableList()
-                    if (index in next.indices) next.removeAt(index)
-                    draftApps = next
-                    appIndex = index.coerceAtMost(next.lastIndex)
-                },
-                onNo = { deleteAppAt = null },
-            )
-        }
-        if (confirmReset) {
-            confirmWindow(
-                text = tr(Ed.RESET_ASK),
-                yes = tr(Ed.YES),
-                no = tr(Ed.NO),
-                onYes = {
-                    confirmReset = false
-                    draftActions = Factory.actions.toList()
-                    draftQuick = Factory.quick.toList()
-                    draftApps = Factory.apps.toList()
-                    actionIndex = if (draftActions.isEmpty()) -1 else 0
-                    quickIndex = if (draftQuick.isEmpty()) -1 else 0
-                    appIndex = if (draftApps.isEmpty()) -1 else 0
-                },
-                onNo = { confirmReset = false },
-            )
-        }
-        notice?.let { text -> noticeWindow(text, tr(Ed.OK)) { notice = null } }
     }
+}
+
+private data class EditorLists(
+    val actions: MutableState<List<Action>>,
+    val quick: MutableState<List<QuickRefine>>,
+    val apps: MutableState<List<AppProfile>>,
+    val actionIndex: MutableState<Int>,
+    val quickIndex: MutableState<Int>,
+    val appIndex: MutableState<Int>,
+) {
+    fun duplicate(copySuffix: String) {
+        val next = duplicated(actions.value, actionIndex.value, copySuffix) ?: return
+        actions.value = next
+        actionIndex.value += 1
+    }
+
+    fun moveAction(delta: Int) {
+        val moved = moveItem(actions.value, actionIndex.value, delta) ?: return
+        actions.value = moved.first
+        actionIndex.value = moved.second
+    }
+
+    fun moveQuick(delta: Int) {
+        val moved = moveItem(quick.value, quickIndex.value, delta) ?: return
+        quick.value = moved.first
+        quickIndex.value = moved.second
+    }
+
+    fun requestDeleteAction(
+        dialogs: EditorDialogs,
+        lastActionText: String,
+    ) {
+        if (!canDeleteAction(actions.value.size)) {
+            dialogs.notice.value = lastActionText
+        } else if (actionIndex.value in actions.value.indices) {
+            dialogs.deleteActionAt.value = actionIndex.value
+        }
+    }
+
+    fun deleteQuick() {
+        if (quickIndex.value !in quick.value.indices) return
+        val index = quickIndex.value
+        val next = quick.value.toMutableList()
+        next.removeAt(index)
+        quick.value = next
+        quickIndex.value = index.coerceAtMost(next.lastIndex)
+    }
+
+    fun requestDeleteApp(dialogs: EditorDialogs) {
+        if (appIndex.value in apps.value.indices) dialogs.deleteAppAt.value = appIndex.value
+    }
+
+    fun saveAction(
+        open: OpenCard.ActionRow,
+        updated: List<Action>,
+    ) {
+        actions.value = updated
+        if (open.index < 0) actionIndex.value = updated.lastIndex
+    }
+
+    fun saveQuick(
+        open: OpenCard.QuickRow,
+        item: QuickRefine,
+    ) {
+        val next = quick.value.toMutableList()
+        if (open.index in next.indices) next[open.index] = item else next.add(item)
+        quick.value = next
+        quickIndex.value = if (open.index in next.indices) open.index else next.lastIndex
+    }
+
+    fun saveApp(
+        open: OpenCard.AppRow,
+        profile: AppProfile,
+    ) {
+        val next = apps.value.toMutableList()
+        if (open.index in next.indices) next[open.index] = profile else next.add(profile)
+        apps.value = next
+        appIndex.value = if (open.index in next.indices) open.index else next.lastIndex
+    }
+
+    fun removeAction(index: Int) {
+        val next = actions.value.toMutableList()
+        if (index in next.indices) next.removeAt(index)
+        actions.value = next
+        actionIndex.value = index.coerceAtMost(next.lastIndex)
+    }
+
+    fun removeApp(index: Int) {
+        val next = apps.value.toMutableList()
+        if (index in next.indices) next.removeAt(index)
+        apps.value = next
+        appIndex.value = index.coerceAtMost(next.lastIndex)
+    }
+
+    fun resetToFactory() {
+        actions.value = Factory.actions.toList()
+        quick.value = Factory.quick.toList()
+        apps.value = Factory.apps.toList()
+        actionIndex.value = if (actions.value.isEmpty()) -1 else 0
+        quickIndex.value = if (quick.value.isEmpty()) -1 else 0
+        appIndex.value = if (apps.value.isEmpty()) -1 else 0
+    }
+}
+
+private data class EditorDialogs(
+    val card: MutableState<OpenCard?>,
+    val deleteActionAt: MutableState<Int?>,
+    val deleteAppAt: MutableState<Int?>,
+    val confirmReset: MutableState<Boolean>,
+    val notice: MutableState<String?>,
+)
+
+private fun editorBlocked(dialogs: EditorDialogs): Boolean =
+    dialogs.card.value != null ||
+        dialogs.deleteActionAt.value != null ||
+        dialogs.deleteAppAt.value != null ||
+        dialogs.confirmReset.value ||
+        dialogs.notice.value != null
+
+@Composable
+private fun editorPage(
+    lists: EditorLists,
+    dialogs: EditorDialogs,
+    tab: Int,
+    languages: List<OutputLanguage>,
+    copySuffix: String,
+    lastActionText: String,
+) {
+    when (tab) {
+        0 ->
+            actionsPage(
+                rows = lists.actions.value,
+                languages = languages,
+                selected = lists.actionIndex.value,
+                onSelect = { lists.actionIndex.value = it },
+                onOpen = { row ->
+                    lists.actionIndex.value = row
+                    dialogs.card.value = OpenCard.ActionRow(row, lists.actions.value[row])
+                },
+                onAdd = {
+                    dialogs.card.value =
+                        OpenCard.ActionRow(
+                            -1,
+                            Action(
+                                factoryId = null,
+                                name = "",
+                                icon = "",
+                                prefix = "",
+                                task = "",
+                                lang = "auto",
+                                styleOn = true,
+                                openInWindow = false,
+                                menuKey = freeMenuKey(lists.actions.value),
+                                model = null,
+                                role = null,
+                            ),
+                        )
+                },
+                onDuplicate = { lists.duplicate(copySuffix) },
+                onDelete = { lists.requestDeleteAction(dialogs, lastActionText) },
+                onUp = { lists.moveAction(-1) },
+                onDown = { lists.moveAction(1) },
+            )
+        1 ->
+            quickPage(
+                rows = lists.quick.value,
+                selected = lists.quickIndex.value,
+                onSelect = { lists.quickIndex.value = it },
+                onOpen = { row ->
+                    lists.quickIndex.value = row
+                    dialogs.card.value = OpenCard.QuickRow(row, lists.quick.value[row])
+                },
+                onAdd = { dialogs.card.value = OpenCard.QuickRow(-1, QuickRefine("", "")) },
+                onDelete = { lists.deleteQuick() },
+                onUp = { lists.moveQuick(-1) },
+                onDown = { lists.moveQuick(1) },
+            )
+        else ->
+            appsPage(
+                rows = lists.apps.value,
+                selected = lists.appIndex.value,
+                onSelect = { lists.appIndex.value = it },
+                onOpen = { row ->
+                    lists.appIndex.value = row
+                    dialogs.card.value = OpenCard.AppRow(row, lists.apps.value[row])
+                },
+                onAdd = { dialogs.card.value = OpenCard.AppRow(-1, AppProfile("", "", "", "", "")) },
+                onDelete = { lists.requestDeleteApp(dialogs) },
+            )
+    }
+}
+
+@Composable
+private fun editorOverlays(
+    lists: EditorLists,
+    dialogs: EditorDialogs,
+    languages: List<OutputLanguage>,
+    models: List<String>,
+    defaultModel: String,
+) {
+    when (val open = dialogs.card.value) {
+        is OpenCard.ActionRow ->
+            actionCard(
+                action = open.action,
+                actions = lists.actions.value,
+                index = open.index,
+                languages = languages,
+                models = models,
+                defaultModel = defaultModel,
+                onSave = { updated ->
+                    lists.saveAction(open, updated)
+                    dialogs.card.value = null
+                },
+                onCancel = { dialogs.card.value = null },
+            )
+        is OpenCard.QuickRow ->
+            quickCard(
+                item = open.item,
+                onSave = { item ->
+                    lists.saveQuick(open, item)
+                    dialogs.card.value = null
+                },
+                onCancel = { dialogs.card.value = null },
+            )
+        is OpenCard.AppRow ->
+            appCard(
+                profile = open.profile,
+                onSave = { profile ->
+                    lists.saveApp(open, profile)
+                    dialogs.card.value = null
+                },
+                onCancel = { dialogs.card.value = null },
+            )
+        null -> Unit
+    }
+    dialogs.deleteActionAt.value?.let { index ->
+        confirmWindow(
+            text =
+                tr(
+                    Ed.DEL_ACTION,
+                    lists.actions.value
+                        .getOrNull(index)
+                        ?.name
+                        .orEmpty(),
+                ),
+            yes = tr(Ed.YES),
+            no = tr(Ed.NO),
+            onYes = {
+                dialogs.deleteActionAt.value = null
+                lists.removeAction(index)
+            },
+            onNo = { dialogs.deleteActionAt.value = null },
+        )
+    }
+    dialogs.deleteAppAt.value?.let { index ->
+        confirmWindow(
+            text =
+                tr(
+                    Ed.DEL_APP,
+                    lists.apps.value
+                        .getOrNull(index)
+                        ?.name
+                        .orEmpty(),
+                ),
+            yes = tr(Ed.YES),
+            no = tr(Ed.NO),
+            onYes = {
+                dialogs.deleteAppAt.value = null
+                lists.removeApp(index)
+            },
+            onNo = { dialogs.deleteAppAt.value = null },
+        )
+    }
+    if (dialogs.confirmReset.value) {
+        confirmWindow(
+            text = tr(Ed.RESET_ASK),
+            yes = tr(Ed.YES),
+            no = tr(Ed.NO),
+            onYes = {
+                dialogs.confirmReset.value = false
+                lists.resetToFactory()
+            },
+            onNo = { dialogs.confirmReset.value = false },
+        )
+    }
+    dialogs.notice.value?.let { text -> noticeWindow(text, tr(Ed.OK)) { dialogs.notice.value = null } }
 }
 
 private sealed interface OpenCard {
@@ -344,31 +469,30 @@ private fun editorTabs(
     labels: List<String>,
     onSelect: (Int) -> Unit,
 ) {
-    Row {
-        labels.forEachIndexed { index, label ->
-            val active = index == selected
-            Box(
-                modifier =
-                    Modifier
-                        .background(if (active) Color.White else Color(0xFFE6E6E6))
-                        .border(1.dp, Color(0xFFB0B0B0))
-                        .clickable { onSelect(index) }
-                        .padding(horizontal = 14.dp, vertical = 6.dp),
-            ) {
-                Text(label)
-            }
-        }
-    }
+    AppTabs(
+        labels = labels,
+        selected = selected,
+        onSelect = onSelect,
+    )
 }
 
 @Composable
 private fun wideButton(
     label: String,
+    secondary: Boolean = false,
+    danger: Boolean = false,
     enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
-    Button(onClick = onClick, enabled = enabled, modifier = Modifier.fillMaxWidth()) {
-        Text(label)
+    val modifier = Modifier.fillMaxWidth()
+    val contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+    when {
+        danger ->
+            AppDangerButton(label, onClick, modifier, enabled, contentPadding, 13.sp)
+        secondary ->
+            AppSecondaryButton(label, onClick, modifier, enabled, contentPadding, 13.sp)
+        else ->
+            AppPrimaryButton(label, onClick, modifier, enabled, contentPadding, 13.sp)
     }
 }
 
@@ -382,8 +506,22 @@ private fun orderButtons(
 ) {
     Text(label, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        Button(onClick = onUp, enabled = upEnabled, modifier = Modifier.weight(1f)) { Text(tr(Ed.UP)) }
-        Button(onClick = onDown, enabled = downEnabled, modifier = Modifier.weight(1f)) { Text(tr(Ed.DOWN)) }
+        AppSecondaryButton(
+            text = tr(Ed.UP),
+            onClick = onUp,
+            enabled = upEnabled,
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+            fontSize = 13.sp,
+        )
+        AppSecondaryButton(
+            text = tr(Ed.DOWN),
+            onClick = onDown,
+            enabled = downEnabled,
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+            fontSize = 13.sp,
+        )
     }
 }
 
@@ -434,13 +572,13 @@ private fun actionsPage(
             },
         )
         Column(
-            Modifier.width(168.dp).padding(start = 8.dp),
+            Modifier.padding(start = 8.dp).width(160.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             wideButton(tr(Ed.ADD), onClick = onAdd)
-            wideButton(tr(Ed.EDIT), enabled = chosen, onClick = { if (chosen) onOpen(selected) })
-            wideButton(tr(Ed.DUP), enabled = chosen, onClick = onDuplicate)
-            wideButton(tr(Ed.DELETE), enabled = chosen, onClick = onDelete)
+            wideButton(tr(Ed.EDIT), secondary = true, enabled = chosen, onClick = { if (chosen) onOpen(selected) })
+            wideButton(tr(Ed.DUP), secondary = true, enabled = chosen, onClick = onDuplicate)
+            wideButton(tr(Ed.DELETE), danger = true, enabled = chosen, onClick = onDelete)
             orderButtons(
                 tr(Ed.GRID_ORDER),
                 upEnabled = selected > 0,
@@ -477,12 +615,12 @@ private fun quickPage(
             text = { row, column -> if (column == 0) rows[row].label else rows[row].instruction },
         )
         Column(
-            Modifier.width(168.dp).padding(start = 8.dp),
+            Modifier.padding(start = 8.dp).width(160.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             wideButton(tr(Ed.ADD), onClick = onAdd)
-            wideButton(tr(Ed.EDIT), enabled = chosen, onClick = { if (chosen) onOpen(selected) })
-            wideButton(tr(Ed.DELETE), enabled = chosen, onClick = onDelete)
+            wideButton(tr(Ed.EDIT), secondary = true, enabled = chosen, onClick = { if (chosen) onOpen(selected) })
+            wideButton(tr(Ed.DELETE), danger = true, enabled = chosen, onClick = onDelete)
             orderButtons(
                 tr(Ed.ROW_ORDER),
                 upEnabled = selected > 0,
@@ -526,14 +664,14 @@ private fun appsPage(
             },
         )
         Column(
-            Modifier.width(168.dp).padding(start = 8.dp),
+            Modifier.padding(start = 8.dp).width(160.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             wideButton(tr(Ed.ADD), onClick = onAdd)
-            wideButton(tr(Ed.EDIT), enabled = chosen, onClick = { if (chosen) onOpen(selected) })
-            wideButton(tr(Ed.DELETE), enabled = chosen, onClick = onDelete)
+            wideButton(tr(Ed.EDIT), secondary = true, enabled = chosen, onClick = { if (chosen) onOpen(selected) })
+            wideButton(tr(Ed.DELETE), danger = true, enabled = chosen, onClick = onDelete)
             Text(tr(Ed.APP_ORDER), fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
-            Text(tr(Ed.APP_ORDER_HINT), color = Color(0xFF707070), fontSize = 12.sp)
+            Text(tr(Ed.APP_ORDER_HINT), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
         }
     }
 }

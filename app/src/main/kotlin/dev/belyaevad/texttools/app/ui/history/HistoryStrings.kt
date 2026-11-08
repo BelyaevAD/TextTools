@@ -37,10 +37,20 @@ import texttools.app.generated.resources.log_title
 import texttools.app.generated.resources.usage_by_model
 import texttools.app.generated.resources.usage_col_answer
 import texttools.app.generated.resources.usage_col_calls
+import texttools.app.generated.resources.usage_col_cancelled
 import texttools.app.generated.resources.usage_col_cost
+import texttools.app.generated.resources.usage_col_failed
+import texttools.app.generated.resources.usage_col_input
+import texttools.app.generated.resources.usage_col_max
+import texttools.app.generated.resources.usage_col_mean
+import texttools.app.generated.resources.usage_col_output
 import texttools.app.generated.resources.usage_col_prompt
+import texttools.app.generated.resources.usage_col_speed
+import texttools.app.generated.resources.usage_col_time
 import texttools.app.generated.resources.usage_col_total
 import texttools.app.generated.resources.usage_empty
+import texttools.app.generated.resources.usage_event_note
+import texttools.app.generated.resources.usage_event_title
 import texttools.app.generated.resources.usage_no_price
 import texttools.app.generated.resources.usage_note_catalog
 import texttools.app.generated.resources.usage_note_diff
@@ -98,6 +108,16 @@ internal enum class Hist(
     NOTE_UNKNOWN(Res.string.usage_note_unknown),
     USAGE_TITLE(Res.string.usage_title),
     TOTAL(Res.string.usage_total),
+    EVENT_TITLE(Res.string.usage_event_title),
+    COL_FAILED(Res.string.usage_col_failed),
+    COL_CANCELLED(Res.string.usage_col_cancelled),
+    COL_INPUT(Res.string.usage_col_input),
+    COL_OUTPUT(Res.string.usage_col_output),
+    COL_TIME_TOTAL(Res.string.usage_col_time),
+    COL_MEAN(Res.string.usage_col_mean),
+    COL_MAX(Res.string.usage_col_max),
+    EVENT_NOTE(Res.string.usage_event_note),
+    COL_SPEED(Res.string.usage_col_speed),
 }
 
 @Composable

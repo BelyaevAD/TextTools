@@ -63,11 +63,25 @@
     <string name="settings_lang_dup">Язык с таким кодом уже есть.</string>
     <string name="settings_lang_last">Нельзя удалить последний язык.</string>
     <string name="settings_ui_lang">Язык интерфейса:</string>
-    <string name="settings_ui_lang_hint">Пакеты — папка lang рядом со скриптом. Свои: lang/user (установщик её не трогает).</string>
+    <string name="settings_ui_lang_hint">Используется встроенный английский или русский перевод. INI-пакеты сохраняются для совместимости, но эта версия их не загружает.</string>
     <string name="settings_hotkey">Хоткей меню (^ = Ctrl, ! = Alt, + = Shift, # = Win):</string>
     <string name="settings_hotkey_repeat">Хоткей повтора последнего действия:</string>
     <string name="settings_markdown">Рендер Markdown в окне результата (снять, если окна роняют скрипт)</string>
     <string name="settings_profiling">Профилировать новые приложения (отправлять имя exe и заголовок окна провайдеру)</string>
+    <string name="settings_profile_model">Модель профилирования:</string>
+    <string name="settings_profile_model_default">Как модель по умолчанию</string>
+    <string name="settings_profile_model_hint">Эта модель ищет приложение в интернете и пишет поправку к промпту по найденному описанию. Пустой выбор берёт модель по умолчанию.</string>
+    <string name="settings_autostart">Запускать при старте Windows</string>
+    <string name="settings_models_side">Модели</string>
+    <string name="settings_profile_ask">Отправить провайдеру сведения о приложении, найти его в интернете и подобрать поправку к промпту?\n\nИсполняемый файл: %1$s\nЗаголовок окна: %2$s</string>
+    <string name="settings_profile_added">Добавлено автоматически</string>
+    <string name="settings_profile_window">(окно: %1$s)</string>
+    <string name="settings_profile_none">(нет)</string>
+    <string name="settings_yes">Да</string>
+    <string name="settings_no">Нет</string>
+    <string name="settings_sentry_errors">Отправлять сообщения об ошибках</string>
+    <string name="settings_sentry_traces">Отправлять почасовую статистику запросов</string>
+    <string name="settings_sentry_hint">Обе галочки изначально сняты. DSN, окружение и доля замеров читаются из config/sentry.properties, а не из программы. Почасовые агрегаты содержат только количество, модели, длительность, длины текста и токены — сами тексты не отправляются.</string>
     <string name="settings_clip_wait">Ожидание буфера обмена, сек:</string>
     <string name="settings_endpoints">OpenRouter: https://openrouter.ai/api/v1     Ollama: http://localhost:11434/v1 (key: ollama)</string>
 </resources>

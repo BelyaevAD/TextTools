@@ -1,6 +1,7 @@
 package dev.belyaevad.texttools.platform.win
 
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -20,5 +21,17 @@ class ElevationTest {
     fun sameProcessAndMediumWindowAllowPaste() {
         assertFalse(blocksPaste(sameProcess = true, elevated = true))
         assertFalse(blocksPaste(sameProcess = false, elevated = false))
+    }
+
+    @Test
+    fun maximizedWindowIsNotRestored() {
+        assertFalse(shouldRestoreWindow(iconic = false))
+        assertTrue(shouldRestoreWindow(iconic = true))
+    }
+
+    @Test
+    fun tokenElevationFieldIsVisibleToJna() {
+        val info = TokenElevationInfo()
+        assertEquals(4, info.size())
     }
 }

@@ -1,6 +1,8 @@
 package dev.belyaevad.texttools.data
 
+import dev.belyaevad.texttools.domain.AppException
 import dev.belyaevad.texttools.domain.ChatMessage
+import dev.belyaevad.texttools.domain.ErrorReason
 import dev.belyaevad.texttools.domain.Usage
 import dev.belyaevad.texttools.domain.effectiveProxy
 import dev.belyaevad.texttools.domain.isLoopback
@@ -28,6 +30,7 @@ import kotlinx.serialization.json.put
 /** OpenAI-compatible chat client. The key is a header, never a temp file. */
 class LlmClient(
     private val http: HttpClient,
+    private val proxied: HttpClient = http,
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -37,6 +40,8 @@ class LlmClient(
         apiKey: String,
         model: String,
         messages: List<ChatMessage>,
+        proxy: String = "",
+        proxyOn: Boolean? = false,
     ): Pair<String, Usage?> {
         val body =
             buildJsonObject {
@@ -56,15 +61,18 @@ class LlmClient(
                     },
                 )
             }
+        val client = if (shouldProxy(baseUrl, proxy, proxyOn)) proxied else http
         val response =
-            http.post(endpoint(baseUrl, "chat/completions")) {
+            client.post(endpoint(baseUrl, "chat/completions")) {
                 header("Authorization", "Bearer $apiKey")
                 contentType(ContentType.Application.Json)
                 setBody(body.toString())
             }
         val text = response.bodyAsText()
-        if (text.isEmpty()) error("Пустой ответ от API")
-        if (!response.status.isSuccess()) error(statusText(response.status.value))
+        if (text.isEmpty() || !response.status.isSuccess()) {
+            if (text.isEmpty()) throw AppException(ErrorReason.EMPTY_RESPONSE)
+            require(response.status.isSuccess()) { httpError(response.status.value) }
+        }
         val root = json.parseToJsonElement(text).jsonObject
         val content =
             root["choices"]
@@ -78,7 +86,7 @@ class LlmClient(
                 ?.contentOrNull
                 ?.trim()
                 .orEmpty()
-        if (content.isEmpty()) error("Модель вернула пустой ответ. Выделенный текст не изменён.")
+        if (content.isEmpty()) throw AppException(ErrorReason.EMPTY_RESPONSE)
         return content to usageOf(root)
     }
 
@@ -105,13 +113,17 @@ class LlmClient(
         return Usage(prompt ?: 0, completion ?: 0)
     }
 
-    private fun statusText(status: Int): String =
+}
+
+private fun httpError(status: Int): AppException {
+    val reason =
         when (status) {
-            401 -> "Ключ не принят (401)."
-            402 -> "Не хватает средств (402)."
-            404 -> "Адрес или модель не найдены (404)."
-            429 -> "Слишком много запросов (429)."
-            in 500..599 -> "Провайдер недоступен ($status)."
-            else -> "HTTP $status"
+            401 -> ErrorReason.UNAUTHORIZED
+            402 -> ErrorReason.INSUFFICIENT_FUNDS
+            404 -> ErrorReason.NOT_FOUND
+            429 -> ErrorReason.RATE_LIMITED
+            in 500..599 -> ErrorReason.PROVIDER_UNAVAILABLE
+            else -> ErrorReason.HTTP_ERROR
         }
+    return AppException(reason, status, "HTTP $status")
 }

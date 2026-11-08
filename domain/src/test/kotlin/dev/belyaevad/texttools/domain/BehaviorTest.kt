@@ -46,7 +46,7 @@ class BehaviorTest {
         assertEquals("socks5h://h:1", normalizeProxy("socks5h://h:1"))
         assertEquals("http://h:1", normalizeProxy("h:1"))
         val error = assertFailsWith<IllegalArgumentException> { normalizeProxy("ftp://h") }
-        assertTrue(error.message!!.contains("socks5h://"))
+        assertTrue(error.message.orEmpty().contains("socks5h://"))
         assertTrue(isLoopback("http://127.0.0.1:11434/v1"))
         assertEquals(0.2, clipWaitSeconds(0.01))
         assertEquals(5.0, clipWaitSeconds(9.0))
@@ -146,6 +146,11 @@ class BehaviorTest {
         val summary = Factory.actions.first { it.factoryId == "summary" }
         val concise = Factory.actions.first { it.factoryId == "concise" }
         assertEquals("\u270F", proof.icon)
+        assertEquals("6", proof.menuKey)
+        assertEquals("prompt", Factory.actions.first().factoryId)
+        assertEquals("1", Factory.actions.first().menuKey)
+        assertEquals("Improve", Factory.actions.first { it.factoryId == "rewrite" }.name)
+        assertTrue(Factory.actions.none { it.factoryId == "business" })
         assertTrue(proof.icon.isNotEmpty())
         assertTrue(proof.task.lines().size > 1)
         assertEquals(23, Factory.apps.size)

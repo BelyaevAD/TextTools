@@ -1,6 +1,7 @@
 package dev.belyaevad.texttools.app.ui.settings
 
 import dev.belyaevad.texttools.domain.CatalogEntry
+import dev.belyaevad.texttools.domain.ErrorReason
 import dev.belyaevad.texttools.domain.KnownModel
 import dev.belyaevad.texttools.domain.OutputLanguage
 import dev.belyaevad.texttools.domain.Settings
@@ -271,6 +272,8 @@ internal sealed interface SettingsNotice {
 
     data class LoadFailed(
         val detail: String,
+        val reason: ErrorReason = ErrorReason.UNKNOWN,
+        val httpStatus: Int? = null,
     ) : SettingsNotice
 
     data class TestOk(
@@ -279,11 +282,15 @@ internal sealed interface SettingsNotice {
 
     data class TestFailed(
         val detail: String,
+        val reason: ErrorReason = ErrorReason.UNKNOWN,
+        val httpStatus: Int? = null,
     ) : SettingsNotice
 
     data object RetargetDone : SettingsNotice
 
     data class RetargetFailed(
         val detail: String,
+        val reason: ErrorReason = ErrorReason.UNKNOWN,
+        val httpStatus: Int? = null,
     ) : SettingsNotice
 }

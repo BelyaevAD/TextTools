@@ -3,6 +3,7 @@ package dev.belyaevad.texttools.app.ui.history
 import androidx.compose.runtime.Composable
 import dev.belyaevad.texttools.app.ui.result.ResultWindow
 import dev.belyaevad.texttools.app.ui.settings.catalogRow
+import dev.belyaevad.texttools.data.UsageEvent
 import dev.belyaevad.texttools.data.UsageRecord
 import dev.belyaevad.texttools.domain.CatalogEntry
 import dev.belyaevad.texttools.domain.costOf
@@ -27,6 +28,7 @@ fun LastResultWindow(
         onCopy = hooks.onCopy,
         onPaste = hooks.onPaste,
         onClose = hooks.onClose,
+        placementId = "last",
     )
 }
 
@@ -41,12 +43,13 @@ fun LastResultWindow(
 fun StatsWindow(
     log: String,
     usage: List<UsageRecord>,
+    events: List<UsageEvent>,
     catalog: List<CatalogEntry>,
     baseUrl: String,
     catalogueAtEpochMs: Long?,
     hooks: ResultHooks,
 ) {
-    if (actionRuns(log).isEmpty() && usage.isEmpty()) {
+    if (actionRuns(log).isEmpty() && usage.isEmpty() && events.isEmpty()) {
         noticeResult(Hist.STATS, Hist.NO_ACTIONS, Hist.NO_ACTIONS_BODY, hooks)
         return
     }
@@ -59,12 +62,19 @@ fun StatsWindow(
     ResultWindow(
         title = tr(Hist.STATS),
         text =
-            statsDocument(log, usage, reportPhrases(stamp)) { model, prompt, completion ->
-                costOf(catalogRow(catalog, model, baseUrl), prompt, completion)
+            buildString {
+                append(usageDocument(events, reportPhrases(stamp)))
+                append("\n\n")
+                append(
+                    statsDocument(log, usage, reportPhrases(stamp)) { model, prompt, completion ->
+                        costOf(catalogRow(catalog, model, baseUrl), prompt, completion)
+                    },
+                )
             },
         onCopy = hooks.onCopy,
         onPaste = hooks.onPaste,
         onClose = hooks.onClose,
+        placementId = "stats",
     )
 }
 
@@ -100,6 +110,7 @@ internal fun noticeResult(
         onCopy = hooks.onCopy,
         onPaste = hooks.onPaste,
         onClose = hooks.onClose,
+        placementId = "notice",
     )
 }
 
@@ -127,4 +138,14 @@ private fun reportPhrases(stamp: String): StatsPhrases =
         stamp = stamp,
         invoice = tr(Hist.NOTE_DIFF),
         unknownNote = tr(Hist.NOTE_UNKNOWN),
+        eventTitle = tr(Hist.EVENT_TITLE),
+        failedColumn = tr(Hist.COL_FAILED),
+        cancelledColumn = tr(Hist.COL_CANCELLED),
+        inputColumn = tr(Hist.COL_INPUT),
+        outputColumn = tr(Hist.COL_OUTPUT),
+        timeColumn = tr(Hist.COL_TIME_TOTAL),
+        meanColumn = tr(Hist.COL_MEAN),
+        maxColumn = tr(Hist.COL_MAX),
+        eventNote = tr(Hist.EVENT_NOTE),
+        speedColumn = tr(Hist.COL_SPEED),
     )

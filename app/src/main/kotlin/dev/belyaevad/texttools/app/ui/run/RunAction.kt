@@ -1,5 +1,7 @@
 package dev.belyaevad.texttools.app.ui.run
 
+import dev.belyaevad.texttools.app.ui.history.ACTION_MARK
+import dev.belyaevad.texttools.app.ui.history.INSTRUCTION_MARK
 import dev.belyaevad.texttools.data.HistoryRecord
 import dev.belyaevad.texttools.data.TextToolsStore
 import dev.belyaevad.texttools.data.UsageRecord
@@ -11,6 +13,7 @@ import dev.belyaevad.texttools.domain.ChatMessage
 import dev.belyaevad.texttools.domain.Delivery
 import dev.belyaevad.texttools.domain.Factory
 import dev.belyaevad.texttools.domain.HISTORY_LIMIT
+import dev.belyaevad.texttools.domain.RequestMetric
 import dev.belyaevad.texttools.domain.RunOutcome
 import dev.belyaevad.texttools.domain.Settings
 import dev.belyaevad.texttools.domain.Usage
@@ -18,13 +21,8 @@ import dev.belyaevad.texttools.domain.costOf
 import dev.belyaevad.texttools.domain.matchApp
 import dev.belyaevad.texttools.platform.ClipboardProtocol
 import dev.belyaevad.texttools.platform.PasteAttempt
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import java.io.IOException
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
@@ -36,18 +34,6 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 
-/** Banner line while the model call is in flight. UW draws it. */
-const val STATUS_PREPARING: String = "готовлю запрос"
-
-/** Banner line after the model has answered. The seconds stay at this moment. */
-const val STATUS_DONE: String = "готово"
-
-/**
- * Delay before [ClipboardProtocol.restoreAfterPaste].
- * The busy flag is already clear. AHK uses the same 3 seconds.
- */
-const val RESTORE_AFTER_PASTE_MILLIS: Long = 3_000L
-
 private const val LAST_FILE: String = "TextTools_last.txt"
 private const val LOG_FILE: String = "TextTools.log"
 
@@ -55,15 +41,18 @@ private val logTime: DateTimeFormatter =
     DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault())
 
 /** Text UW can paint. Seconds use a point and one decimal. */
+enum class RunPhase { Preparing, Done }
+
+/** A language-neutral status; Compose resolves its text. */
 data class RunStatus(
-    val text: String,
-    val seconds: String,
+    val phase: RunPhase,
+    val elapsedMillis: Long,
 )
 
 /** Elapsed time for the banner. A negative count is zero. */
 fun statusSeconds(elapsedMillis: Long): String {
     val seconds = elapsedMillis.coerceAtLeast(0).toDouble() / 1000.0
-    return String.format(Locale.US, "%.1f \u0441", seconds)
+    return String.format(Locale.US, "%.1f", seconds)
 }
 
 /**
@@ -79,8 +68,7 @@ class RunHooks(
 
 /**
  * Runs one action through [ActionRunner].
- * Busy ends when paste returns. Restoring the previous clipboard is a later timer,
- * and only while the clipboard still equals the pasted text.
+ * Busy ends when paste returns. The pasted text stays on the clipboard.
  * Empty model text and errors are not pasted and are not written to history.
  * This type does not read the API key. [hasKey] false returns [RunOutcome.NeedsKey]
  * and does not call the model.
@@ -93,20 +81,21 @@ class RunAction(
     private val settings: () -> Settings,
     private val hasKey: () -> Boolean,
     private val hooks: RunHooks = RunHooks(),
+    private val monotonic: () -> Long = { System.nanoTime() },
+    private val onRequest: (RequestMetric) -> Unit = {},
 ) {
-    private val jobs = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private var restoreJob: Job? = null
-    private val enqueue: (suspend () -> Unit) -> Unit =
-        hooks.schedule ?: { block ->
-            restoreJob?.cancel()
-            restoreJob = jobs.launch { block() }
-        }
     private val gate = AtomicBoolean(false)
 
     @Volatile
     private var phase: Phase? = null
 
-    private val runner = ActionRunner(complete, ::deliver)
+    @Volatile
+    private var measuredInput: Int = 0
+
+    @Volatile
+    private var measuredExtra: Int = 0
+
+    private val runner = ActionRunner(measureCall(complete), ::deliver)
 
     /** True from the start of [run] until paste has returned and the result is stored. */
     val busy: Boolean
@@ -118,8 +107,7 @@ class RunAction(
      */
     fun banner(nowMillis: Long = now()): RunStatus? {
         val current = phase ?: return null
-        val seconds = current.frozenSeconds ?: statusSeconds(nowMillis - current.startedAt)
-        return RunStatus(current.text, seconds)
+        return RunStatus(current.phase, current.frozenMillis ?: (nowMillis - current.startedAt).coerceAtLeast(0))
     }
 
     /**
@@ -142,6 +130,8 @@ class RunAction(
             if (!hasKey()) return RunOutcome.NeedsKey
             val current = settings()
             val extra = instruction.trim()
+            measuredInput = selection.length
+            measuredExtra = extra.length
             showPreparing(now())
             val outcome =
                 runner.run(
@@ -161,7 +151,6 @@ class RunAction(
                 usage: Usage?,
             ) {
                 val at = now()
-                val priced = priceEntry(store.prices()?.body, model, current.baseUrl)
                 val row =
                     HistoryRecord(
                         atEpochMs = at,
@@ -169,7 +158,7 @@ class RunAction(
                         model = model,
                         promptTokens = usage?.promptTokens,
                         completionTokens = usage?.completionTokens,
-                        cost = usage?.let { costOf(priced, it.promptTokens, it.completionTokens) },
+                        cost = requestCost(store.prices()?.body, model, current.baseUrl, usage),
                         source = selection,
                         result = text,
                     )
@@ -177,32 +166,33 @@ class RunAction(
                 writeLast(text)
                 val note =
                     buildString {
-                        append("действие: ")
+                        append(ACTION_MARK)
                         append(action.name)
-                        if (extra.isNotEmpty()) append(" (+инструкция)")
-                        if (shift) append(" (Shift: в окно)")
-                        append(", выделено ")
+                        if (extra.isNotEmpty()) append(INSTRUCTION_MARK)
+                        if (shift) append(" (Shift: into window)")
+                        append(", selected ")
                         append(selection.length)
-                        append(" символов, модель ")
+                        append(" characters, model ")
                         append(model)
                     }
                 appendLog(at, note)
-                appendLog(at, "ok, ответ ${text.length} символов")
+                appendLog(at, "ok, response ${text.length} characters")
                 if (usage != null) {
-                    val spent = "расход: промпт ${usage.promptTokens}, ответ ${usage.completionTokens} токенов, модель $model"
+                    val spent =
+                        "spend: prompt ${usage.promptTokens}, completion ${usage.completionTokens} tokens, model $model"
                     appendLog(at, spent)
-                    store.saveUsage(
-                        store.usage() + UsageRecord(at, action.name, model, usage.promptTokens, usage.completionTokens),
+                    store.appendUsage(
+                        UsageRecord(at, action.name, model, usage.promptTokens, usage.completionTokens),
                     )
                 }
-                appendLog(at, "действие завершено")
+                appendLog(at, "action finished")
             }
 
             when (outcome) {
                 is RunOutcome.Pasted -> remember(outcome.text, outcome.model, outcome.usage)
                 is RunOutcome.InWindow -> remember(outcome.text, outcome.model, outcome.usage)
                 is RunOutcome.Failed -> {
-                    appendLog(now(), "сбой: ${outcome.message}")
+                    appendLog(now(), "failed: ${outcome.message}")
                     hide()
                 }
                 RunOutcome.Busy, RunOutcome.NeedsKey -> hide()
@@ -232,10 +222,49 @@ class RunAction(
         return run(Factory.custom, selection, instruction, shift, proc, title)
     }
 
-    /** Drops a pending clipboard restore. */
-    fun close() {
-        restoreJob?.cancel()
-        jobs.cancel()
+    /** Releases the runner. There is no deferred clipboard restore. */
+    fun close() = Unit
+
+    /** Measures only the provider call, not clipboard delivery. */
+    private fun measureCall(
+        call: suspend (String, List<ChatMessage>) -> Pair<String, Usage?>,
+    ): suspend (String, List<ChatMessage>) -> Pair<String, Usage?> =
+        { model, messages ->
+            val started = monotonic()
+            val at = now()
+            var output = 0
+            var usage: Usage? = null
+            var outcome = "failure"
+            try {
+                val answer = call(model, messages)
+                output = answer.first.trim().length
+                usage = answer.second
+                outcome = if (output == 0) "failure" else "success"
+                answer
+            } catch (cancelled: CancellationException) {
+                outcome = "cancelled"
+                throw cancelled
+            } finally {
+                onRequest(
+                    RequestMetric(
+                        atEpochMs = at,
+                        kind = "action",
+                        model = model,
+                        outcome = outcome,
+                        inputChars = measuredInput,
+                        extraChars = measuredExtra,
+                        outputChars = output,
+                        durationMs = ((monotonic() - started) / 1_000_000).coerceAtLeast(0),
+                        promptTokens = usage?.promptTokens,
+                        completionTokens = usage?.completionTokens,
+                    ),
+                )
+            }
+        }
+
+    /** One line in the run log. Profiling uses this for the lookup. */
+    fun note(line: String) {
+        appendLog(now(), line)
     }
 
     private suspend fun deliver(
@@ -244,17 +273,8 @@ class RunAction(
     ): Boolean {
         showDone(now())
         if (delivery == Delivery.Window) return true
-        cancelRestore()
-        return when (val attempt = clipboard.paste(text)) {
-            is PasteAttempt.Sent -> {
-                val saved = attempt.saved
-                val pasted = attempt.pasted
-                enqueue {
-                    hooks.pause(RESTORE_AFTER_PASTE_MILLIS)
-                    clipboard.restoreAfterPaste(saved, pasted)
-                }
-                true
-            }
+        return when (clipboard.paste(text)) {
+            is PasteAttempt.Sent -> true
             PasteAttempt.ShowInWindow -> false
         }
     }
@@ -266,24 +286,19 @@ class RunAction(
     }
 
     private fun showPreparing(at: Long) {
-        phase = Phase(STATUS_PREPARING, at, null)
+        phase = Phase(RunPhase.Preparing, at, null)
         hooks.onStatus(banner(at))
     }
 
     private fun showDone(at: Long) {
         val started = phase?.startedAt ?: at
-        phase = Phase(STATUS_DONE, started, statusSeconds(at - started))
+        phase = Phase(RunPhase.Done, started, (at - started).coerceAtLeast(0))
         hooks.onStatus(banner(at))
     }
 
     private fun hide() {
         phase = null
         hooks.onStatus(null)
-    }
-
-    private fun cancelRestore() {
-        restoreJob?.cancel()
-        restoreJob = null
     }
 
     private fun now(): Long = hooks.clock()
@@ -318,10 +333,21 @@ class RunAction(
 }
 
 private class Phase(
-    val text: String,
+    val phase: RunPhase,
     val startedAt: Long,
-    val frozenSeconds: String?,
+    val frozenMillis: Long?,
 )
+
+/** Cost of one call. Null when [usage] or the catalogue price is missing. */
+internal fun requestCost(
+    body: String?,
+    model: String,
+    baseUrl: String,
+    usage: Usage?,
+): Double? {
+    val tokens = usage ?: return null
+    return costOf(priceEntry(body, model, baseUrl), tokens.promptTokens, tokens.completionTokens)
+}
 
 private fun priceEntry(
     body: String?,

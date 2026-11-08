@@ -1,23 +1,17 @@
 package dev.belyaevad.texttools.app.ui.menu
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.material.ButtonDefaults
-import androidx.compose.material.OutlinedButton
-import androidx.compose.material.Text
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
@@ -30,8 +24,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
@@ -39,11 +31,10 @@ import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.belyaevad.texttools.app.ui.AppField
+import dev.belyaevad.texttools.app.ui.AppSecondaryButton
 import dev.belyaevad.texttools.domain.Action
 import org.jetbrains.compose.resources.stringResource
 import texttools.app.generated.resources.Res
@@ -56,10 +47,6 @@ private val ButtonWidth = 150.dp
 private val ButtonHeight = 34.dp
 private val EditorHeight = 24.dp
 private val GridGap = 7.dp
-private val HintColor = Color(0xFF707070)
-private val InkColor = Color(0xFF202020)
-private val LineColor = Color(0xFFB0B0B0)
-private val FocusColor = Color(0xFF1A73E8)
 
 /**
  * Three-column action grid. The label is the key, the icon, then the name.
@@ -87,7 +74,8 @@ fun actionMenu(
     Column(
         modifier =
             modifier
-                .fillMaxWidth()
+                .fillMaxSize()
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant)
                 .onPreviewKeyEvent { event ->
                     onMenuKey(
                         event = event,
@@ -95,9 +83,12 @@ fun actionMenu(
                         fieldFocused = fieldFocused,
                         actions = actions,
                         instruction = instruction.value,
-                        onShift = { shiftHeld = it },
-                        onRun = onRun,
-                        dismiss = dismiss,
+                        keys =
+                            MenuKeyActions(
+                                onShift = { shiftHeld = it },
+                                onRun = onRun,
+                                dismiss = dismiss,
+                            ),
                     )
                 }.padding(10.dp),
         verticalArrangement = Arrangement.spacedBy(GridGap),
@@ -109,28 +100,14 @@ fun actionMenu(
         ) {
             Text(
                 text = stringResource(Res.string.menu_instruction),
-                color = InkColor,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 14.sp,
             )
-            BasicTextField(
+            AppField(
                 value = instruction.value,
                 onValueChange = { instruction.value = it },
                 singleLine = true,
-                textStyle = TextStyle(color = InkColor, fontSize = 14.sp),
-                cursorBrush = SolidColor(FocusColor),
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .height(26.dp)
-                        .onFocusChanged { fieldFocused = it.isFocused }
-                        .border(1.dp, if (fieldFocused) FocusColor else LineColor)
-                        .background(Color.White)
-                        .padding(horizontal = 6.dp),
-                decorationBox = { inner ->
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
-                        inner()
-                    }
-                },
+                modifier = Modifier.weight(1f).onFocusChanged { fieldFocused = it.isFocused },
             )
         }
         actions.chunked(3).forEachIndexed { rowIndex, row ->
@@ -144,7 +121,7 @@ fun actionMenu(
                         }
                     MenuButton(
                         action = action,
-                        modifier = Modifier.width(ButtonWidth).heightIn(min = ButtonHeight).then(focus),
+                        modifier = Modifier.width(ButtonWidth).height(ButtonHeight).then(focus),
                         onClick = { onRun(action, instruction.value.trim(), shiftHeld) },
                     )
                 }
@@ -157,29 +134,18 @@ fun actionMenu(
         ) {
             Text(
                 text = stringResource(Res.string.menu_hint),
-                color = HintColor,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp,
                 lineHeight = 15.sp,
                 modifier = Modifier.weight(1f),
             )
-            OutlinedButton(
+            AppSecondaryButton(
+                text = stringResource(Res.string.menu_editor),
                 onClick = openEditor,
                 modifier = Modifier.width(ButtonWidth).height(EditorHeight),
                 contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
-                border = BorderStroke(1.dp, LineColor),
-                colors =
-                    ButtonDefaults.outlinedButtonColors(
-                        backgroundColor = Color.White,
-                        contentColor = InkColor,
-                    ),
-            ) {
-                Text(
-                    text = stringResource(Res.string.menu_editor),
-                    fontSize = 12.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
+                fontSize = 12.sp,
+            )
         }
     }
 }
@@ -190,27 +156,20 @@ private fun MenuButton(
     modifier: Modifier,
     onClick: () -> Unit,
 ) {
-    OutlinedButton(
+    AppSecondaryButton(
+        text = action.buttonLabel(),
         onClick = onClick,
         modifier = modifier,
         contentPadding = PaddingValues(horizontal = 6.dp, vertical = 1.dp),
-        border = BorderStroke(1.dp, LineColor),
-        colors =
-            ButtonDefaults.outlinedButtonColors(
-                backgroundColor = Color.White,
-                contentColor = InkColor,
-            ),
-    ) {
-        Text(
-            text = action.buttonLabel(),
-            fontSize = 12.sp,
-            lineHeight = 14.sp,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
-        )
-    }
+        fontSize = 12.sp,
+    )
 }
+
+private data class MenuKeyActions(
+    val onShift: (Boolean) -> Unit,
+    val onRun: (Action, String, Boolean) -> Unit,
+    val dismiss: () -> Unit,
+)
 
 private fun onMenuKey(
     event: KeyEvent,
@@ -218,14 +177,12 @@ private fun onMenuKey(
     fieldFocused: Boolean,
     actions: List<Action>,
     instruction: String,
-    onShift: (Boolean) -> Unit,
-    onRun: (Action, String, Boolean) -> Unit,
-    dismiss: () -> Unit,
+    keys: MenuKeyActions,
 ): Boolean {
     if (event.type == KeyEventType.KeyUp) {
         held.remove(event.key)
         if (event.isShiftKey()) {
-            onShift(false)
+            keys.onShift(false)
         }
         return false
     }
@@ -234,12 +191,12 @@ private fun onMenuKey(
     }
     val firstPress = held.add(event.key)
     if (event.isShiftKey()) {
-        onShift(true)
+        keys.onShift(true)
         return false
     }
     if (event.key == Key.Escape) {
         if (firstPress) {
-            dismiss()
+            keys.dismiss()
         }
         return true
     }
@@ -251,7 +208,7 @@ private fun onMenuKey(
     if (!firstPress) {
         return true
     }
-    onRun(action, instruction.trim(), event.isShiftPressed)
+    keys.onRun(action, instruction.trim(), event.isShiftPressed)
     return true
 }
 

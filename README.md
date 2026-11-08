@@ -1,12 +1,40 @@
 ﻿# TextTools
 
-Kotlin and Compose Desktop line, version 1.0.0-alpha.
+Tray application for the selected text. A hotkey runs an LLM action and pastes the result back, or shows it in a window. Capture and paste into other windows are implemented for Windows. The Linux and macOS builds open the tray.
 
-The last AutoHotkey release is tag `v0.3.1` on branch `archive/ahk`.
+Kotlin and Compose Desktop, version 1.0. The last AutoHotkey release is tag `v0.3.1` on branch `archive/ahk`.
+
+## Requirements
+
+JDK 21.
+
+## Check and run
+
+On Windows, use `gradlew.bat` instead of `./gradlew`.
 
 ```text
 ./gradlew check
 ./gradlew :app:run
 ```
 
-Installers (`packageMsi`, `packageDmg`, `packageDeb`) are built on their own OS and are not stored in git. Read `docs/README.md` before changing a module.
+## Installers
+
+Each installer is built on its own OS and is not stored in git.
+
+```text
+./gradlew :app:packageMsi
+./gradlew :app:packageDmg
+./gradlew :app:packageDeb
+```
+
+The check workflow can build the same packages when started by hand. On a Mac, `sh packaging/macos/package-dmg.sh` from the repository root builds the DMG.
+
+## Configuration
+
+The API key and the proxy URL stay in the operating-system secret store. They are not written to the repository or to SQLite.
+
+Error reports are off until both a DSN and a settings switch are present. Copy `config/sentry.properties.example` to `config/sentry.properties` (or to `%LOCALAPPDATA%\TextTools\sentry.properties`) and fill the DSN there. Do not commit that copy. Both Sentry switches start off.
+
+## Docs and license
+
+Module notes start at `docs/README.md`. The license is MIT.

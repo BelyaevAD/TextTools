@@ -1,6 +1,5 @@
 package dev.belyaevad.texttools.app.ui.result
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -9,37 +8,29 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.rememberScrollbarAdapter
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.ButtonDefaults
-import androidx.compose.material.ExperimentalMaterialApi
-import androidx.compose.material.LocalMinimumInteractiveComponentEnforcement
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.OutlinedButton
-import androidx.compose.material.Surface
-import androidx.compose.material.Text
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -47,16 +38,23 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.rememberWindowState
+import dev.belyaevad.texttools.app.ui.AppField
+import dev.belyaevad.texttools.app.ui.AppIcon
+import dev.belyaevad.texttools.app.ui.AppSecondaryButton
+import dev.belyaevad.texttools.app.ui.AppTheme
+import dev.belyaevad.texttools.app.ui.ResultWidth
+import dev.belyaevad.texttools.app.ui.fitVisibleFrame
+import dev.belyaevad.texttools.app.ui.keepWindowFrame
+import dev.belyaevad.texttools.app.ui.rememberPlacement
+import dev.belyaevad.texttools.app.ui.resultOuterHeight
 import dev.belyaevad.texttools.domain.ChatMessage
 import dev.belyaevad.texttools.domain.MdBlock
 import dev.belyaevad.texttools.domain.QuickRefine
@@ -80,16 +78,10 @@ import texttools.app.generated.resources.result_send
 import texttools.app.generated.resources.result_source
 
 private val Ink = Color(0xFF1B1B1B)
-private val Chrome = Color(0xFFF0F0F0)
-private val Frame = Color(0xFFB4B4B4)
-private val Line = Color(0xFFB5B5B5)
-private val HeaderBg = Color(0xFFEFEFEF)
-private val CodeBg = Color(0xFFF2F2F2)
-private val SendBorder = Color(0xFF1A73E8)
 private val CopyWidth = 130.dp
-private val PasteWidth = 168.dp
+private val PasteWidth = 160.dp
 private val SourceWidth = 130.dp
-private val CloseWidth = 108.dp
+private val CloseWidth = 100.dp
 private val SendWidth = 130.dp
 
 /**
@@ -123,7 +115,6 @@ data class RefineDelivery(
  * The model call keeps running after this window leaves the composition.
  * [onDelivered] still receives a non-empty answer. This function does not write history.
  */
-@OptIn(ExperimentalMaterialApi::class)
 @Suppress("LongParameterList")
 @Composable
 fun ResultWindow(
@@ -137,7 +128,10 @@ fun ResultWindow(
     chips: List<QuickRefine> = emptyList(),
     markdown: Boolean = true,
     complete: suspend (model: String, messages: List<ChatMessage>) -> Pair<String, Usage?> = { _, _ -> Pair("", null) },
-    onDelivered: (RefineDelivery) -> Unit = {},
+    onDelivered: suspend (RefineDelivery) -> Unit = {},
+    onRequest: (Int) -> Unit = {},
+    language: String = "",
+    placementId: String = "result",
 ) {
     val live = remember { ResultLive(text, conversation, raw = !markdown) }
     // Left running on close so a refine in flight can still call onDelivered.
@@ -147,11 +141,19 @@ fun ResultWindow(
     }
     val sourceLabel = stringResource(Res.string.result_source)
     val markupLabel = stringResource(Res.string.result_markup)
+    val place =
+        rememberPlacement(
+            placementId,
+            ResultWidth,
+            resultOuterHeight(conversation != null, chips.isNotEmpty()),
+        )
+    val windowState = rememberWindowState(width = place.width, height = place.height, position = place.position)
 
     Window(
         onCloseRequest = onClose,
         title = "TextTools - $title",
-        state = rememberWindowState(width = 820.dp, height = 640.dp),
+        icon = AppIcon,
+        state = windowState,
         resizable = true,
         alwaysOnTop = true,
         onPreviewKeyEvent = { event ->
@@ -163,9 +165,11 @@ fun ResultWindow(
             }
         },
     ) {
-        MaterialTheme {
-            CompositionLocalProvider(LocalMinimumInteractiveComponentEnforcement provides false) {
-                Surface(modifier = Modifier.fillMaxSize(), color = Chrome) {
+        if (!place.restored) fitVisibleFrame(windowState.size) { windowState.size = it }
+        keepWindowFrame(placementId)
+        key(language) {
+            AppTheme {
+                Surface(modifier = Modifier.fillMaxSize()) {
                     Column(Modifier.fillMaxSize().padding(10.dp)) {
                         DocumentPane(live)
                         if (live.conversation != null && chips.isNotEmpty()) {
@@ -181,6 +185,7 @@ fun ResultWindow(
                                         chip.label,
                                         complete,
                                         onDelivered,
+                                        onRequest,
                                     )
                                 },
                             )
@@ -191,7 +196,7 @@ fun ResultWindow(
                                 busy = live.busy,
                                 onDraft = { live.draft = it },
                                 onSend = {
-                                    launchRefine(jobs, live, model, live.draft, "", complete, onDelivered)
+                                    launchRefine(jobs, live, model, live.draft, "", complete, onDelivered, onRequest)
                                 },
                             )
                         }
@@ -225,12 +230,14 @@ private fun launchRefine(
     question: String,
     label: String,
     complete: suspend (model: String, messages: List<ChatMessage>) -> Pair<String, Usage?>,
-    onDelivered: (RefineDelivery) -> Unit,
+    onDelivered: suspend (RefineDelivery) -> Unit,
+    onRequest: (Int) -> Unit,
 ) {
     val instruction = question.trim()
     if (instruction.isEmpty()) return
     val previous = live.conversation ?: return
     if (live.busy) return
+    onRequest(instruction.length)
     val messages = trimConversation(previous + ChatMessage(role = "user", content = instruction))
     live.busy = true
     jobs.launch {
@@ -273,7 +280,7 @@ private fun ColumnScope.DocumentPane(live: ResultLive) {
         Modifier
             .weight(1f)
             .fillMaxWidth()
-            .border(1.dp, Frame)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant)
             .background(Color.White),
     ) {
         Box(Modifier.fillMaxSize().verticalScroll(scroll)) {
@@ -324,7 +331,7 @@ private fun MarkdownBlock(block: MdBlock) {
                     Modifier
                         .fillMaxWidth()
                         .padding(vertical = 4.dp)
-                        .background(CodeBg)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
                         .padding(8.dp),
             )
     }
@@ -371,7 +378,7 @@ private fun TableCells(
     columns: Int,
     header: Boolean,
 ) {
-    Row(Modifier.fillMaxWidth().background(if (header) HeaderBg else Color.White)) {
+    Row(Modifier.fillMaxWidth().background(if (header) MaterialTheme.colorScheme.surfaceVariant else Color.White)) {
         for (index in 0 until columns) {
             Text(
                 inlineText(cells.getOrElse(index) { "" }),
@@ -381,7 +388,7 @@ private fun TableCells(
                 modifier =
                     Modifier
                         .weight(1f)
-                        .border(1.dp, Line)
+                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant)
                         .padding(horizontal = 9.dp, vertical = 4.dp),
             )
         }
@@ -435,16 +442,13 @@ private fun RefineRow(
             fontSize = 14.sp,
             modifier = Modifier.padding(end = 8.dp),
         )
-        BasicTextField(
+        AppField(
             value = draft,
             onValueChange = onDraft,
             singleLine = true,
-            textStyle = TextStyle(color = Ink, fontSize = 14.sp),
-            cursorBrush = SolidColor(SendBorder),
             modifier =
                 Modifier
                     .weight(1f)
-                    .height(28.dp)
                     .onPreviewKeyEvent { event ->
                         if (event.type == KeyEventType.KeyDown && event.key == Key.Enter) {
                             onSend()
@@ -452,18 +456,12 @@ private fun RefineRow(
                         } else {
                             false
                         }
-                    }.border(1.dp, Frame)
-                    .background(Color.White)
-                    .padding(horizontal = 6.dp),
-            decorationBox = { inner ->
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) { inner() }
-            },
+                    },
         )
         ResultButton(
             text = stringResource(Res.string.result_send),
             onClick = onSend,
             enabled = !busy,
-            borderColor = SendBorder,
             modifier = Modifier.padding(start = 8.dp).width(SendWidth),
         )
     }
@@ -491,31 +489,24 @@ private fun ResultButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    borderColor: Color = Frame,
 ) {
-    OutlinedButton(
+    AppSecondaryButton(
+        text = text,
         onClick = onClick,
+        modifier = modifier,
         enabled = enabled,
-        modifier = modifier.height(28.dp),
-        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-        border = BorderStroke(1.dp, if (enabled) borderColor else Color(0xFFD0D0D0)),
-        colors =
-            ButtonDefaults.outlinedButtonColors(
-                backgroundColor = Color.White,
-                contentColor = Ink,
-                disabledContentColor = Color(0xFF808080),
-            ),
-    ) {
-        Text(text, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-    }
+        fontSize = 13.sp,
+    )
 }
 
+@Composable
 private fun inlineText(source: String): AnnotatedString {
     val out = AnnotatedString.Builder()
     out.appendInline(source)
     return out.toAnnotatedString()
 }
 
+@Composable
 private fun AnnotatedString.Builder.appendInline(source: String) {
     var index = 0
     while (index < source.length) {
@@ -527,7 +518,12 @@ private fun AnnotatedString.Builder.appendInline(source: String) {
         }
         when (mark.kind) {
             InlineKind.Code ->
-                withStyle(SpanStyle(fontFamily = FontFamily.Monospace, background = CodeBg)) {
+                withStyle(
+                    SpanStyle(
+                        fontFamily = FontFamily.Monospace,
+                        background = MaterialTheme.colorScheme.surfaceVariant,
+                    ),
+                ) {
                     append(mark.body)
                 }
             InlineKind.Bold -> withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { appendInline(mark.body) }

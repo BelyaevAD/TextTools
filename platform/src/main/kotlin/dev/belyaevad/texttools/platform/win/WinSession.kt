@@ -1,6 +1,8 @@
 package dev.belyaevad.texttools.platform.win
 
+import com.sun.jna.Native
 import com.sun.jna.NativeLibrary
+import com.sun.jna.Pointer
 import com.sun.jna.Structure
 import com.sun.jna.platform.win32.Advapi32
 import com.sun.jna.platform.win32.Crypt32
@@ -8,13 +10,18 @@ import com.sun.jna.platform.win32.Kernel32
 import com.sun.jna.platform.win32.User32
 import com.sun.jna.platform.win32.WinCrypt
 import com.sun.jna.platform.win32.WinDef.HWND
+import com.sun.jna.platform.win32.WinDef.POINT
+import com.sun.jna.platform.win32.WinDef.RECT
 import com.sun.jna.platform.win32.WinNT
 import com.sun.jna.platform.win32.WinUser
 import com.sun.jna.platform.win32.WinUser.MSG
 import com.sun.jna.ptr.IntByReference
+import com.sun.jna.win32.StdCallLibrary
 import dev.belyaevad.texttools.platform.ClipIo
+import java.awt.GraphicsEnvironment
 import java.awt.Robot
 import java.awt.Toolkit
+import java.awt.Window
 import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.StringSelection
 import java.awt.event.KeyEvent
@@ -36,6 +43,9 @@ private const val WM_HOTKEY = 0x0312
 private const val WM_QUIT = 0x0012
 private const val WM_SWAP = 0x8000
 private const val SW_RESTORE = 9
+private const val ACTIVATE_WAIT_MILLIS = 2_000L
+private const val ACTIVATE_POLL_MILLIS = 20L
+private const val PASTE_SETTLE_MILLIS = 150L
 private const val ERROR_ALREADY_EXISTS = 183
 private const val TOKEN_ELEVATION = 20
 private const val CF_BITMAP = 2
@@ -182,6 +192,7 @@ class WinHotkeys internal constructor(
      * True only when both chords were accepted.
      */
     fun start(): Boolean {
+        if (!windowsHost()) return false
         if (thread != null) return both.get()
         val ready = CountDownLatch(1)
         val worker =
@@ -385,20 +396,79 @@ fun menuPosition(
     workAreas: List<WorkArea>,
 ): ScreenPoint {
     val anchor = caret?.takeUnless { it.x <= 0 && it.y <= 0 }
-    var x = anchor?.x ?: cursor.x
-    var y = if (anchor != null) anchor.y + CARET_DROP_PX else cursor.y
-    for (area in workAreas) {
-        if (!area.containsX(x) || !area.containsY(y)) continue
-        val minX = area.left + MENU_MARGIN_PX
-        val minY = area.top + MENU_MARGIN_PX
-        val maxX = (area.right - menuWidth - MENU_MARGIN_PX).coerceAtLeast(minX)
-        val maxY = (area.bottom - menuHeight - MENU_MARGIN_PX).coerceAtLeast(minY)
-        x = x.coerceIn(minX, maxX)
-        y = y.coerceIn(minY, maxY)
-        break
-    }
-    return ScreenPoint(x, y)
+    val x = anchor?.x ?: cursor.x
+    val y = if (anchor != null) anchor.y + CARET_DROP_PX else cursor.y
+    val area = workAreas.firstOrNull { it.containsX(x) && it.containsY(y) } ?: nearestWorkArea(x, y, workAreas)
+    if (area == null) return ScreenPoint(x, y)
+    val minX = area.left + MENU_MARGIN_PX
+    val minY = area.top + MENU_MARGIN_PX
+    val maxX = (area.right - menuWidth - MENU_MARGIN_PX).coerceAtLeast(minX)
+    val maxY = (area.bottom - menuHeight - MENU_MARGIN_PX).coerceAtLeast(minY)
+    return ScreenPoint(x.coerceIn(minX, maxX), y.coerceIn(minY, maxY))
 }
+
+/**
+ * Caret of [hwnd], in screen pixels, read before the clipboard capture moves focus.
+ * An empty caret rectangle means the control did not publish one.
+ */
+fun caretScreenPoint(hwnd: HWND): ScreenPoint? {
+    if (!windowsHost()) return null
+    return try {
+        val threadId = User32.INSTANCE.GetWindowThreadProcessId(hwnd, null)
+        if (threadId == 0) return null
+        val info = GuiThreadInfo()
+        info.cbSize = info.size()
+        if (!CaretUser32.INSTANCE.GetGUIThreadInfo(threadId, info)) return null
+        val caret = info.hwndCaret ?: return null
+        val peer = caret.pointer ?: return null
+        if (Pointer.nativeValue(peer) == 0L) return null
+        val rect = info.rcCaret
+        if (rect.right <= rect.left || rect.bottom <= rect.top) return null
+        val point = POINT()
+        point.x = rect.left
+        point.y = rect.top
+        if (!CaretUser32.INSTANCE.ClientToScreen(caret, point)) return null
+        ScreenPoint(point.x, point.y)
+    } catch (_: Throwable) {
+        null
+    }
+}
+
+/** Work areas of the attached monitors, in the same pixels as [java.awt.MouseInfo]. */
+fun currentWorkAreas(): List<WorkArea> {
+    val toolkit = Toolkit.getDefaultToolkit()
+    return GraphicsEnvironment.getLocalGraphicsEnvironment().screenDevices.map { device ->
+        val bounds = device.defaultConfiguration.bounds
+        val insets = toolkit.getScreenInsets(device.defaultConfiguration)
+        WorkArea(
+            left = bounds.x + insets.left,
+            top = bounds.y + insets.top,
+            right = bounds.x + bounds.width - insets.right,
+            bottom = bounds.y + bounds.height - insets.bottom,
+        )
+    }
+}
+
+private fun nearestWorkArea(
+    x: Int,
+    y: Int,
+    areas: List<WorkArea>,
+): WorkArea? =
+    areas.minByOrNull { area ->
+        val dx =
+            when {
+                x < area.left -> area.left - x
+                x >= area.right -> x - (area.right - 1)
+                else -> 0
+            }
+        val dy =
+            when {
+                y < area.top -> area.top - y
+                y >= area.bottom -> y - (area.bottom - 1)
+                else -> 0
+            }
+        dx.toLong() + dy.toLong()
+    }
 
 /** HKCU Run command. Building it does not write the registry. */
 data class RunCommand(
@@ -414,12 +484,12 @@ data class RunCommand(
 fun installedAutostart(exe: Path): RunCommand {
     val absolute = exe.toAbsolutePath().normalize()
     val fileName = absolute.fileName.toString()
-    if (!fileName.endsWith(".exe", ignoreCase = true)) {
-        throw IllegalArgumentException("Автозапуск собирается только для установленного exe")
+    require(fileName.endsWith(".exe", ignoreCase = true)) {
+        "Autostart is only built for an installed exe"
     }
     val text = absolute.toString()
-    if (text.indexOf('"') >= 0 || text.indexOf('\n') >= 0 || text.indexOf('\r') >= 0) {
-        throw IllegalArgumentException("Путь установленного exe нельзя записать в команду автозапуска")
+    require(!(text.indexOf('"') >= 0 || text.indexOf('\n') >= 0 || text.indexOf('\r') >= 0)) {
+        "The installed exe path cannot be written into the autostart command"
     }
     return RunCommand(RUN_KEY, "TextTools", "\"$text\"")
 }
@@ -429,6 +499,95 @@ fun autostartMatchesInstall(
     command: RunCommand,
     exe: Path,
 ): Boolean = command == installedAutostart(exe)
+
+/**
+ * The running program, when it is an installed exe.
+ * `java.exe` and `javaw.exe` are the development launch, not an install.
+ */
+fun currentInstalledExe(): Path? {
+    val command =
+        ProcessHandle
+            .current()
+            .info()
+            .command()
+            .orElse("")
+    if (command.isBlank()) return null
+    return installedExeOrNull(Path.of(command))
+}
+
+/** An installed exe path, or null for a script, Java, or a path that cannot be quoted. */
+fun installedExeOrNull(path: Path): Path? {
+    val name = path.fileName?.toString().orEmpty()
+    if (!name.endsWith(".exe", ignoreCase = true)) return null
+    if (name.equals("java.exe", ignoreCase = true) || name.equals("javaw.exe", ignoreCase = true)) return null
+    return try {
+        installedAutostart(path)
+        path.toAbsolutePath().normalize()
+    } catch (_: IllegalArgumentException) {
+        null
+    }
+}
+
+/**
+ * The saved checkbox wins after the user has stored it.
+ * Before that, the installer registry value is the choice. A missing value is off.
+ */
+fun autostartEnabled(
+    stored: Boolean?,
+    registryMatches: Boolean,
+): Boolean = stored ?: registryMatches
+
+/** The TextTools value from `reg query` output. Null when the value is absent. */
+fun parseRunValue(
+    output: String,
+    valueName: String = "TextTools",
+): String? {
+    val marker = "REG_SZ"
+    val line =
+        output.lineSequence().map { it.trim() }.firstOrNull { row ->
+            row.startsWith(valueName, ignoreCase = true) && row.contains(marker)
+        } ?: return null
+    val at = line.indexOf(marker)
+    if (at < 0) return null
+    return line.substring(at + marker.length).trim()
+}
+
+/**
+ * Writes or removes the HKCU Run value for an installed exe.
+ * A development launch has no exe and this call does nothing.
+ */
+class WindowsRunKey {
+    fun read(): String? {
+        if (!windowsHost()) return null
+        val process =
+            ProcessBuilder("reg", "query", RUN_KEY, "/v", "TextTools")
+                .redirectErrorStream(true)
+                .start()
+        val text = process.inputStream.readBytes().toString(Charsets.UTF_8)
+        if (process.waitFor() != 0) return null
+        return parseRunValue(text)
+    }
+
+    fun apply(
+        enabled: Boolean,
+        exe: Path,
+    ) {
+        if (!windowsHost()) return
+        val desired = if (enabled) installedAutostart(exe).command else null
+        if (read() == desired) return
+        if (desired == null) {
+            ProcessBuilder("reg", "delete", RUN_KEY, "/v", "TextTools", "/f")
+                .redirectErrorStream(true)
+                .start()
+                .waitFor()
+        } else {
+            ProcessBuilder("reg", "add", RUN_KEY, "/v", "TextTools", "/t", "REG_SZ", "/d", desired, "/f")
+                .redirectErrorStream(true)
+                .start()
+                .waitFor()
+        }
+    }
+}
 
 /** API key and proxy URL. Both live in the current-user secret store, never in SQLite. */
 enum class SecretSlot { ApiKey, ProxyUrl }
@@ -480,7 +639,7 @@ class UserSecrets internal constructor(
         try {
             val blob = protector.protect(plain)
             if (blob.contentEquals(plain)) {
-                throw SecretStoreException("Секретное хранилище Windows недоступно")
+                throw SecretStoreException("The Windows secret store is unavailable")
             }
             bytes.write(slot, blob)
         } finally {
@@ -501,13 +660,13 @@ internal fun userSecrets(
 fun openUserSecretStore(): UserSecrets {
     val local = System.getenv("LOCALAPPDATA")
     if (local.isNullOrBlank()) {
-        throw SecretStoreException("Секретное хранилище Windows недоступно")
+        throw SecretStoreException("The Windows secret store is unavailable")
     }
     val root = Path.of(local, "TextTools", "secrets")
     try {
         Files.createDirectories(root)
     } catch (_: IOException) {
-        throw SecretStoreException("Секретное хранилище Windows недоступно")
+        throw SecretStoreException("The Windows secret store is unavailable")
     }
     return userSecrets(root, DpapiProtector)
 }
@@ -520,6 +679,7 @@ class ForegroundWatch {
 
     /** Polls the foreground window. Same 400 ms interval as the old tracker. */
     fun start() {
+        if (!windowsHost()) return
         Thread(
             {
                 val user32 = User32.INSTANCE
@@ -542,6 +702,12 @@ class ForegroundWatch {
             return live
         }
         return source
+    }
+
+    /** Caret of the source window, read before the clipboard capture changes focus. */
+    fun caretNow(): ScreenPoint? {
+        val hwnd = sourceNow() ?: return null
+        return caretScreenPoint(hwnd)
     }
 }
 
@@ -570,20 +736,33 @@ internal class AwtClip(
             false
         }
 
-    override fun sendCopy() = chord(KeyEvent.VK_C)
+    override fun sendCopy() {
+        if (windowsHost()) chord(KeyEvent.VK_C)
+    }
 
-    override fun sendPaste() = chord(KeyEvent.VK_V)
+    override fun sendPaste() {
+        if (windowsHost()) chord(KeyEvent.VK_V)
+    }
 
     override fun activateSource(): Boolean {
+        if (!windowsHost()) return false
         val hwnd = focus() ?: return false
         val user32 = User32.INSTANCE
-        user32.ShowWindow(hwnd, SW_RESTORE)
-        return user32.SetForegroundWindow(hwnd)
+        if (shouldRestoreWindow(isIconic(hwnd))) user32.ShowWindow(hwnd, SW_RESTORE)
+        if (!user32.SetForegroundWindow(hwnd)) return false
+        val deadline = System.currentTimeMillis() + ACTIVATE_WAIT_MILLIS
+        while (!sameWindow(user32.GetForegroundWindow(), hwnd)) {
+            if (System.currentTimeMillis() >= deadline) return false
+            Thread.sleep(ACTIVATE_POLL_MILLIS)
+        }
+        Thread.sleep(PASTE_SETTLE_MILLIS)
+        return true
     }
 
     override fun hasImageOrFiles(): Boolean = clipboardHasImageOrFiles()
 
     override fun elevatedForeign(): Boolean {
+        if (!windowsHost()) return false
         val hwnd = focus() ?: return false
         val pid = IntByReference()
         User32.INSTANCE.GetWindowThreadProcessId(hwnd, pid)
@@ -599,6 +778,19 @@ internal class AwtClip(
         robot.keyRelease(KeyEvent.VK_CONTROL)
     }
 }
+
+/** A maximized or normal window is only focused. Restoring it would shrink a maximized one. */
+internal fun shouldRestoreWindow(iconic: Boolean): Boolean = iconic
+
+private fun isIconic(hwnd: HWND): Boolean {
+    val iconic = NativeLibrary.getInstance("user32").getFunction("IsIconic")
+    return iconic.invokeInt(arrayOf<Any>(hwnd)) != 0
+}
+
+private fun sameWindow(
+    live: HWND?,
+    expected: HWND,
+): Boolean = live != null && live == expected
 
 /**
  * A foreign window blocks paste when it is elevated or its token cannot be read.
@@ -616,6 +808,113 @@ private fun isOwnProcess(hwnd: HWND): Boolean {
     val pid = IntByReference()
     User32.INSTANCE.GetWindowThreadProcessId(hwnd, pid)
     return pid.value != 0 && pid.value == Kernel32.INSTANCE.GetCurrentProcessId()
+}
+
+/**
+ * Pixels of the invisible resize border that Windows adds around a decorated window.
+ * [GetWindowRect] includes them and the visible frame from DWM does not.
+ * A window that is not on screen yet, and every non-Windows host, returns zero.
+ */
+fun decoratedFrameSlack(window: Window): Pair<Int, Int> {
+    if (!windowsHost() || !window.isDisplayable || !window.isShowing) return 0 to 0
+    return try {
+        val pointer = Native.getComponentPointer(window) ?: return 0 to 0
+        val hwnd = HWND(pointer)
+        val outer = RECT()
+        if (!User32.INSTANCE.GetWindowRect(hwnd, outer)) return 0 to 0
+        val visible = RECT()
+        val status =
+            DwmapiLib.INSTANCE.DwmGetWindowAttribute(
+                hwnd,
+                DwmapiLib.EXTENDED_FRAME_BOUNDS,
+                visible,
+                visible.size(),
+            )
+        if (status != 0) return 0 to 0
+        frameSlack(
+            outer.right - outer.left,
+            outer.bottom - outer.top,
+            visible.right - visible.left,
+            visible.bottom - visible.top,
+        )
+    } catch (_: UnsatisfiedLinkError) {
+        0 to 0
+    } catch (_: Exception) {
+        0 to 0
+    }
+}
+
+/** Non-negative gap from an outer rectangle down to the visible one. */
+internal fun frameSlack(
+    outerWidth: Int,
+    outerHeight: Int,
+    visibleWidth: Int,
+    visibleHeight: Int,
+): Pair<Int, Int> = (outerWidth - visibleWidth).coerceAtLeast(0) to (outerHeight - visibleHeight).coerceAtLeast(0)
+
+private interface DwmapiLib : StdCallLibrary {
+    @Suppress("ktlint:standard:function-naming")
+    fun DwmGetWindowAttribute(
+        hwnd: HWND,
+        attribute: Int,
+        rect: RECT,
+        size: Int,
+    ): Int
+
+    companion object {
+        val INSTANCE: DwmapiLib = Native.load("dwmapi", DwmapiLib::class.java)
+        const val EXTENDED_FRAME_BOUNDS = 9
+    }
+}
+
+/** True on a Windows JVM. Hotkeys and key injection stay here. */
+internal fun windowsHost(): Boolean = windowsHost(System.getProperty("os.name").orEmpty())
+
+internal fun windowsHost(osName: String): Boolean = osName.lowercase().contains("win")
+
+/** Process file name and title of the remembered source window. Empty when there is none. */
+data class SourceApp(
+    val proc: String,
+    val title: String,
+)
+
+/** File name at the end of a Windows or POSIX path. */
+fun exeFileName(path: String): String {
+    val trimmed = path.trim().trimEnd('\\', '/')
+    val cut = maxOf(trimmed.lastIndexOf('\\'), trimmed.lastIndexOf('/'))
+    return if (cut < 0) trimmed else trimmed.substring(cut + 1)
+}
+
+/** The tracker has a user window that can receive Ctrl+C. */
+fun hasUserSource(watch: ForegroundWatch): Boolean = watch.sourceNow() != null
+
+/** Process and title for the app-profile hint. The window handle stays in this module. */
+fun sourceApp(watch: ForegroundWatch): SourceApp {
+    val hwnd = watch.sourceNow() ?: return SourceApp("", "")
+    return SourceApp(processImageName(hwnd), windowTitle(hwnd))
+}
+
+private fun windowTitle(hwnd: HWND): String {
+    val buffer = CharArray(512)
+    User32.INSTANCE.GetWindowText(hwnd, buffer, buffer.size)
+    return String(buffer).trimEnd('\u0000')
+}
+
+private fun processImageName(hwnd: HWND): String {
+    val pid = IntByReference()
+    User32.INSTANCE.GetWindowThreadProcessId(hwnd, pid)
+    if (pid.value == 0) return ""
+    val process =
+        Kernel32.INSTANCE.OpenProcess(WinNT.PROCESS_QUERY_LIMITED_INFORMATION, false, pid.value)
+            ?: return ""
+    try {
+        val buffer = CharArray(1024)
+        val size = IntByReference(buffer.size)
+        if (!Kernel32.INSTANCE.QueryFullProcessImageName(process, 0, buffer, size)) return ""
+        return exeFileName(String(buffer, 0, size.value.coerceAtMost(buffer.size)))
+    } finally {
+        Kernel32.INSTANCE.CloseHandle(process)
+    }
 }
 
 private fun isShellWindow(hwnd: HWND): Boolean {
@@ -657,7 +956,7 @@ private class DirectorySecretBytes(
         return try {
             Files.readAllBytes(path)
         } catch (_: IOException) {
-            throw SecretStoreException("Секретное хранилище Windows недоступно")
+            throw SecretStoreException("The Windows secret store is unavailable")
         }
     }
 
@@ -666,12 +965,12 @@ private class DirectorySecretBytes(
         blob: ByteArray,
     ) {
         if (!Files.isDirectory(root)) {
-            throw SecretStoreException("Секретное хранилище Windows недоступно")
+            throw SecretStoreException("The Windows secret store is unavailable")
         }
         try {
             Files.write(file(slot), blob)
         } catch (_: IOException) {
-            throw SecretStoreException("Секретное хранилище Windows недоступно")
+            throw SecretStoreException("The Windows secret store is unavailable")
         }
     }
 
@@ -718,7 +1017,7 @@ internal object DpapiProtector : SecretProtector {
             }
         if (!ok || output.pbData == null) {
             val code = Kernel32.INSTANCE.GetLastError()
-            throw SecretStoreException("Секретное хранилище Windows недоступно ($code)")
+            throw SecretStoreException("The Windows secret store is unavailable ($code)")
         }
         return try {
             output.getData() ?: ByteArray(0)
@@ -728,7 +1027,15 @@ internal object DpapiProtector : SecretProtector {
     }
 }
 
-private fun elevationOf(pid: Int): Boolean? {
+private fun elevationOf(pid: Int): Boolean? =
+    try {
+        readElevation(pid)
+    } catch (_: Throwable) {
+        // JNA wraps a refused Structure field in Error. An unreadable token blocks paste; it must not exit the tray.
+        null
+    }
+
+private fun readElevation(pid: Int): Boolean? {
     val process =
         Kernel32.INSTANCE.OpenProcess(WinNT.PROCESS_QUERY_LIMITED_INFORMATION, false, pid)
             ?: return null
@@ -757,7 +1064,59 @@ private fun elevationOf(pid: Int): Boolean? {
     }
 }
 
-private class TokenElevationInfo : Structure() {
+private interface CaretUser32 : StdCallLibrary {
+    @Suppress("ktlint:standard:function-naming")
+    fun GetGUIThreadInfo(
+        idThread: Int,
+        info: GuiThreadInfo,
+    ): Boolean
+
+    @Suppress("ktlint:standard:function-naming")
+    fun ClientToScreen(
+        hwnd: HWND,
+        point: POINT,
+    ): Boolean
+
+    companion object {
+        val INSTANCE: CaretUser32 = Native.load("user32", CaretUser32::class.java)
+    }
+}
+
+/** Public on the JVM: JNA reads these fields from another package. A file-private class makes that read throw Error. */
+internal class GuiThreadInfo : Structure() {
+    @JvmField var cbSize: Int = 0
+
+    @JvmField var flags: Int = 0
+
+    @JvmField var hwndActive: HWND? = null
+
+    @JvmField var hwndFocus: HWND? = null
+
+    @JvmField var hwndCapture: HWND? = null
+
+    @JvmField var hwndMenuOwner: HWND? = null
+
+    @JvmField var hwndMoveSize: HWND? = null
+
+    @JvmField var hwndCaret: HWND? = null
+
+    @JvmField var rcCaret: RECT = RECT()
+
+    override fun getFieldOrder(): List<String> =
+        listOf(
+            "cbSize",
+            "flags",
+            "hwndActive",
+            "hwndFocus",
+            "hwndCapture",
+            "hwndMenuOwner",
+            "hwndMoveSize",
+            "hwndCaret",
+            "rcCaret",
+        )
+}
+
+internal class TokenElevationInfo : Structure() {
     @JvmField
     var tokenIsElevated: Int = 0
 

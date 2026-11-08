@@ -6,14 +6,16 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.Button
-import androidx.compose.material.OutlinedButton
-import androidx.compose.material.Text
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.belyaevad.texttools.app.ui.AppPrimaryButton
+import dev.belyaevad.texttools.app.ui.AppSecondaryButton
+import dev.belyaevad.texttools.app.ui.KeyConflictHeight
+import dev.belyaevad.texttools.app.ui.KeyConflictWidth
 import dev.belyaevad.texttools.domain.KeyConflict
 
 /**
@@ -30,8 +32,15 @@ fun keyConflictDialog(
 ) {
     val shown = key.trim().uppercase()
     val previous = oldKey?.trim()?.takeIf { it.isNotEmpty() }
-    framedDialog(APP_TITLE, 480.dp, 250.dp, { onChoice(KeyConflict.Cancel) }, resizable = false) {
-        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    framedDialog(
+        APP_TITLE,
+        KeyConflictWidth,
+        KeyConflictHeight,
+        { onChoice(KeyConflict.Cancel) },
+        resizable = false,
+        placementId = "key-conflict",
+    ) {
+        Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.Top) {
                 Text("\u26A0", fontSize = 28.sp, modifier = Modifier.padding(end = 12.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -50,36 +59,22 @@ fun keyConflictDialog(
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(
+                AppSecondaryButton(
+                    text = tr(Ed.CANCEL),
                     onClick = { onChoice(KeyConflict.Cancel) },
                     modifier = Modifier.width(100.dp),
-                ) {
-                    Text(tr(Ed.CANCEL))
-                }
-                if (previous != null) {
-                    Button(
-                        onClick = { onChoice(KeyConflict.Swap) },
-                        modifier = Modifier.width(110.dp),
-                    ) {
-                        Text(tr(Ed.KEY_SWAP))
-                    }
-                    OutlinedButton(
-                        onClick = { onChoice(KeyConflict.Take) },
-                        modifier = Modifier.width(110.dp),
-                    ) {
-                        Text(tr(Ed.KEY_TAKE))
-                    }
-                } else {
-                    OutlinedButton(onClick = {}, enabled = false, modifier = Modifier.width(110.dp)) {
-                        Text(tr(Ed.KEY_SWAP))
-                    }
-                    Button(
-                        onClick = { onChoice(KeyConflict.Take) },
-                        modifier = Modifier.width(110.dp),
-                    ) {
-                        Text(tr(Ed.KEY_TAKE))
-                    }
-                }
+                )
+                AppSecondaryButton(
+                    text = tr(Ed.KEY_SWAP),
+                    onClick = { onChoice(KeyConflict.Swap) },
+                    modifier = Modifier.width(110.dp),
+                    enabled = previous != null,
+                )
+                AppPrimaryButton(
+                    text = tr(Ed.KEY_TAKE),
+                    onClick = { onChoice(KeyConflict.Take) },
+                    modifier = Modifier.width(110.dp),
+                )
             }
         }
     }

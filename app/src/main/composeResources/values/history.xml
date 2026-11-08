@@ -45,4 +45,15 @@
     <string name="usage_note_stamp">Catalogue downloaded %1$s, refreshed at most once a day.</string>
     <string name="usage_note_diff">Differences from the provider’s own invoice are possible.</string>
     <string name="usage_note_unknown">For some models no price was found in the catalogue — they are left out of the total (marked with a plus).</string>
+    <string name="usage_event_title">Model requests</string>
+    <string name="usage_col_failed">Failed</string>
+    <string name="usage_col_cancelled">Cancelled</string>
+    <string name="usage_col_input">Input chars</string>
+    <string name="usage_col_output">Output chars</string>
+    <string name="usage_col_time">Total time</string>
+    <string name="usage_col_mean">Mean ms</string>
+    <string name="usage_col_max">Max ms</string>
+    <string name="usage_col_speed">Output chars/s</string>
+    <string name="usage_event_note">Only request counts, model ids, durations and text lengths are stored. No request text is saved. Time covers the provider call only.</string>
+    <string name="settings_traces_hint_note">Hourly aggregates only: counts, models, durations, text lengths and tokens. Request texts are never sent. External delivery depends on the server accepting Sentry metrics; flushing the SDK is not a delivery acknowledgement.</string>
 </resources>

@@ -1,1 +1,1 @@
-Full capture and paste are for an X11 session. On Wayland the menu can open and text is not injected into other windows. `desktopSession` already treats Wayland as its own case. A live probe was not run on this Windows host.
+Full capture and paste need Windows in this build. On Linux the tray opens and RegisterHotKey is not called, so text is not injected into other windows. `desktopSession` still tells Wayland from X11. A live probe was not run on this Windows host.

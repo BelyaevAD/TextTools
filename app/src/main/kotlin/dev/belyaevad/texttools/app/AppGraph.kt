@@ -1,15 +1,18 @@
 package dev.belyaevad.texttools.app
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
+import dev.belyaevad.texttools.data.AppWebSearch
 import dev.belyaevad.texttools.data.LlmClient
+import dev.belyaevad.texttools.data.PriceCatalogue
 import dev.belyaevad.texttools.data.TextToolsStore
 import dev.belyaevad.texttools.data.db.TextToolsDatabase
+import dev.belyaevad.texttools.domain.AppException
+import dev.belyaevad.texttools.domain.ErrorReason
 import dev.belyaevad.texttools.domain.normalizeProxy
 import dev.belyaevad.texttools.platform.ClipboardProtocol
 import dev.belyaevad.texttools.platform.win.ForegroundWatch
 import dev.belyaevad.texttools.platform.win.GlobalChord
 import dev.belyaevad.texttools.platform.win.SecretSlot
-import dev.belyaevad.texttools.platform.win.SecretStoreException
 import dev.belyaevad.texttools.platform.win.UserSecrets
 import dev.belyaevad.texttools.platform.win.WinHotkeys
 import dev.belyaevad.texttools.platform.win.openUserSecretStore
@@ -51,6 +54,10 @@ class AppGraph(
 
     val llm: LlmClient = LlmClient(http = direct, proxied = proxied)
 
+    val search: AppWebSearch = AppWebSearch(http = direct, proxied = proxied)
+
+    val catalogue: PriceCatalogue = PriceCatalogue(http = direct, proxied = proxied)
+
     val watch: ForegroundWatch = ForegroundWatch()
 
     val clipboard: ClipboardProtocol = ClipboardProtocol(windowsClipboard(watch))
@@ -90,7 +97,7 @@ private fun openDatabase(): JdbcSqliteDriver {
 private fun localAppData(): String {
     val local = System.getenv("LOCALAPPDATA")
     if (local.isNullOrBlank()) {
-        throw SecretStoreException("Секретное хранилище Windows недоступно")
+        throw AppException(ErrorReason.SECRET_STORE_UNAVAILABLE)
     }
     return local
 }
@@ -201,7 +208,7 @@ private fun proxyEndpoint(secrets: UserSecrets): ProxyEndpoint {
     return ProxyEndpoint(proxy, decoded?.first, decoded?.second)
 }
 
-private fun badProxy(): Nothing = throw IllegalArgumentException("Прокси не разобран")
+private fun badProxy(): Nothing = throw AppException(ErrorReason.INVALID_PROXY)
 
 private fun decodeUserInfo(info: String?): Pair<String, String>? {
     if (info.isNullOrEmpty()) return null

@@ -6,3 +6,8 @@ build/
 texttools.db
 .idea/
 *.iml
+config/sentry.properties
+tmp/
+.scannerwork/
+sonar-project.properties
+dist/

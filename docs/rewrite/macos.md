@@ -1,1 +1,1 @@
-DMG is for macOS 13 arm64 and is not signed. There is no Intel build. A live hotkey probe was not run on this Windows host.
+DMG is for macOS 13 arm64 and is not signed. There is no Intel build. On a Mac the tray still opens. RegisterHotKey and key injection run only on Windows, so capture and paste stay unavailable. A live probe was not run on this Windows host.

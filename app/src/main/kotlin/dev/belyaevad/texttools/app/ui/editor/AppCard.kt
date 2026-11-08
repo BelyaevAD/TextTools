@@ -2,14 +2,15 @@ package dev.belyaevad.texttools.app.ui.editor
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.Button
-import androidx.compose.material.OutlinedButton
-import androidx.compose.material.Text
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -17,9 +18,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.belyaevad.texttools.app.ui.AppCardHeight
+import dev.belyaevad.texttools.app.ui.AppCardWidth
+import dev.belyaevad.texttools.app.ui.AppPrimaryButton
+import dev.belyaevad.texttools.app.ui.AppSecondaryButton
 import dev.belyaevad.texttools.domain.AppProfile
 
 /** Edits one application profile. An empty process does not save. A blank name is stored as the process. */
@@ -42,20 +46,20 @@ fun appCard(
         } else {
             tr(Ed.APP_EDIT, profile.name.ifBlank { profile.proc })
         }
-    framedDialog(heading, 780.dp, 520.dp, onCancel) {
+    framedDialog(heading, AppCardWidth, AppCardHeight, onCancel, placementId = "app-card") {
         Column(
-            Modifier.fillMaxSize().padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            Modifier.fillMaxSize().padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(tr(Ed.APP_PROC), modifier = Modifier.width(150.dp))
                 lineField(proc, { proc = it }, Modifier.width(200.dp))
-                Text(tr(Ed.APP_TITLE), modifier = Modifier.padding(start = 16.dp).width(160.dp))
-                lineField(titleText, { titleText = it }, Modifier.weight(1f))
+                Text(tr(Ed.APP_TITLE), modifier = Modifier.padding(start = 16.dp).width(150.dp))
+                lineField(titleText, { titleText = it }, Modifier.width(200.dp))
             }
             Text(
                 tr(Ed.APP_TITLE_HINT),
-                color = Color(0xFF707070),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp,
                 modifier = Modifier.padding(start = 150.dp),
             )
@@ -68,9 +72,10 @@ fun appCard(
                 lineField(description, { description = it }, Modifier.weight(1f))
             }
             Text(tr(Ed.APP_HINT))
-            lineField(hint, { hint = it }, Modifier.fillMaxWidth().weight(1f), singleLine = false)
+            lineField(hint, { hint = it }, Modifier.fillMaxWidth().height(88.dp), singleLine = false)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
+                AppPrimaryButton(
+                    text = tr(Ed.SAVE),
                     onClick = {
                         val saved = savedApp(proc, titleText, name, description, hint)
                         if (saved == null) {
@@ -80,12 +85,14 @@ fun appCard(
                         }
                     },
                     modifier = Modifier.width(150.dp),
-                ) {
-                    Text(tr(Ed.SAVE))
-                }
-                OutlinedButton(onClick = onCancel, modifier = Modifier.width(120.dp)) {
-                    Text(tr(Ed.CANCEL))
-                }
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                )
+                AppSecondaryButton(
+                    text = tr(Ed.CANCEL),
+                    onClick = onCancel,
+                    modifier = Modifier.width(120.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                )
             }
         }
         notice?.let { text -> noticeWindow(text, tr(Ed.OK)) { notice = null } }

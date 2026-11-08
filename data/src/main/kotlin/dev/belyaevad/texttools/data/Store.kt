@@ -16,6 +16,7 @@ class TextToolsStore(
     driver: SqlDriver,
 ) {
     private val db = TextToolsDatabase(driver)
+    private val usageGate = Any()
 
     /** Loads actions. The role is read back from the factory seed, not from a column. */
     fun actions(): List<Action> {
@@ -231,6 +232,13 @@ class TextToolsStore(
         }
     }
 
+    /** Adds one row. The read and the replace stay together, so a second writer cannot drop the first. */
+    fun appendUsage(event: UsageRecord) {
+        synchronized(usageGate) {
+            saveUsage(usage() + event)
+        }
+    }
+
     /** Loads the price catalogue, or null when nothing has been stored. */
     fun prices(): PriceCache? {
         val row = db.textToolsQueries.selectPriceCache().executeAsOneOrNull() ?: return null
@@ -245,7 +253,65 @@ class TextToolsStore(
             queries.insertPriceCache(cache.body, cache.fetchedAtEpochMs)
         }
     }
+
+    /** Appends one privacy-safe request measurement. No prompt or answer text is stored. */
+    fun appendUsageEvent(event: UsageEvent) {
+        db.textToolsQueries.insertUsageEvent(
+            event.atEpochMs,
+            event.kind,
+            event.model,
+            event.outcome,
+            event.inputChars.toLong(),
+            event.extraChars.toLong(),
+            event.outputChars.toLong(),
+            event.durationMs,
+            event.promptTokens?.toLong(),
+            event.completionTokens?.toLong(),
+            null,
+        )
+    }
+
+    fun usageEvents(): List<UsageEvent> = db.textToolsQueries.selectUsageEvents().executeAsList().map(::usageEvent)
+
+    fun pendingUsageEvents(): List<UsageEvent> = db.textToolsQueries.selectPendingUsageEvents().executeAsList().map(::usageEvent)
+
+    fun markUsageEventsSent(ids: List<Long>, bucketStartMs: Long) {
+        if (ids.isEmpty()) return
+        db.textToolsQueries.markUsageEventsSent(bucketStartMs, ids)
+    }
+
+    private fun usageEvent(row: dev.belyaevad.texttools.data.db.Usage_event): UsageEvent =
+        UsageEvent(
+            id = row.id,
+            atEpochMs = row.at_epoch_ms,
+            kind = row.kind,
+            model = row.model,
+            outcome = row.outcome,
+            inputChars = row.input_chars.toInt(),
+            extraChars = row.extra_chars.toInt(),
+            outputChars = row.output_chars.toInt(),
+            durationMs = row.duration_ms,
+            promptTokens = row.prompt_tokens?.toInt(),
+            completionTokens = row.completion_tokens?.toInt(),
+            sentryBucket = row.sentry_bucket,
+        )
 }
+
+/** One model call measured by monotonic duration. Texts and credentials are not fields. */
+data class UsageEvent(
+    val atEpochMs: Long,
+    val kind: String,
+    val model: String,
+    val outcome: String,
+    val inputChars: Int,
+    val extraChars: Int,
+    val outputChars: Int,
+    val durationMs: Long,
+    val promptTokens: Int?,
+    val completionTokens: Int?,
+    val id: Long = 0,
+    val sentryBucket: Long? = null,
+)
 
 /** One history row. [cost] is null when the price was unknown. Text is trimmed on write. */
 data class HistoryRecord(

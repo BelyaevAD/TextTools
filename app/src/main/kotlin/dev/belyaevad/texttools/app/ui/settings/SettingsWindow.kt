@@ -7,43 +7,53 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.AlertDialog
-import androidx.compose.material.Button
-import androidx.compose.material.ExperimentalMaterialApi
-import androidx.compose.material.LocalMinimumInteractiveComponentEnforcement
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.OutlinedButton
-import androidx.compose.material.Surface
-import androidx.compose.material.Tab
-import androidx.compose.material.TabRow
-import androidx.compose.material.Text
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.MutableIntState
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.rememberWindowState
+import dev.belyaevad.texttools.app.reportFailure
+import dev.belyaevad.texttools.app.ui.AppIcon
+import dev.belyaevad.texttools.app.ui.AppPrimaryButton
+import dev.belyaevad.texttools.app.ui.AppSecondaryButton
+import dev.belyaevad.texttools.app.ui.AppTabs
+import dev.belyaevad.texttools.app.ui.AppTheme
+import dev.belyaevad.texttools.app.ui.SettingsHeight
+import dev.belyaevad.texttools.app.ui.SettingsWidth
+import dev.belyaevad.texttools.app.ui.fitVisibleFrame
+import dev.belyaevad.texttools.app.ui.keepWindowFrame
+import dev.belyaevad.texttools.app.ui.rememberPlacement
+import dev.belyaevad.texttools.app.ui.resolveError
+import dev.belyaevad.texttools.domain.ErrorReason
 import dev.belyaevad.texttools.domain.KnownModel
 import dev.belyaevad.texttools.domain.OutputLanguage
 import dev.belyaevad.texttools.domain.Settings
+import dev.belyaevad.texttools.domain.errorHttpStatus
+import dev.belyaevad.texttools.domain.errorReason
 import dev.belyaevad.texttools.domain.providerOf
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import texttools.app.generated.resources.Res
@@ -100,7 +110,6 @@ import texttools.app.generated.resources.settings_title
  *
  * The window does not open the database. [models] are the rows for [settings.baseUrl].
  */
-@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun SettingsWindow(
     settings: Settings,
@@ -111,27 +120,187 @@ fun SettingsWindow(
 ) {
     val form = remember { SettingsForm(settings, apiKey, models, languages) }
     val scope = rememberCoroutineScope()
-    var accepting by remember { mutableStateOf(true) }
-    var tab by remember { mutableIntStateOf(0) }
-    var apiStatus by remember { mutableStateOf<Status?>(null) }
-    var dialog by remember { mutableStateOf<SettingsNotice?>(null) }
-    var ask by remember { mutableStateOf<LangDraft?>(null) }
-    val proxyBad = stringResource(Res.string.settings_proxy_bad)
-    val pickRow = stringResource(Res.string.settings_pick_row)
-    val defaultSet = stringResource(Res.string.settings_default_set)
-    val busyText = stringResource(Res.string.settings_busy)
-    val loadingText = stringResource(Res.string.settings_loading)
-    val testingText = stringResource(Res.string.settings_testing)
-    val windowState = rememberWindowState(width = 680.dp, height = 720.dp)
+    val accepting = remember { mutableStateOf(true) }
+    val tab = remember { mutableIntStateOf(0) }
+    val apiStatus = remember { mutableStateOf<Status?>(null) }
+    val dialog = remember { mutableStateOf<SettingsNotice?>(null) }
+    val ask = remember { mutableStateOf<LangDraft?>(null) }
+    val copy =
+        SettingsCopy(
+            proxyBad = stringResource(Res.string.settings_proxy_bad),
+            pickRow = stringResource(Res.string.settings_pick_row),
+            defaultSet = stringResource(Res.string.settings_default_set),
+            busyText = stringResource(Res.string.settings_busy),
+            loadingText = stringResource(Res.string.settings_loading),
+            testingText = stringResource(Res.string.settings_testing),
+        )
+    val ops =
+        SettingsOps(
+            form = form,
+            scope = scope,
+            callbacks = callbacks,
+            bindings = SettingsBindings(accepting, tab, apiStatus, dialog, ask),
+            copy = copy,
+        )
+    val labels =
+        listOf(
+            stringResource(Res.string.settings_tab_api),
+            stringResource(Res.string.settings_tab_langs),
+            stringResource(Res.string.settings_tab_ui),
+        )
+    val place = rememberPlacement("settings", SettingsWidth, SettingsHeight)
+    val windowState = rememberWindowState(width = place.width, height = place.height, position = place.position)
+    val actions = ops.actions()
 
+    Window(
+        onCloseRequest = { ops.dismiss() },
+        title = "TextTools - ${stringResource(Res.string.settings_title)}",
+        icon = AppIcon,
+        state = windowState,
+        resizable = true,
+        alwaysOnTop = true,
+        onPreviewKeyEvent = ops::onKey,
+    ) {
+        if (!place.restored) fitVisibleFrame(windowState.size) { windowState.size = it }
+        keepWindowFrame("settings")
+        settingsContent(ops, actions, labels)
+    }
+}
+
+@Composable
+private fun settingsContent(
+    ops: SettingsOps,
+    actions: ApiActions,
+    labels: List<String>,
+) {
+    AppTheme {
+        Surface(Modifier.fillMaxSize()) {
+            Column(Modifier.fillMaxSize().padding(10.dp)) {
+                settingsTabs(selected = ops.bindings.tab.intValue, labels = labels, onSelect = { ops.bindings.tab.intValue = it })
+                Box(Modifier.weight(1f).padding(top = 8.dp).fillMaxWidth()) {
+                    settingsPage(ops, actions)
+                }
+                Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AppPrimaryButton(
+                        text = stringResource(Res.string.settings_save),
+                        onClick = { ops.save() },
+                        modifier = Modifier.width(160.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                    )
+                    AppSecondaryButton(
+                        text = stringResource(Res.string.settings_cancel),
+                        onClick = { ops.dismiss() },
+                        modifier = Modifier.width(120.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                    )
+                }
+            }
+        }
+        settingsDialogs(ops)
+    }
+}
+
+@Composable
+private fun settingsPage(
+    ops: SettingsOps,
+    actions: ApiActions,
+) {
+    val status = ops.bindings.apiStatus.value
+    when (ops.bindings.tab.intValue) {
+        0 ->
+            SettingsApiTab(
+                form = ops.form,
+                catalog = ops.callbacks.catalog,
+                status = status?.text,
+                statusIsError = status?.error == true,
+                actions = actions,
+            )
+        1 ->
+            SettingsLanguagesTab(
+                form = ops.form,
+                status = null,
+                onAdd = { ops.bindings.ask.value = LangDraft(step = 0, code = "", name = "", value = "") },
+                onDelete = { ops.deleteLanguage() },
+            )
+        else ->
+            SettingsInterfaceTab(
+                form = ops.form,
+                uiLanguages = ops.callbacks.uiLanguages,
+                status = null,
+            )
+    }
+}
+
+@Composable
+private fun settingsDialogs(ops: SettingsOps) {
+    val current = ops.bindings.dialog.value
+    if (current != null) {
+        AlertDialog(
+            onDismissRequest = { ops.bindings.dialog.value = null },
+            title = { Text("TextTools") },
+            text = {
+                Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) {
+                    Text(noticeText(current))
+                }
+            },
+            confirmButton = {
+                Button(onClick = { ops.bindings.dialog.value = null }) { Text(stringResource(Res.string.settings_ok)) }
+            },
+        )
+    }
+    val question = ops.bindings.ask.value
+    if (question != null) {
+        LanguageQuestion(
+            draft = question,
+            onValue = { value ->
+                ops.bindings.ask.value =
+                    ops.bindings.ask.value
+                        ?.copy(value = value)
+            },
+            onDismiss = { ops.bindings.ask.value = null },
+            onConfirm = { ops.confirmCurrent() },
+        )
+    }
+}
+
+private data class SettingsBindings(
+    val accepting: MutableState<Boolean>,
+    val tab: MutableIntState,
+    val apiStatus: MutableState<Status?>,
+    val dialog: MutableState<SettingsNotice?>,
+    val ask: MutableState<LangDraft?>,
+)
+
+private data class SettingsCopy(
+    val proxyBad: String,
+    val pickRow: String,
+    val defaultSet: String,
+    val busyText: String,
+    val loadingText: String,
+    val testingText: String,
+)
+
+private class SettingsOps(
+    val form: SettingsForm,
+    private val scope: CoroutineScope,
+    val callbacks: SettingsCallbacks,
+    val bindings: SettingsBindings,
+    private val copy: SettingsCopy,
+) {
     fun hidden(
         text: String?,
         sentKey: String,
     ): String = redactSecret(redactSecret(text.orEmpty(), sentKey), form.apiKey)
 
+    private fun hidden(
+        error: Throwable,
+        sentKey: String,
+    ): String = hidden(error.message, sentKey)
+
     fun showProxy(detail: String) {
-        tab = 0
-        apiStatus = Status(if (detail.isBlank()) proxyBad else proxyBad + "\n" + detail, error = true)
+        bindings.tab.intValue = 0
+        val text = if (detail.isBlank()) copy.proxyBad else copy.proxyBad + "\n" + detail
+        bindings.apiStatus.value = Status(text, error = true)
     }
 
     fun route(notice: SettingsNotice) {
@@ -142,22 +311,22 @@ fun SettingsWindow(
             is SettingsNotice.HotkeyBad,
             SettingsNotice.ClipBad,
             -> {
-                tab = 2
-                dialog = notice
+                bindings.tab.intValue = 2
+                bindings.dialog.value = notice
             }
             SettingsNotice.ModelEmpty -> {
-                tab = 0
-                dialog = notice
+                bindings.tab.intValue = 0
+                bindings.dialog.value = notice
             }
-            else -> dialog = notice
+            else -> bindings.dialog.value = notice
         }
     }
 
     fun save() {
-        if (!accepting) return
+        if (!bindings.accepting.value) return
         when (val result = form.trySave()) {
             is SaveResult.Ready -> {
-                accepting = false
+                bindings.accepting.value = false
                 callbacks.onSave(result.draft)
             }
             is SaveResult.Blocked -> route(result.notice)
@@ -165,291 +334,216 @@ fun SettingsWindow(
     }
 
     fun dismiss() {
-        if (!accepting) return
-        accepting = false
+        if (!bindings.accepting.value) return
+        bindings.accepting.value = false
         callbacks.onCancel()
     }
 
     fun idle(): Boolean {
         if (!form.busy) return true
-        apiStatus = Status(busyText, error = false)
+        bindings.apiStatus.value = Status(copy.busyText, error = false)
         return false
     }
 
     fun loadModels() {
-        if (!accepting) return
+        if (!bindings.accepting.value) return
         when (val read = form.readProxy()) {
             is ProxyRead.Bad -> showProxy(redactSecret(read.detail, form.apiKey))
             is ProxyRead.Ok -> {
                 if (!idle()) return
                 val probe = form.probe(read.proxy, read.enabled)
                 form.busy = true
-                apiStatus = Status(loadingText, error = false)
-                scope.launch {
-                    try {
-                        val ids = callbacks.onLoadModels(probe)
-                        if (!accepting) return@launch
-                        val outcome = form.applyLoaded(ids)
-                        apiStatus = null
-                        dialog =
-                            when (outcome) {
-                                is LoadOutcome.Replaced ->
-                                    SettingsNotice.LoadReplaced(outcome.count, outcome.previousUrl)
-                                is LoadOutcome.Merged ->
-                                    SettingsNotice.LoadMerged(
-                                        outcome.providerCount,
-                                        outcome.added,
-                                        outcome.removed,
-                                    )
-                            }
-                    } catch (cancelled: CancellationException) {
-                        throw cancelled
-                    } catch (error: Exception) {
-                        if (!accepting) return@launch
-                        apiStatus = null
-                        dialog = SettingsNotice.LoadFailed(hidden(error.message, probe.apiKey))
-                    } finally {
-                        form.busy = false
-                    }
-                }
+                bindings.apiStatus.value = Status(copy.loadingText, error = false)
+                scope.launch { finishLoad(probe) }
             }
         }
     }
 
+    private suspend fun finishLoad(probe: SettingsProbe) {
+        try {
+            val ids = callbacks.onLoadModels(probe)
+            if (!bindings.accepting.value) return
+            val outcome = form.applyLoaded(ids)
+            bindings.apiStatus.value = null
+            bindings.dialog.value = loadedNotice(outcome)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            reportFailure(error)
+            if (!bindings.accepting.value) return
+            bindings.apiStatus.value = null
+            bindings.dialog.value = SettingsNotice.LoadFailed(hidden(error, probe.apiKey), error.errorReason(), error.errorHttpStatus())
+        } finally {
+            form.busy = false
+        }
+    }
+
+    private fun loadedNotice(outcome: LoadOutcome): SettingsNotice =
+        when (outcome) {
+            is LoadOutcome.Replaced -> SettingsNotice.LoadReplaced(outcome.count, outcome.previousUrl)
+            is LoadOutcome.Merged ->
+                SettingsNotice.LoadMerged(outcome.providerCount, outcome.added, outcome.removed)
+        }
+
     fun testApi() {
-        if (!accepting) return
+        if (!bindings.accepting.value) return
         when (val read = form.readProxy()) {
             is ProxyRead.Bad -> showProxy(redactSecret(read.detail, form.apiKey))
             is ProxyRead.Ok -> {
                 if (!idle()) return
                 val probe = form.probe(read.proxy, read.enabled)
                 form.busy = true
-                apiStatus = Status(testingText, error = false)
-                scope.launch {
-                    try {
-                        val reply = callbacks.onTestApi(probe)
-                        if (!accepting) return@launch
-                        apiStatus = null
-                        dialog = SettingsNotice.TestOk(hidden(reply, probe.apiKey))
-                    } catch (cancelled: CancellationException) {
-                        throw cancelled
-                    } catch (error: Exception) {
-                        if (!accepting) return@launch
-                        apiStatus = null
-                        dialog = SettingsNotice.TestFailed(hidden(error.message, probe.apiKey))
-                    } finally {
-                        form.busy = false
-                    }
-                }
+                bindings.apiStatus.value = Status(copy.testingText, error = false)
+                scope.launch { finishTest(probe) }
             }
+        }
+    }
+
+    private suspend fun finishTest(probe: SettingsProbe) {
+        try {
+            val reply = callbacks.onTestApi(probe)
+            if (!bindings.accepting.value) return
+            bindings.apiStatus.value = null
+            bindings.dialog.value = SettingsNotice.TestOk(hidden(reply, probe.apiKey))
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            reportFailure(error)
+            if (!bindings.accepting.value) return
+            bindings.apiStatus.value = null
+            bindings.dialog.value = SettingsNotice.TestFailed(hidden(error, probe.apiKey), error.errorReason(), error.errorHttpStatus())
+        } finally {
+            form.busy = false
         }
     }
 
     fun recommend() {
-        if (!accepting || !idle()) return
+        if (!bindings.accepting.value || !idle()) return
         val url = form.baseUrl.trim()
         val picks = recommendedModels(url)
         if (picks.isEmpty()) {
-            dialog = SettingsNotice.RecommendUnknown(url)
+            bindings.dialog.value = SettingsNotice.RecommendUnknown(url)
             return
         }
         val missing = form.applyRecommended(picks)
-        dialog = SettingsNotice.RecommendDone(providerOf(url), picks, missing)
+        bindings.dialog.value = SettingsNotice.RecommendDone(providerOf(url), picks, missing)
     }
 
     fun retarget() {
-        if (!accepting || !idle()) return
+        if (!bindings.accepting.value || !idle()) return
         val url = form.baseUrl.trim()
         form.busy = true
-        scope.launch {
-            try {
-                val ids = callbacks.onRetarget(url)
-                if (!accepting) return@launch
-                form.tickModels(ids)
-                dialog = SettingsNotice.RetargetDone
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (error: Exception) {
-                if (!accepting) return@launch
-                dialog = SettingsNotice.RetargetFailed(hidden(error.message, form.apiKey))
-            } finally {
-                form.busy = false
-            }
+        scope.launch { finishRetarget(url) }
+    }
+
+    private suspend fun finishRetarget(url: String) {
+        try {
+            val ids = callbacks.onRetarget(url)
+            if (!bindings.accepting.value) return
+            form.tickModels(ids)
+            bindings.dialog.value = SettingsNotice.RetargetDone
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            reportFailure(error)
+            if (!bindings.accepting.value) return
+            bindings.dialog.value = SettingsNotice.RetargetFailed(hidden(error, form.apiKey), error.errorReason(), error.errorHttpStatus())
+        } finally {
+            form.busy = false
         }
     }
 
     fun confirmAsk(draft: LangDraft) {
         when (draft.step) {
-            0 -> {
-                val code = draft.value.trim()
-                if (code.isEmpty()) {
-                    ask = null
-                    return
-                }
-                if (form.languages.any { it.code.equals(code, ignoreCase = true) }) {
-                    ask = null
-                    dialog = SettingsNotice.LangDuplicate
-                    return
-                }
-                ask = LangDraft(step = 1, code = code, name = "", value = code)
-            }
+            0 -> confirmCode(draft)
             1 -> {
                 val name = draft.value.trim().ifEmpty { draft.code }
-                ask = LangDraft(step = 2, code = draft.code, name = name, value = name)
+                bindings.ask.value = LangDraft(step = 2, code = draft.code, name = name, value = name)
             }
-            else -> {
-                val prompt = draft.value.trim().ifEmpty { draft.name }
-                val added = form.addLanguage(draft.code, draft.name, prompt)
-                ask = null
-                if (!added) dialog = SettingsNotice.LangDuplicate
-            }
+            else -> confirmPrompt(draft)
         }
     }
 
-    val actions =
+    fun confirmCurrent() {
+        val question = bindings.ask.value ?: return
+        confirmAsk(question.copy(value = bindings.ask.value?.value ?: question.value))
+    }
+
+    private fun confirmCode(draft: LangDraft) {
+        val code = draft.value.trim()
+        if (code.isEmpty()) {
+            bindings.ask.value = null
+            return
+        }
+        if (form.languages.any { it.code.equals(code, ignoreCase = true) }) {
+            bindings.ask.value = null
+            bindings.dialog.value = SettingsNotice.LangDuplicate
+            return
+        }
+        bindings.ask.value = LangDraft(step = 1, code = code, name = "", value = code)
+    }
+
+    private fun confirmPrompt(draft: LangDraft) {
+        val prompt = draft.value.trim().ifEmpty { draft.name }
+        val added = form.addLanguage(draft.code, draft.name, prompt)
+        bindings.ask.value = null
+        if (!added) bindings.dialog.value = SettingsNotice.LangDuplicate
+    }
+
+    fun deleteLanguage() {
+        when (form.deleteLanguage()) {
+            DeleteLanguage.Last -> bindings.dialog.value = SettingsNotice.LangLast
+            DeleteLanguage.NoSelection, DeleteLanguage.Removed -> Unit
+        }
+    }
+
+    fun makeDefault(index: Int?) {
+        if (index == null) {
+            bindings.apiStatus.value = Status(copy.pickRow, error = true)
+            return
+        }
+        val id = form.makeDefault(index)
+        bindings.apiStatus.value =
+            if (id == null) {
+                Status(copy.pickRow, error = true)
+            } else {
+                Status(fill(copy.defaultSet, id), error = false)
+            }
+    }
+
+    fun dismissError() {
+        if (bindings.apiStatus.value?.error == true) bindings.apiStatus.value = null
+    }
+
+    fun actions(): ApiActions =
         ApiActions(
-            onLoad = { loadModels() },
-            onRecommend = { recommend() },
-            onTest = { testApi() },
-            onRetarget = { retarget() },
-            onMakeDefault = { index ->
-                if (index == null) {
-                    apiStatus = Status(pickRow, error = true)
-                } else {
-                    val id = form.makeDefault(index)
-                    apiStatus =
-                        if (id == null) {
-                            Status(pickRow, error = true)
-                        } else {
-                            Status(fill(defaultSet, id), error = false)
-                        }
-                }
-            },
-            onDismissError = { if (apiStatus?.error == true) apiStatus = null },
+            onLoad = ::loadModels,
+            onRecommend = ::recommend,
+            onTest = ::testApi,
+            onRetarget = ::retarget,
+            onMakeDefault = ::makeDefault,
+            onDismissError = ::dismissError,
         )
 
-    Window(
-        onCloseRequest = { dismiss() },
-        title = "TextTools - ${stringResource(Res.string.settings_title)}",
-        state = windowState,
-        resizable = true,
-        alwaysOnTop = true,
-        onPreviewKeyEvent = { event ->
-            if (event.type == KeyEventType.KeyDown && event.key == Key.Escape) {
-                when {
-                    ask != null -> ask = null
-                    dialog != null -> dialog = null
-                    else -> dismiss()
-                }
-                true
-            } else if (event.type == KeyEventType.KeyUp && event.key == Key.Enter) {
-                val question = ask
-                when {
-                    question != null -> confirmAsk(question)
-                    dialog != null -> dialog = null
-                    else -> save()
-                }
-                true
-            } else {
-                false
+    fun onKey(event: KeyEvent): Boolean {
+        if (event.type == KeyEventType.KeyDown && event.key == Key.Escape) {
+            when {
+                bindings.ask.value != null -> bindings.ask.value = null
+                bindings.dialog.value != null -> bindings.dialog.value = null
+                else -> dismiss()
             }
-        },
-    ) {
-        MaterialTheme {
-            CompositionLocalProvider(LocalMinimumInteractiveComponentEnforcement provides false) {
-                Surface(Modifier.fillMaxSize()) {
-                    Column(Modifier.fillMaxSize().padding(10.dp)) {
-                        TabRow(selectedTabIndex = tab) {
-                            Tab(
-                                selected = tab == 0,
-                                onClick = { tab = 0 },
-                                text = { Text(stringResource(Res.string.settings_tab_api)) },
-                            )
-                            Tab(
-                                selected = tab == 1,
-                                onClick = { tab = 1 },
-                                text = { Text(stringResource(Res.string.settings_tab_langs)) },
-                            )
-                            Tab(
-                                selected = tab == 2,
-                                onClick = { tab = 2 },
-                                text = { Text(stringResource(Res.string.settings_tab_ui)) },
-                            )
-                        }
-                        Box(Modifier.weight(1f).padding(top = 8.dp)) {
-                            when (tab) {
-                                0 ->
-                                    SettingsApiTab(
-                                        form = form,
-                                        catalog = callbacks.catalog,
-                                        status = apiStatus?.text,
-                                        statusIsError = apiStatus?.error == true,
-                                        actions = actions,
-                                    )
-                                1 ->
-                                    SettingsLanguagesTab(
-                                        form = form,
-                                        status = null,
-                                        onAdd = { ask = LangDraft(step = 0, code = "", name = "", value = "") },
-                                        onDelete = {
-                                            when (form.deleteLanguage()) {
-                                                DeleteLanguage.Last -> dialog = SettingsNotice.LangLast
-                                                DeleteLanguage.NoSelection, DeleteLanguage.Removed -> Unit
-                                            }
-                                        },
-                                    )
-                                else ->
-                                    SettingsInterfaceTab(
-                                        form = form,
-                                        uiLanguages = callbacks.uiLanguages,
-                                        status = null,
-                                    )
-                            }
-                        }
-                        Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(
-                                onClick = { save() },
-                                modifier = Modifier.width(160.dp).height(32.dp),
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-                            ) {
-                                Text(stringResource(Res.string.settings_save))
-                            }
-                            OutlinedButton(
-                                onClick = { dismiss() },
-                                modifier = Modifier.width(120.dp).height(32.dp),
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-                            ) {
-                                Text(stringResource(Res.string.settings_cancel))
-                            }
-                        }
-                    }
-                }
-                val current = dialog
-                if (current != null) {
-                    AlertDialog(
-                        onDismissRequest = { dialog = null },
-                        title = { Text("TextTools") },
-                        text = {
-                            Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) {
-                                Text(noticeText(current))
-                            }
-                        },
-                        confirmButton = {
-                            Button(onClick = { dialog = null }) { Text(stringResource(Res.string.settings_ok)) }
-                        },
-                    )
-                }
-                val question = ask
-                if (question != null) {
-                    LanguageQuestion(
-                        draft = question,
-                        onValue = { value -> ask = ask?.copy(value = value) },
-                        onDismiss = { ask = null },
-                        onConfirm = { confirmAsk(question.copy(value = ask?.value ?: question.value)) },
-                    )
-                }
-            }
+            return true
         }
+        if (event.type == KeyEventType.KeyUp && event.key == Key.Enter) {
+            val question = bindings.ask.value
+            when {
+                question != null -> confirmAsk(question.copy(value = bindings.ask.value?.value ?: question.value))
+                bindings.dialog.value != null -> bindings.dialog.value = null
+                else -> save()
+            }
+            return true
+        }
+        return false
     }
 }
 
@@ -484,12 +578,25 @@ private fun noticeText(notice: SettingsNotice): String =
             ) +
                 "\n\n" +
                 stringResource(Res.string.settings_models_check)
-        is SettingsNotice.LoadFailed -> stringResource(Res.string.settings_models_failed) + "\n\n" + notice.detail
+        is SettingsNotice.LoadFailed ->
+            stringResource(Res.string.settings_models_failed) + "\n\n" +
+                noticeText(notice.reason, notice.httpStatus, notice.detail)
         is SettingsNotice.TestOk -> stringResource(Res.string.settings_test_ok) + "\n\n" + notice.reply
-        is SettingsNotice.TestFailed -> stringResource(Res.string.settings_test_fail) + "\n\n" + notice.detail
+        is SettingsNotice.TestFailed ->
+            stringResource(Res.string.settings_test_fail) + "\n\n" +
+                noticeText(notice.reason, notice.httpStatus, notice.detail)
         SettingsNotice.RetargetDone -> stringResource(Res.string.settings_retarget_done)
-        is SettingsNotice.RetargetFailed -> stringResource(Res.string.settings_test_fail) + "\n\n" + notice.detail
+        is SettingsNotice.RetargetFailed ->
+            stringResource(Res.string.settings_test_fail) + "\n\n" +
+                noticeText(notice.reason, notice.httpStatus, notice.detail)
     }
+
+@Composable
+private fun noticeText(
+    reason: ErrorReason,
+    status: Int?,
+    detail: String,
+): String = if (reason == ErrorReason.UNKNOWN) detail else resolveError(reason, status)
 
 @Composable
 private fun recommendText(notice: SettingsNotice.RecommendDone): String {
@@ -573,6 +680,15 @@ private fun LanguageQuestion(
             OutlinedButton(onClick = onDismiss) { Text(stringResource(Res.string.settings_cancel)) }
         },
     )
+}
+
+@Composable
+private fun settingsTabs(
+    selected: Int,
+    labels: List<String>,
+    onSelect: (Int) -> Unit,
+) {
+    AppTabs(labels = labels, selected = selected, onSelect = onSelect)
 }
 
 private data class Status(

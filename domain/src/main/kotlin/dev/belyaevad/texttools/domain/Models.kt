@@ -50,6 +50,10 @@ data class Settings(
     val uiLang: String,
     val appProfiling: Boolean,
     val clipWaitSeconds: Double,
+    val sentryErrors: Boolean = false,
+    val sentryTraces: Boolean = false,
+    val autostart: Boolean = true,
+    val profileModel: String = "",
 )
 
 /** One chat turn sent to the model. */
@@ -62,6 +66,19 @@ data class ChatMessage(
 data class Usage(
     val promptTokens: Int,
     val completionTokens: Int,
+)
+
+data class RequestMetric(
+    val atEpochMs: Long,
+    val kind: String,
+    val model: String,
+    val outcome: String,
+    val inputChars: Int,
+    val extraChars: Int,
+    val outputChars: Int,
+    val durationMs: Long,
+    val promptTokens: Int?,
+    val completionTokens: Int?,
 )
 
 /** Outcome of one action. An empty model text is a failure, not a result. */
@@ -83,8 +100,14 @@ sealed class RunOutcome {
 
     /** The call failed and the selection was left untouched. */
     data class Failed(
-        val message: String,
-    ) : RunOutcome()
+        val reason: ErrorReason,
+        val detail: String,
+        val httpStatus: Int? = null,
+    ) : RunOutcome() {
+        constructor(message: String) : this(ErrorReason.UNKNOWN, message)
+
+        val message: String get() = detail
+    }
 
     /** Another call is still inside paste. */
     data object Busy : RunOutcome()

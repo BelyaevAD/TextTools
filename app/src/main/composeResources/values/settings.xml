@@ -63,11 +63,25 @@
     <string name="settings_lang_dup">A language with this code already exists.</string>
     <string name="settings_lang_last">Cannot delete the last language.</string>
     <string name="settings_ui_lang">Interface language:</string>
-    <string name="settings_ui_lang_hint">Packs live in the lang folder next to the script. Extra packs: lang/user (the installer leaves that folder alone).</string>
+    <string name="settings_ui_lang_hint">Uses the bundled English or Russian translation. INI packs are kept for compatibility and are not loaded by this version.</string>
     <string name="settings_hotkey">Menu hotkey (^ = Ctrl, ! = Alt, + = Shift, # = Win):</string>
     <string name="settings_hotkey_repeat">Repeat-last-action hotkey:</string>
     <string name="settings_markdown">Render Markdown in the result window (uncheck if windows crash the script)</string>
     <string name="settings_profiling">Profile new apps (send exe name and window title to the provider)</string>
+    <string name="settings_profile_model">Profiling model:</string>
+    <string name="settings_profile_model_default">Same as the default model</string>
+    <string name="settings_profile_model_hint">This model searches the web and writes the prompt note from the description it finds. A blank choice uses the default model.</string>
+    <string name="settings_autostart">Start when Windows starts</string>
+    <string name="settings_models_side">Models</string>
+    <string name="settings_profile_ask">Send the provider this application's details, look it up on the web, and suggest a prompt note?\n\nExecutable: %1$s\nWindow title: %2$s</string>
+    <string name="settings_profile_added">Added automatically</string>
+    <string name="settings_profile_window">(window: %1$s)</string>
+    <string name="settings_profile_none">(none)</string>
+    <string name="settings_yes">Yes</string>
+    <string name="settings_no">No</string>
+    <string name="settings_sentry_errors">Send error reports</string>
+    <string name="settings_sentry_traces">Send hourly request statistics</string>
+    <string name="settings_sentry_hint">Both switches start off. The DSN, environment, and trace rate are read from config/sentry.properties, not from the program. Hourly aggregates contain only counts, model ids, durations, text lengths and tokens — never request text.</string>
     <string name="settings_clip_wait">Clipboard wait, seconds:</string>
     <string name="settings_endpoints">OpenRouter: https://openrouter.ai/api/v1     Ollama: http://localhost:11434/v1 (key: ollama)</string>
 </resources>

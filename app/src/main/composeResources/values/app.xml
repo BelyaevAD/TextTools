@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_tray_tip">TextTools - LLM text processing (%1$s)</string>
+    <string name="app_tray_history">History</string>
+    <string name="app_tray_last">Last result</string>
+    <string name="app_tray_stats">Statistics</string>
+    <string name="app_tray_editor">Action editor</string>
+    <string name="app_tray_settings">Settings</string>
+    <string name="app_tray_clear_history">Clear history</string>
+    <string name="app_tray_clear_log">Clear log</string>
+    <string name="app_tray_open_log">Open log</string>
+    <string name="app_tray_open_folder">Open data folder</string>
+    <string name="app_tray_restart">Restart</string>
+    <string name="app_tray_exit">Exit</string>
+    <string name="app_no_selection">No text is selected</string>
+    <string name="app_no_source">No source text window was found</string>
+    <string name="app_nothing_to_repeat">Nothing to repeat yet</string>
+    <string name="app_request_running">A request is already running</string>
+    <string name="app_copied">Copied</string>
+    <string name="app_need_key">Set the API key in settings (tray icon)</string>
+    <string name="app_hotkey_fail">Hotkeys could not be registered. Another TextTools or AutoHotkey instance may own them.</string>
+    <string name="app_no_log">There is no log yet</string>
+    <string name="app_save_failed">Settings could not be saved</string>
+    <string name="app_request_failed">The request failed</string>
+    <string name="app_copy_failed">Could not copy</string>
+    <string name="app_folder_failed">Could not open the folder</string>
+    <string name="app_restart_failed">Could not restart</string>
+    <string name="app_proxy_unparsed">Invalid proxy</string>
+    <string name="app_settings_saved">Saved. Menu hotkey: %1$s</string>
+    <string name="app_editor_saved">Saved: %1$s actions, %2$s refinements, %3$s applications</string>
+    <string name="app_run_preparing">preparing request</string>
+    <string name="app_run_done">done</string>
+    <string name="app_seconds">%1$s s</string>
+    <string name="app_profile_label">application profile</string>
+    <string name="error_empty_response">The model returned an empty response. The selected text was not changed.</string>
+    <string name="error_empty_url">The API address is empty</string>
+    <string name="error_invalid_url">The API address could not be parsed</string>
+    <string name="error_invalid_proxy">Invalid proxy</string>
+    <string name="error_provider_unavailable">The provider is unavailable</string>
+    <string name="error_unauthorized">The key was rejected (401).</string>
+    <string name="error_insufficient_funds">Insufficient funds (402).</string>
+    <string name="error_not_found">The address or model was not found (404).</string>
+    <string name="error_rate_limited">Too many requests (429).</string>
+    <string name="error_http">HTTP %1$s</string>
+    <string name="error_secret_store">The Windows secret store is unavailable</string>
+    <string name="error_unknown">Request failed</string>
+</resources>

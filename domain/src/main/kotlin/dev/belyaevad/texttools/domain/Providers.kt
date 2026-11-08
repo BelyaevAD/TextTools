@@ -15,18 +15,16 @@ fun normalizeProxy(raw: String): String {
     if (value.isEmpty()) {
         return ""
     }
-    if (value.contains('"') || value.contains('\n') || value.contains('\r')) {
-        throw IllegalArgumentException("proxy содержит кавычку или перевод строки — так нельзя записать в конфиг curl")
+    require(!(value.contains('"') || value.contains('\n') || value.contains('\r'))) {
+        "invalid proxy: quotes or line breaks"
     }
     val known = listOf("http://", "https://", "socks4://", "socks4a://", "socks5://", "socks5h://")
     val low = value.lowercase()
     if (known.any { low.startsWith(it) }) {
         return value
     }
-    if (value.contains("://")) {
-        throw IllegalArgumentException(
-            "Неизвестная схема прокси. Нужны http://, https://, socks5:// или socks5h://",
-        )
+    require(!value.contains("://")) {
+        "invalid proxy scheme: use http://, https://, socks4://, socks4a://, socks5:// or socks5h://"
     }
     return "http://$value"
 }

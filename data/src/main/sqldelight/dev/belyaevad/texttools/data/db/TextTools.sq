@@ -166,3 +166,33 @@ DELETE FROM price_cache;
 
 insertPriceCache:
 INSERT INTO price_cache(id, body, fetched_at) VALUES (0, ?, ?);
+
+CREATE TABLE usage_event (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  at_epoch_ms INTEGER NOT NULL,
+  kind TEXT NOT NULL,
+  model TEXT NOT NULL,
+  outcome TEXT NOT NULL,
+  input_chars INTEGER NOT NULL,
+  extra_chars INTEGER NOT NULL,
+  output_chars INTEGER NOT NULL,
+  duration_ms INTEGER NOT NULL,
+  prompt_tokens INTEGER,
+  completion_tokens INTEGER,
+  sentry_bucket INTEGER
+);
+
+insertUsageEvent:
+INSERT INTO usage_event(at_epoch_ms, kind, model, outcome, input_chars, extra_chars, output_chars, duration_ms, prompt_tokens, completion_tokens, sentry_bucket)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+selectUsageEvents:
+SELECT id, at_epoch_ms, kind, model, outcome, input_chars, extra_chars, output_chars, duration_ms, prompt_tokens, completion_tokens, sentry_bucket
+FROM usage_event ORDER BY id;
+
+selectPendingUsageEvents:
+SELECT id, at_epoch_ms, kind, model, outcome, input_chars, extra_chars, output_chars, duration_ms, prompt_tokens, completion_tokens, sentry_bucket
+FROM usage_event WHERE sentry_bucket IS NULL ORDER BY id;
+
+markUsageEventsSent:
+UPDATE usage_event SET sentry_bucket = ? WHERE id IN ?;

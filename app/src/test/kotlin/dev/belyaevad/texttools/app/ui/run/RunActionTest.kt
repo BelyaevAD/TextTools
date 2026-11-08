@@ -7,6 +7,7 @@ import dev.belyaevad.texttools.data.db.TextToolsDatabase
 import dev.belyaevad.texttools.domain.AppProfile
 import dev.belyaevad.texttools.domain.ChatMessage
 import dev.belyaevad.texttools.domain.Factory
+import dev.belyaevad.texttools.domain.RequestMetric
 import dev.belyaevad.texttools.domain.RunOutcome
 import dev.belyaevad.texttools.domain.Usage
 import dev.belyaevad.texttools.platform.ClipIo
@@ -37,10 +38,10 @@ class RunActionTest {
                     pause = { waited = it },
                     complete = { _, _ ->
                         assertTrue(running.busy)
-                        assertEquals("готовлю запрос", running.banner()?.text)
-                        assertEquals("0.0 \u0441", running.banner()?.seconds)
+                        assertEquals(RunPhase.Preparing, running.banner()?.phase)
+                        assertEquals(0L, running.banner()?.elapsedMillis)
                         now = 2_600L
-                        assertEquals("1.6 \u0441", running.banner()?.seconds)
+                        assertEquals(1600L, running.banner()?.elapsedMillis)
                         "MODEL-OUT" to Usage(2, 3)
                     },
                 )
@@ -63,13 +64,13 @@ class RunActionTest {
                 assertEquals(-1L, waited)
                 assertEquals("MODEL-OUT", opened.clip.text)
                 now = 9_000L
-                assertEquals("готово", opened.action.banner()?.text)
-                assertEquals("1.6 \u0441", opened.action.banner()?.seconds)
-                assertEquals("0.0 \u0441", statusSeconds(0))
-                assertEquals("1.5 \u0441", statusSeconds(1_500))
-                assertEquals("0.0 \u0441", statusSeconds(-5))
+                assertEquals(RunPhase.Done, opened.action.banner()?.phase)
+                assertEquals(1600L, opened.action.banner()?.elapsedMillis)
+                assertEquals("0.0", statusSeconds(0))
+                assertEquals("1.5", statusSeconds(1_500))
+                assertEquals("0.0", statusSeconds(-5))
                 val row = opened.store.history().single()
-                assertEquals("Вычитать", row.actionName)
+                assertEquals("Proofread", row.actionName)
                 assertEquals("SEL-MARKER", row.source)
                 assertEquals("MODEL-OUT", row.result)
                 assertEquals(Factory.DEFAULT_MODEL, row.model)
@@ -77,21 +78,17 @@ class RunActionTest {
                 assertEquals(3, row.completionTokens)
                 assertEquals(8.0, row.cost)
                 val spend = opened.store.usage().single()
-                assertEquals("Вычитать", spend.label)
+                assertEquals("Proofread", spend.label)
                 assertEquals(2, spend.promptTokens)
                 assertEquals(3, spend.completionTokens)
                 assertEquals("MODEL-OUT", Files.readString(opened.dir.resolve("TextTools_last.txt")))
                 val log = Files.readString(opened.dir.resolve("TextTools.log"))
-                assertTrue("действие: Вычитать, выделено" in log)
-                assertTrue("расход: промпт 2, ответ 3" in log)
+                assertTrue("action: Proofread, selected" in log)
+                assertTrue("spend: prompt 2, completion 3" in log)
                 assertFalse("SEL-MARKER" in log)
-                assertFalse("(+инструкция)" in log)
-                opened.queued.single().invoke()
-                assertEquals(3_000L, waited)
-                assertEquals("saved", opened.clip.text)
-                opened.clip.text = "user copy"
-                opened.queued.single().invoke()
-                assertEquals("user copy", opened.clip.text)
+                assertFalse("(+instruction)" in log)
+                assertTrue(opened.queued.isEmpty())
+                assertEquals("MODEL-OUT", opened.clip.text)
             }
         }
 
@@ -99,10 +96,10 @@ class RunActionTest {
     fun emptyAnswerAndErrorsStayOutOfHistory() =
         runBlocking {
             var mode = "blank"
-            val seen = mutableListOf<String?>()
+            val seen = mutableListOf<RunPhase?>()
             val scene =
                 scenario(
-                    onStatus = { seen += it?.text },
+                    onStatus = { seen += it?.phase },
                     complete = { _, _ ->
                         if (mode == "blank") " \n" to Usage(9, 9) else error("boom")
                     },
@@ -120,11 +117,11 @@ class RunActionTest {
                 assertEquals("saved", opened.clip.text)
                 assertFalse(Files.exists(opened.dir.resolve("TextTools_last.txt")))
                 assertNull(opened.action.banner())
-                assertFalse("готово" in seen)
+                assertFalse(RunPhase.Done in seen)
                 val log = opened.dir.resolve("TextTools.log")
                 if (Files.exists(log)) {
                     val text = Files.readString(log)
-                    assertFalse("действие:" in text)
+                    assertFalse("action:" in text)
                     assertFalse("SEL-MARKER" in text)
                 }
             }
@@ -177,12 +174,12 @@ class RunActionTest {
                 assertIs<RunOutcome.InWindow>(failedPaste)
                 assertEquals(0, opened.clip.pastes)
                 assertTrue(opened.queued.isEmpty())
-                assertEquals("saved", opened.clip.text)
+                assertEquals("out-3", opened.clip.text)
                 assertEquals(listOf("out-3", "out-2", "out-1"), opened.store.history().map { it.result })
                 val log = Files.readString(opened.dir.resolve("TextTools.log"))
-                assertTrue("действие: Вычитать (Shift: в окно), выделено" in log)
-                assertTrue("действие: Суммаризация, выделено" in log)
-                assertFalse("действие: Суммаризация (Shift" in log)
+                assertTrue("action: Proofread (Shift: into window), selected" in log)
+                assertTrue("action: Summary, selected" in log)
+                assertFalse("action: Summary (Shift" in log)
                 assertFalse("SECRET-SEL" in log)
             }
         }
@@ -224,7 +221,7 @@ class RunActionTest {
                 assertTrue("keep names" in user)
                 assertFalse("The change to make" in user)
                 assertEquals(
-                    "Вычитать",
+                    "Proofread",
                     opened.store
                         .history()
                         .first()
@@ -278,19 +275,19 @@ class RunActionTest {
                 val first = async { opened.action.run(proof(), "Hi", "", false, "", "") }
                 started.await()
                 assertTrue(running.busy)
-                assertEquals("готовлю запрос", running.banner()?.text)
+                assertEquals(RunPhase.Preparing, running.banner()?.phase)
                 assertNull(opened.action.enter("  ", "Hi", false, "", ""))
                 assertIs<RunOutcome.Busy>(opened.action.enter("go", "Hi", false, "", ""))
                 assertIs<RunOutcome.Busy>(opened.action.run(proof(), "Hi", "", false, "", ""))
                 assertEquals(1, calls)
-                assertEquals("готовлю запрос", running.banner()?.text)
+                assertEquals(RunPhase.Preparing, running.banner()?.phase)
                 release.complete(Unit)
                 assertIs<RunOutcome.Pasted>(first.await())
                 assertFalse(running.busy)
-                assertEquals("готово", running.banner()?.text)
+                assertEquals(RunPhase.Done, running.banner()?.phase)
                 assertEquals(1, opened.store.history().size)
                 assertEquals(
-                    "Вычитать",
+                    "Proofread",
                     opened.store
                         .history()
                         .single()
@@ -298,6 +295,21 @@ class RunActionTest {
                 )
                 assertEquals(1, calls)
             }
+        }
+
+    @Test
+    fun measuredInputIsTheSelectionNotTheActionPrefix() =
+        runBlocking {
+            val seen = mutableListOf<RequestMetric>()
+            val scene = scenario(complete = { _, _ -> "ok" to null }, onRequest = { seen += it })
+            scene.use { opened ->
+                opened.action.run(proof(), "SEL", "NOTE", false, "", "")
+            }
+            val metric = seen.single()
+            assertEquals(3, metric.inputChars)
+            assertEquals(4, metric.extraChars)
+            assertEquals("success", metric.outcome)
+            assertTrue(metric.inputChars < proof().prefix.length)
         }
 }
 
@@ -328,6 +340,7 @@ private fun scenario(
     clock: () -> Long = { 0L },
     pause: suspend (Long) -> Unit = { _ -> },
     onStatus: (RunStatus?) -> Unit = { _ -> },
+    onRequest: (RequestMetric) -> Unit = {},
     clip: MemoryClip = MemoryClip(),
 ): Scene {
     val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
@@ -350,6 +363,7 @@ private fun scenario(
                     pause = pause,
                     onStatus = onStatus,
                 ),
+            onRequest = onRequest,
         )
     return Scene(action, clip, store, driver, dir, queued)
 }
