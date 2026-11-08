@@ -96,10 +96,10 @@
     <UI>
       <Dialog Id="AutostartDlg" Width="370" Height="270" Title="TextTools" NoMinimize="yes">
         <Control Id="Title" Type="Text" X="15" Y="55" Width="330" Height="40" Transparent="yes" NoPrefix="yes"
-                 Text="Запускать TextTools при входе в Windows. Start TextTools when Windows starts." />
+                 Text="Start TextTools when you sign in to Windows." />
         <Control Id="AutostartCheck" Type="CheckBox" X="20" Y="110" Width="330" Height="17"
                  Property="JP_AUTOSTART" CheckBoxValue="1"
-                 Text="Запускать при старте Windows" />
+                 Text="Start TextTools when Windows starts" />
         <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="!(loc.WixUINext)">
           <Publish Event="EndDialog" Value="Return">1</Publish>
         </Control>

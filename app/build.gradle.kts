@@ -51,7 +51,39 @@ compose.desktop {
 }
 
 tasks.withType<org.jetbrains.compose.desktop.application.tasks.AbstractJPackageTask>().configureEach {
-    if (targetFormat == TargetFormat.Msi) {
-        appResourcesDir.set(project.layout.projectDirectory.dir("packaging/windows"))
+    if (targetFormat != TargetFormat.Msi) return@configureEach
+    // Compose 1.12 deletes compose/tmp/resources inside the task, after doFirst.
+    // jpackage reads that directory as --resource-dir, so main.wxs has to be put back
+    // before the tool starts. appResourcesDir is the app's own resources folder, not this one.
+    val wxs = rootProject.layout.projectDirectory.file("packaging/windows/main.wxs")
+    val resourcesDir = layout.buildDirectory.dir("compose/tmp/resources")
+    val stop = object {
+        @Volatile var value: Boolean = false
     }
+    doFirst {
+        val source = wxs.asFile
+        val destDir = resourcesDir.get().asFile
+        Thread {
+            val deadline = System.currentTimeMillis() + 180_000
+            while (!stop.value && System.currentTimeMillis() < deadline) {
+                try {
+                    if (destDir.isDirectory) {
+                        val target = destDir.resolve("main.wxs")
+                        if (!target.isFile) source.copyTo(target, overwrite = true)
+                    }
+                } catch (_: Exception) {
+                }
+                try {
+                    Thread.sleep(1)
+                } catch (_: InterruptedException) {
+                    break
+                }
+            }
+        }.apply {
+            isDaemon = true
+            name = "texttools-msi-wxs"
+            start()
+        }
+    }
+    doLast { stop.value = true }
 }
