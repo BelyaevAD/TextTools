@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <WixLocalization Culture="zh-cn" xmlns="http://schemas.microsoft.com/wix/2006/localization" Codepage="936">
   <String Id="ProductLanguage" Overridable="yes">2052</String>
-  <String Id="AutostartDlgBody" Overridable="yes">登录 Windows 时启动 TextTools。</String>
+  <String Id="AutostartDlgBody" Overridable="yes">TextTools 是处理所选文本的托盘程序。热键运行操作，并把结果粘贴回去或显示在窗口中。在 Windows 上可以从其他程序捕获文本。密钥保存在系统机密存储中。许可证为 MIT：https://github.com/BelyaevAD/TextTools</String>
   <String Id="AutostartCheck" Overridable="yes">Windows 启动时启动 TextTools</String>
+  <String Id="DesktopShortcutCheck" Overridable="yes">在桌面创建快捷方式</String>
+  <String Id="StartMenuShortcutCheck" Overridable="yes">在开始菜单创建快捷方式</String>
+  <String Id="LaunchAfterCheck" Overridable="yes">安装完成后启动 TextTools</String>
 </WixLocalization>

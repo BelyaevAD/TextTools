@@ -43,6 +43,7 @@
     <Media Id="1" Cabinet="Data.cab" EmbedCab="yes" />
 
     <Property Id="JP_AUTOSTART" Value="1" />
+    <Property Id="JP_LAUNCH" Value="1" />
 
     <Upgrade Id="$(var.JpProductUpgradeCode)">
       <UpgradeVersion
@@ -94,11 +95,14 @@
 
     <UI>
       <Dialog Id="AutostartDlg" Width="370" Height="270" Title="TextTools" NoMinimize="yes">
-        <Control Id="Title" Type="Text" X="15" Y="55" Width="330" Height="40" Transparent="yes" NoPrefix="yes"
+        <Control Id="Description" Type="Text" X="15" Y="48" Width="340" Height="84" Transparent="yes" NoPrefix="yes"
                  Text="!(loc.AutostartDlgBody)" />
-        <Control Id="AutostartCheck" Type="CheckBox" X="20" Y="110" Width="330" Height="17"
+        <Control Id="AutostartCheck" Type="CheckBox" X="20" Y="140" Width="330" Height="17"
                  Property="JP_AUTOSTART" CheckBoxValue="1"
                  Text="!(loc.AutostartCheck)" />
+        <Control Id="LaunchCheck" Type="CheckBox" X="20" Y="164" Width="330" Height="17"
+                 Property="JP_LAUNCH" CheckBoxValue="1"
+                 Text="!(loc.LaunchAfterCheck)" />
         <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="!(loc.WixUINext)">
           <Publish Event="EndDialog" Value="Return">1</Publish>
         </Control>
@@ -109,7 +113,8 @@
     </UI>
 
     <CustomAction Id="JpSetARPINSTALLLOCATION" Property="ARPINSTALLLOCATION" Value="[INSTALLDIR]" />
-    <CustomAction Id="JpSetARPCOMMENTS" Property="ARPCOMMENTS" Value="$(var.JpAppDescription)" />
+    <CustomAction Id="JpLaunch" Directory="INSTALLDIR" ExeCommand="&quot;[INSTALLDIR]TextTools.exe&quot;" Execute="immediate" Impersonate="yes" Return="asyncNoWait" />
+    <CustomAction Id="JpSetARPCOMMENTS" Property="ARPCOMMENTS" Value="!(loc.AutostartDlgBody)" />
     <CustomAction Id="JpSetARPCONTACT" Property="ARPCONTACT" Value="$(var.JpAppVendor)" />
     <CustomAction Id="JpSetARPSIZE" Property="ARPSIZE" Value="$(var.JpAppSizeKb)" />
 
@@ -153,6 +158,7 @@
       <?ifndef JpAllowDowngrades ?>
       <Custom Action="JpDisallowDowngrade" After="JpFindRelatedProducts">JP_DOWNGRADABLE_FOUND</Custom>
       <?endif?>
+      <Custom Action="JpLaunch" After="InstallFinalize">JP_LAUNCH = 1 AND NOT Installed</Custom>
       <RemoveExistingProducts Before="CostInitialize"/>
       <Custom Action="JpFindRelatedProducts" After="FindRelatedProducts"/>
     </InstallExecuteSequence>

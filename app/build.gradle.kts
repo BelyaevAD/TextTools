@@ -35,6 +35,7 @@ compose.desktop {
             packageVersion = "1.0.0"
             description = "TextTools 1.0"
             vendor = "BelyaevAD"
+            modules("java.sql", "java.management", "jdk.unsupported")
             windows {
                 iconFile.set(project.file("packaging/icon.ico"))
                 menuGroup = "TextTools"
@@ -74,6 +75,17 @@ tasks.withType<org.jetbrains.compose.desktop.application.tasks.AbstractJPackageT
     // light.exe in the WiX directory is replaced in doFirst. WiX 3 cannot link every
     // culture in one invocation (LGHT0100); the shim builds one MSI per culture.
     dependsOn("prepareLightShim")
+    freeArgs.addAll(
+        "--win-shortcut-prompt",
+        "--license-file",
+        rootProject.file("LICENSE").absolutePath,
+        "--about-url",
+        "https://github.com/BelyaevAD/TextTools",
+        "--win-help-url",
+        "https://github.com/BelyaevAD/TextTools",
+        "--win-update-url",
+        "https://github.com/BelyaevAD/TextTools/releases",
+    )
     // Compose 1.12 deletes compose/tmp/resources inside the task, after doFirst.
     // jpackage reads that directory as --resource-dir, so main.wxs has to be put back
     // before the tool starts. appResourcesDir is the app's own resources folder, not this one.
@@ -98,6 +110,22 @@ tasks.withType<org.jetbrains.compose.desktop.application.tasks.AbstractJPackageT
         shimDir.resolve("light-multilang.ps1").copyTo(wixDir.resolve("light-multilang.ps1"), overwrite = true)
         val sourceDir = windowsPackaging.asFile
         val destDir = resourcesDir.get().asFile
+        fun patchRuntimeCfg() {
+            val candidates = mutableListOf<File>()
+            File(System.getProperty("java.io.tmpdir")).listFiles()?.forEach { dir ->
+                if (dir.name.startsWith("jdk.jpackage")) {
+                    candidates.add(File(dir, "images/win-msi.image/TextTools/app/TextTools.cfg"))
+                }
+            }
+            candidates.add(layout.buildDirectory.get().asFile.resolve("compose/binaries/main/app/TextTools/app/TextTools.cfg"))
+            for (cfg in candidates) {
+                if (!cfg.isFile) continue
+                val text = cfg.readText()
+                if (text.contains("app.runtime=")) continue
+                val patched = text.replaceFirst("[Application]", "[Application]\r\napp.runtime=\$APPDIR\\..\\runtime")
+                if (patched != text) cfg.writeText(patched)
+            }
+        }
         Thread {
             val deadline = System.currentTimeMillis() + 180_000
             try {
@@ -107,6 +135,7 @@ tasks.withType<org.jetbrains.compose.desktop.application.tasks.AbstractJPackageT
             }
             while (!stop.value && System.currentTimeMillis() < deadline) {
                 try {
+                    patchRuntimeCfg()
                     if (destDir.isDirectory) {
                         sourceDir.listFiles()
                             ?.filter { it.isFile && (it.name == "main.wxs" || it.extension.equals("wxl", true)) }

@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <WixLocalization Culture="de-de" xmlns="http://schemas.microsoft.com/wix/2006/localization" Codepage="1252">
   <String Id="ProductLanguage" Overridable="yes">1031</String>
-  <String Id="AutostartDlgBody" Overridable="yes">TextTools beim Anmelden bei Windows starten.</String>
+  <String Id="AutostartDlgBody" Overridable="yes">TextTools ist ein Tray-Programm für markierten Text. Ein Tastenkürzel führt eine Aktion aus und setzt das Ergebnis ein oder zeigt es in einem Fenster. Unter Windows kann es Text in anderen Programmen erfassen. Der Schlüssel bleibt im Systemspeicher. MIT-Lizenz: https://github.com/BelyaevAD/TextTools</String>
   <String Id="AutostartCheck" Overridable="yes">TextTools beim Windows-Start starten</String>
+  <String Id="DesktopShortcutCheck" Overridable="yes">Verknüpfung auf dem Desktop anlegen</String>
+  <String Id="StartMenuShortcutCheck" Overridable="yes">Eintrag im Startmenü anlegen</String>
+  <String Id="LaunchAfterCheck" Overridable="yes">TextTools nach der Installation starten</String>
 </WixLocalization>

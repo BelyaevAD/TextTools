@@ -4,11 +4,13 @@ Tray application for the selected text. A hotkey runs an LLM action and pastes t
 
 Kotlin and Compose Desktop, version 1.0. The last AutoHotkey release is tag `v0.3.1` on branch `archive/ahk`. What changed is in `CHANGELOG.md`.
 
-![Action menu](docs/assets/screenshots/en/menu.png)
+![Tray menu](docs/assets/screenshots/en/tray-menu.png)
 
-![Settings](docs/assets/screenshots/en/settings.png)
+The tray menu opens the last result, history, statistics, the action editor and settings. Settings has three tabs: API, output languages, and interface (language, hotkeys, Markdown, autostart, profiling, error reports).
 
-![Last result](docs/assets/screenshots/en/result.png)
+## Windows installer
+
+The installer follows the Windows language for English, German, Japanese, Simplified Chinese and Russian. It shows the MIT license from this repository and links to https://github.com/BelyaevAD/TextTools. You can choose a desktop shortcut, a Start menu shortcut, start with Windows, and launch TextTools when setup finishes. Capture into other windows works on Windows. The key stays in the system secret store.
 
 ## Requirements
 
