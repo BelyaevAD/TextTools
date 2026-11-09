@@ -2,7 +2,13 @@
 
 Tray application for the selected text. A hotkey runs an LLM action and pastes the result back, or shows it in a window. Capture and paste into other windows are implemented for Windows. The Linux and macOS builds open the tray.
 
-Kotlin and Compose Desktop, version 1.0. The last AutoHotkey release is tag `v0.3.1` on branch `archive/ahk`.
+Kotlin and Compose Desktop, version 1.0. The last AutoHotkey release is tag `v0.3.1` on branch `archive/ahk`. What changed is in `CHANGELOG.md`.
+
+![Action menu](docs/assets/screenshots/en/menu.png)
+
+![Settings](docs/assets/screenshots/en/settings.png)
+
+![Last result](docs/assets/screenshots/en/result.png)
 
 ## Requirements
 
