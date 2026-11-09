@@ -35,7 +35,7 @@ compose.desktop {
             packageVersion = "1.0.0"
             description = "TextTools 1.0"
             vendor = "BelyaevAD"
-            modules("java.sql", "java.management", "jdk.unsupported")
+            modules("java.sql", "java.net.http", "java.management", "jdk.unsupported")
             windows {
                 iconFile.set(project.file("packaging/icon.ico"))
                 menuGroup = "TextTools"
