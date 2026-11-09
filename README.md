@@ -4,9 +4,29 @@ Tray application for the selected text. A hotkey runs an LLM action and pastes t
 
 Kotlin and Compose Desktop, version 1.0. The last AutoHotkey release is tag `v0.3.1` on branch `archive/ahk`. What changed is in `CHANGELOG.md`.
 
+Ctrl+Alt+Space opens the action grid when text is selected. Shift on an action shows the result in a window instead of replacing the selection. Ctrl+Shift+Space repeats the last action. Fifteen factory actions ship with the app, and the instruction field runs a free-form one.
+
+![Action menu](docs/assets/screenshots/en/menu.png)
+
+The tray menu opens the last result, history, statistics, the action editor and settings.
+
 ![Tray menu](docs/assets/screenshots/en/tray-menu.png)
 
-The tray menu opens the last result, history, statistics, the action editor and settings. Settings has three tabs: API, output languages, and interface (language, hotkeys, Markdown, autostart, profiling, error reports).
+Settings has three tabs. The API tab is the OpenAI-compatible address, the key, an optional proxy, the default model, and the model list with context and price per million tokens. The key and the proxy stay in the operating-system secret store.
+
+![API settings](docs/assets/screenshots/en/settings-api.png)
+
+Checked output languages appear on an action. A language can be added by hand.
+
+![Output languages](docs/assets/screenshots/en/settings-languages.png)
+
+The interface language is the bundled English or Russian translation. INI language packs are not loaded. This tab also has the hotkeys, Markdown in the result window, start with Windows, app profiling, and the two error-report switches, which start off.
+
+![Interface settings](docs/assets/screenshots/en/settings-interface.png)
+
+The result window copies the text or pastes it back into the source window.
+
+![Last result](docs/assets/screenshots/en/result.png)
 
 ## Windows installer
 
