@@ -53,7 +53,10 @@
             "license": "https://github.com/BelyaevAD/TextTools/blob/main/LICENSE",
             "isAccessibleForFree": true,
             "screenshot": [
-              "https://belyaevad.github.io/TextTools/assets/screenshots/en/tray-menu.png"
+              "https://belyaevad.github.io/TextTools/assets/screenshots/en/menu.png",
+              "https://belyaevad.github.io/TextTools/assets/screenshots/en/settings-api.png",
+              "https://belyaevad.github.io/TextTools/assets/screenshots/en/settings-interface.png",
+              "https://belyaevad.github.io/TextTools/assets/screenshots/en/result.png"
             ],
             "offers": {
               "@type": "Offer",
@@ -136,13 +139,13 @@
           <figure class="hero-visual">
             <div class="hero-frame">
               <img
-                src="../assets/screenshots/en/tray-menu.png"
-                width="175"
-                height="230"
-                alt="TextTools tray menu: last result, history, statistics, editor, settings"
+                src="../assets/screenshots/en/menu.png"
+                width="488"
+                height="300"
+                alt="TextTools action grid: proofread, translate, table, explain code"
                 fetchpriority="high">
             </div>
-            <figcaption>Ctrl+Alt+Space · action menu</figcaption>
+            <figcaption>Ctrl+Alt+Space opens the grid. Shift shows the answer in a window.</figcaption>
           </figure>
         </div>
       </section>
@@ -174,21 +177,46 @@
         <div class="shell">
           <div class="section-heading">
             <h2>What it looks like</h2>
-            <p>The current tray menu. Settings has three tabs: API, output languages, and interface.</p>
+            <p>The current interface, captured from the installed 1.0 build: the action grid, the three settings tabs, the result window and the tray menu.</p>
           </div>
           <div class="shot-gallery">
             <figure class="shot-card">
+              <a href="../assets/screenshots/en/menu.png" target="_blank" rel="noopener">
+                <img src="../assets/screenshots/en/menu.png" width="488" height="300" alt="TextTools action grid" loading="lazy">
+              </a>
+              <figcaption><strong>Action grid</strong><span>Fifteen factory actions and a free instruction. Shift opens the answer in a window</span></figcaption>
+            </figure>
+            <figure class="shot-card">
+              <a href="../assets/screenshots/en/settings-api.png" target="_blank" rel="noopener">
+                <img src="../assets/screenshots/en/settings-api.png" width="892" height="786" alt="API tab: address, key, proxy and the model list" loading="lazy">
+              </a>
+              <figcaption><strong>API</strong><span>OpenAI-compatible address, key, proxy, default model, context and price</span></figcaption>
+            </figure>
+            <figure class="shot-card">
+              <a href="../assets/screenshots/en/settings-languages.png" target="_blank" rel="noopener">
+                <img src="../assets/screenshots/en/settings-languages.png" width="892" height="786" alt="Output languages tab" loading="lazy">
+              </a>
+              <figcaption><strong>Output languages</strong><span>Checked languages appear on an action. You can add your own</span></figcaption>
+            </figure>
+            <figure class="shot-card">
+              <a href="../assets/screenshots/en/settings-interface.png" target="_blank" rel="noopener">
+                <img src="../assets/screenshots/en/settings-interface.png" width="892" height="786" alt="Interface tab: language, hotkeys, Markdown, autostart" loading="lazy">
+              </a>
+              <figcaption><strong>Interface</strong><span>English or Russian, hotkeys, Markdown, start with Windows, profiling and reports</span></figcaption>
+            </figure>
+            <figure class="shot-card">
+              <a href="../assets/screenshots/en/result.png" target="_blank" rel="noopener">
+                <img src="../assets/screenshots/en/result.png" width="824" height="569" alt="Last result window" loading="lazy">
+              </a>
+              <figcaption><strong>Result</strong><span>Copy the text, or paste it back into the window it came from</span></figcaption>
+            </figure>
+            <figure class="shot-card">
               <a href="../assets/screenshots/en/tray-menu.png" target="_blank" rel="noopener">
-                <img src="../assets/screenshots/en/tray-menu.png" width="175" height="230" alt="TextTools tray menu" loading="lazy">
+                <img src="../assets/screenshots/en/tray-menu.png" width="144" height="271" alt="TextTools tray menu" loading="lazy">
               </a>
               <figcaption><strong>Tray menu</strong><span>Last result, history, statistics, the action editor and settings</span></figcaption>
             </figure>
           </div>
-          <ul class="safety-list">
-            <li>API: your OpenAI-compatible address, a key kept in the system secret store, a proxy, the default model and the model list.</li>
-            <li>Output languages: which languages appear on an action card.</li>
-            <li>Interface: English or Russian, hotkeys, Markdown, start with Windows, app profiling and error reports.</li>
-          </ul>
         </div>
       </section>
 
@@ -196,7 +224,7 @@
         <div class="shell">
           <div class="section-heading">
             <h2>Built-in actions</h2>
-            <p>Sixteen in the grid. These are the ones I actually use most.</p>
+            <p>Fifteen actions in the grid, plus a free instruction. These are part of the factory set.</p>
           </div>
           <div class="coverage" aria-label="Actions">
             <div class="coverage-item"><code>proofread</code><strong>Fix the wording, keep the meaning</strong></div>
@@ -216,7 +244,7 @@
           <div class="quick-copy">
             <p class="eyebrow">Install</p>
             <h2>A couple of minutes</h2>
-            <p>The Windows installer and the Debian package are on the v1.0 release. The Mac image is built on a Mac.</p>
+            <p>The Windows installer and the Debian package are on the v1.0 release. The Mac image is built on a Mac. Capture and paste into other windows exist only in the Windows build.</p>
             <a class="button secondary" href="https://github.com/BelyaevAD/TextTools/blob/main/README.md" target="_blank" rel="noopener noreferrer">Full install notes</a>
           </div>
           <div class="code-window" aria-label="Install commands">
@@ -238,13 +266,13 @@ https://github.com/BelyaevAD/TextTools/releases/download/v1.0/texttools_1.0.0_am
         <div class="shell">
           <div class="section-heading">
             <h2>Key and stability</h2>
-            <p>The API key lives only in local <code>TextTools.ini</code>. App profiling is off by default. On-disk history holds your texts — don’t commit it.</p>
+            <p>The key and the proxy stay in the operating-system secret store, not in a settings file and not in SQLite. App profiling and error reports stay off until you turn them on. On-disk history holds your texts — don’t commit it.</p>
           </div>
           <ul class="safety-list">
             <li>The key and the proxy stay in the operating-system secret store. An optional HTTP/HTTPS/SOCKS proxy lives on the API settings tab.</li>
             <li>Default hotkey is <code>Ctrl+Alt+Space</code> — <code>Ctrl+Space</code> is often taken by IMEs and other hooks.</li>
-            <li>Local Ollama works out of the box at <code>http://127.0.0.1:11434/v1</code>.</li>
-            <li>UI language packs live in <code>lang/*.ini</code>; factory UI is English.</li>
+            <li>Local Ollama: <code>http://localhost:11434/v1</code>, key <code>ollama</code>.</li>
+            <li>The interface language is the bundled English or Russian translation. <code>lang/*.ini</code> packs are not loaded by this version.</li>
             <li>Token counts are exact — the API returns them. The money figure is an <strong>estimate</strong>: prices come from the OpenRouter catalogue even on another provider, which has no public price endpoint to ask.</li>
           </ul>
         </div>

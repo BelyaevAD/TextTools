@@ -53,7 +53,10 @@
             "license": "https://github.com/BelyaevAD/TextTools/blob/main/LICENSE",
             "isAccessibleForFree": true,
             "screenshot": [
-              "https://belyaevad.github.io/TextTools/assets/screenshots/en/tray-menu.png"
+              "https://belyaevad.github.io/TextTools/assets/screenshots/en/menu.png",
+              "https://belyaevad.github.io/TextTools/assets/screenshots/en/settings-api.png",
+              "https://belyaevad.github.io/TextTools/assets/screenshots/en/settings-interface.png",
+              "https://belyaevad.github.io/TextTools/assets/screenshots/en/result.png"
             ],
             "offers": {
               "@type": "Offer",
@@ -136,13 +139,13 @@
           <figure class="hero-visual">
             <div class="hero-frame">
               <img
-                src="assets/screenshots/en/tray-menu.png"
-                width="175"
-                height="230"
-                alt="Меню трея TextTools: последний результат, история, статистика, редактор, настройки"
+                src="assets/screenshots/en/menu.png"
+                width="488"
+                height="300"
+                alt="Сетка действий TextTools: вычитка, перевод, таблица, разбор кода"
                 fetchpriority="high">
             </div>
-            <figcaption>Ctrl+Alt+Space · меню действий</figcaption>
+            <figcaption>Ctrl+Alt+Space открывает сетку. Shift показывает ответ в окне.</figcaption>
           </figure>
         </div>
       </section>
@@ -174,21 +177,46 @@
         <div class="shell">
           <div class="section-heading">
             <h2>Как выглядит</h2>
-            <p>Меню трея текущей версии. Настройки — три вкладки: API, языки ответа и интерфейс.</p>
+            <p>Текущий интерфейс. Снимки сделаны с установленной версии 1.0: сетка действий, три вкладки настроек, окно результата и меню трея.</p>
           </div>
           <div class="shot-gallery">
             <figure class="shot-card">
+              <a href="assets/screenshots/en/menu.png" target="_blank" rel="noopener">
+                <img src="assets/screenshots/en/menu.png" width="488" height="300" alt="Сетка действий TextTools" loading="lazy">
+              </a>
+              <figcaption><strong>Сетка действий</strong><span>Пятнадцать заводских действий и свободная инструкция. Shift открывает ответ в окне</span></figcaption>
+            </figure>
+            <figure class="shot-card">
+              <a href="assets/screenshots/en/settings-api.png" target="_blank" rel="noopener">
+                <img src="assets/screenshots/en/settings-api.png" width="892" height="786" alt="Вкладка API: адрес, ключ, прокси и список моделей" loading="lazy">
+              </a>
+              <figcaption><strong>API</strong><span>Адрес OpenAI-совместимого сервиса, ключ, прокси, модель по умолчанию, контекст и цена</span></figcaption>
+            </figure>
+            <figure class="shot-card">
+              <a href="assets/screenshots/en/settings-languages.png" target="_blank" rel="noopener">
+                <img src="assets/screenshots/en/settings-languages.png" width="892" height="786" alt="Вкладка языков ответа" loading="lazy">
+              </a>
+              <figcaption><strong>Языки ответа</strong><span>Отмеченные языки попадают в карточку действия. Свой язык можно добавить</span></figcaption>
+            </figure>
+            <figure class="shot-card">
+              <a href="assets/screenshots/en/settings-interface.png" target="_blank" rel="noopener">
+                <img src="assets/screenshots/en/settings-interface.png" width="892" height="786" alt="Вкладка интерфейса: язык, хоткеи, Markdown, автозапуск" loading="lazy">
+              </a>
+              <figcaption><strong>Интерфейс</strong><span>Английский или русский, хоткеи, Markdown, автозапуск, профилирование и отчёты</span></figcaption>
+            </figure>
+            <figure class="shot-card">
+              <a href="assets/screenshots/en/result.png" target="_blank" rel="noopener">
+                <img src="assets/screenshots/en/result.png" width="824" height="569" alt="Окно последнего результата" loading="lazy">
+              </a>
+              <figcaption><strong>Результат</strong><span>Копирование или вставка обратно в окно, откуда взяли текст</span></figcaption>
+            </figure>
+            <figure class="shot-card">
               <a href="assets/screenshots/en/tray-menu.png" target="_blank" rel="noopener">
-                <img src="assets/screenshots/en/tray-menu.png" width="175" height="230" alt="Меню трея TextTools" loading="lazy">
+                <img src="assets/screenshots/en/tray-menu.png" width="144" height="271" alt="Меню трея TextTools" loading="lazy">
               </a>
               <figcaption><strong>Меню трея</strong><span>Последний результат, история, статистика, редактор действий и настройки</span></figcaption>
             </figure>
           </div>
-          <ul class="safety-list">
-            <li>API: свой адрес OpenAI-совместимого сервиса, ключ в системном хранилище, прокси, модель по умолчанию и список моделей.</li>
-            <li>Языки ответа: какие языки попадают в карточку действия.</li>
-            <li>Интерфейс: язык программы (английский или русский), хоткеи, Markdown, автозапуск, профилирование приложений и отчёты об ошибках.</li>
-          </ul>
         </div>
       </section>
 
@@ -196,7 +224,7 @@
         <div class="shell">
           <div class="section-heading">
             <h2>Что есть из коробки</h2>
-            <p>Шестнадцать действий в сетке. Ниже — те, которыми чаще всего пользуюсь сам.</p>
+            <p>Пятнадцать действий в сетке и свободная инструкция. Ниже — часть заводского набора.</p>
           </div>
           <div class="coverage" aria-label="Действия">
             <div class="coverage-item"><code>proofread</code><strong>Поправить форму, смысл не трогать</strong></div>
@@ -216,7 +244,7 @@
           <div class="quick-copy">
             <p class="eyebrow">Установка</p>
             <h2>Пара минут</h2>
-            <p>Установщик Windows и пакет Debian — в релизе v1.0. Образ для Mac собирается на Mac.</p>
+            <p>Установщик Windows и пакет Debian — в релизе v1.0. Образ для Mac собирается на Mac. Захват выделения и вставка в другое окно есть только в сборке Windows.</p>
             <a class="button secondary" href="https://github.com/BelyaevAD/TextTools/blob/main/README.md" target="_blank" rel="noopener noreferrer">Полная инструкция</a>
           </div>
           <div class="code-window" aria-label="Команды установки">
@@ -238,13 +266,13 @@ https://github.com/BelyaevAD/TextTools/releases/download/v1.0/texttools_1.0.0_am
         <div class="shell">
           <div class="section-heading">
             <h2>Про ключ и стабильность</h2>
-            <p>Ключ живёт только в локальном <code>TextTools.ini</code>. Профилирование приложений выключено по умолчанию. История на диске хранит тексты — в git её лучше не класть.</p>
+            <p>Ключ и прокси лежат в хранилище системы, не в файле настроек и не в SQLite. Профилирование приложений и отчёты об ошибках выключены, пока их не включить. История на диске хранит тексты — в git её лучше не класть.</p>
           </div>
           <ul class="safety-list">
             <li>Ключ и прокси остаются в хранилище системы. Опциональный HTTP/HTTPS/SOCKS-прокси задаётся в настройках API.</li>
             <li>По умолчанию хоткей <code>Ctrl+Alt+Space</code>: <code>Ctrl+Space</code> часто уже занят IME и другими хуками.</li>
-            <li>Локальный Ollama работает из коробки: <code>http://127.0.0.1:11434/v1</code>.</li>
-            <li>Язык интерфейса — пакеты <code>lang/*.ini</code>; заводской UI на английском.</li>
+            <li>Локальный Ollama: <code>http://localhost:11434/v1</code>, ключ <code>ollama</code>.</li>
+            <li>Язык интерфейса — встроенные английский и русский. Пакеты <code>lang/*.ini</code> этой версией не загружаются.</li>
             <li>Токены считаются точно — их возвращает само API. Деньги это <strong>оценка</strong>: цены берутся из каталога OpenRouter даже на другом провайдере, потому что публичного прайс-эндпоинта у него нет.</li>
           </ul>
         </div>
