@@ -1,0 +1,19 @@
+---
+description: Use when cutting a TextTools release, writing the changelog, updating the README, adding screenshots, or updating the GitHub Pages site.
+globs:
+  - CHANGELOG.md
+  - README.md
+  - docs/assets/screenshots/**
+  - packaging/windows/**
+alwaysApply: false
+---
+
+# TextTools release
+
+- Start every release with a clean rebuild of each package, even when `dist/` already has files: `./gradlew clean :app:packageMsi` on Windows, `./gradlew clean :app:packageDeb` from a fresh tree in Ubuntu, and the Mac script for the DMG. Publish only the files that rebuild produced.
+- `CHANGELOG.md` follows `archive/ahk`: version, date, what changed for the person using the app. Do not copy old AutoHotkey entries onto `main`.
+- Release notes and the README link only to those built files. Say the DMG is built on a Mac when it was not built here. No secrets.
+- Screenshots show the current interface. Do not reuse AutoHotkey shots from `gh-pages`.
+- Update `gh-pages` (`index.html` and `en/` together) in its own commit, not in `main`.
+- Move the version tag onto the commit that contains the changelog and the README, then push. Do not rewrite `main`.
+- A change to `packaging/windows/main.wxs` keeps `Language="!(loc.ProductLanguage)"` and the `l10n-*.wxl` cultures (`en-us`, `de-de`, `ja-jp`, `zh-cn`, `ru-ru`). The MSI task copies `main.wxs` and the `l10n-*.wxl` files into the jpackage resource directory.
