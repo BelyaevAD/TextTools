@@ -6,6 +6,14 @@ build/
 texttools.db
 .idea/
 *.iml
+.vscode/
+.cursor/*
+!.cursor/rules/
+.cursor/rules/*
+!.cursor/rules/texttools-release.mdc
+!.cursor/skills/
+!.cursor/skills/**
+
 config/sentry.properties
 tmp/
 .scannerwork/
