@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WixLocalization Culture="en-us" xmlns="http://schemas.microsoft.com/wix/2006/localization" Codepage="1252">
+  <String Id="ProductLanguage" Overridable="yes">1033</String>
+  <String Id="AutostartDlgBody" Overridable="yes">Start TextTools when you sign in to Windows.</String>
+  <String Id="AutostartCheck" Overridable="yes">Start TextTools when Windows starts</String>
+</WixLocalization>

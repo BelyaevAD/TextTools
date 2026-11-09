@@ -50,31 +50,75 @@ compose.desktop {
     }
 }
 
+tasks.register("prepareLightShim") {
+    val outDir = layout.buildDirectory.dir("wix-shim")
+    val source = rootProject.layout.projectDirectory.file("packaging/windows/LightShim.cs")
+    val script = rootProject.layout.projectDirectory.file("packaging/windows/light-multilang.ps1")
+    inputs.file(source)
+    inputs.file(script)
+    outputs.dir(outDir)
+    mustRunAfter("clean")
+    doLast {
+        val dir = outDir.get().asFile
+        dir.mkdirs()
+        val csc = File(System.getenv("WINDIR"), "Microsoft.NET/Framework64/v4.0.30319/csc.exe")
+        exec {
+            commandLine(csc.absolutePath, "/nologo", "/out:${dir.resolve("light.exe")}", source.asFile.absolutePath)
+        }
+        script.asFile.copyTo(dir.resolve("light-multilang.ps1"), overwrite = true)
+    }
+}
+
 tasks.withType<org.jetbrains.compose.desktop.application.tasks.AbstractJPackageTask>().configureEach {
     if (targetFormat != TargetFormat.Msi) return@configureEach
+    // light.exe in the WiX directory is replaced in doFirst. WiX 3 cannot link every
+    // culture in one invocation (LGHT0100); the shim builds one MSI per culture.
+    dependsOn("prepareLightShim")
     // Compose 1.12 deletes compose/tmp/resources inside the task, after doFirst.
     // jpackage reads that directory as --resource-dir, so main.wxs has to be put back
     // before the tool starts. appResourcesDir is the app's own resources folder, not this one.
-    val wxs = rootProject.layout.projectDirectory.file("packaging/windows/main.wxs")
+    val windowsPackaging = rootProject.layout.projectDirectory.dir("packaging/windows")
     val resourcesDir = layout.buildDirectory.dir("compose/tmp/resources")
     val stop = object {
         @Volatile var value: Boolean = false
     }
     doFirst {
-        val source = wxs.asFile
+        val wixDir = wixToolsetDir.get().asFile
+        val realLight = wixDir.resolve("light-wix.exe")
+        val light = wixDir.resolve("light.exe")
+        if (!realLight.isFile) light.copyTo(realLight)
+        val config = wixDir.resolve("light.exe.config")
+        val realConfig = wixDir.resolve("light-wix.exe.config")
+        if (config.isFile) {
+            if (!realConfig.isFile) config.copyTo(realConfig)
+            config.delete()
+        }
+        val shimDir = layout.buildDirectory.dir("wix-shim").get().asFile
+        shimDir.resolve("light.exe").copyTo(light, overwrite = true)
+        shimDir.resolve("light-multilang.ps1").copyTo(wixDir.resolve("light-multilang.ps1"), overwrite = true)
+        val sourceDir = windowsPackaging.asFile
         val destDir = resourcesDir.get().asFile
         Thread {
             val deadline = System.currentTimeMillis() + 180_000
+            try {
+                Thread.sleep(500)
+            } catch (_: InterruptedException) {
+                return@Thread
+            }
             while (!stop.value && System.currentTimeMillis() < deadline) {
                 try {
                     if (destDir.isDirectory) {
-                        val target = destDir.resolve("main.wxs")
-                        if (!target.isFile) source.copyTo(target, overwrite = true)
+                        sourceDir.listFiles()
+                            ?.filter { it.isFile && (it.name == "main.wxs" || it.extension.equals("wxl", true)) }
+                            ?.forEach { file ->
+                                val target = destDir.resolve(file.name)
+                                if (!target.isFile) file.copyTo(target, overwrite = true)
+                            }
                     }
                 } catch (_: Exception) {
                 }
                 try {
-                    Thread.sleep(1)
+                    Thread.sleep(20)
                 } catch (_: InterruptedException) {
                     break
                 }

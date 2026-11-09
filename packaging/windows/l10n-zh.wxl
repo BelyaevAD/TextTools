@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WixLocalization Culture="zh-cn" xmlns="http://schemas.microsoft.com/wix/2006/localization" Codepage="936">
+  <String Id="ProductLanguage" Overridable="yes">2052</String>
+  <String Id="AutostartDlgBody" Overridable="yes">登录 Windows 时启动 TextTools。</String>
+  <String Id="AutostartCheck" Overridable="yes">Windows 启动时启动 TextTools</String>
+</WixLocalization>
