@@ -32,6 +32,7 @@ class AppProfilingTest {
         assertTrue("Window title: (none)" in bare[1].content)
         val noted = profileMessages("note.exe", "Note", "- Note: a text editor")
         assertTrue("Web notes:\n- Note: a text editor" in noted[1].content)
+        assertTrue("Window class: Notepad" in profileMessages("note.exe", "Note", "", "Notepad")[1].content)
     }
 
     @Test
@@ -66,5 +67,17 @@ class AppProfilingTest {
         assertEquals("Графический редактор.", filled.last().description)
         assertEquals("Keep short labels.", filled.last().hint)
         assertEquals("keep lines", filled.first().hint)
+    }
+
+    @Test
+    fun anAutomaticRowStaysPendingUntilItIsSettled() {
+        val pending = listOf(AppProfile("paint.exe", "", "paint.exe", "Added automatically", ""))
+        assertTrue(profilePending(pending, "paint.exe", "Paint", "Added automatically"))
+        assertEquals(false, profilePending(pending, "paint.exe", "Paint", "Factory"))
+        val named = listOf(AppProfile("notepad.exe", "", "Notepad", "notes", ""))
+        assertEquals(false, profilePending(named, "notepad.exe", "notes.txt", "Added automatically"))
+        val settled = settleUnidentified(pending, "paint.exe", "Not identified")
+        assertEquals("Not identified", settled.single().description)
+        assertEquals(false, profilePending(settled, "paint.exe", "Paint", "Added automatically"))
     }
 }

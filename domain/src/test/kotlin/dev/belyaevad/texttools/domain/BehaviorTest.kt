@@ -74,6 +74,9 @@ class BehaviorTest {
     fun pricesDoNotBorrowANeighbourAndHistoryKeepsThePipe() {
         val priced = CatalogEntry("m", 0.001, 0.002, 1000)
         val bare = CatalogEntry("m", null, 0.002, null)
+        assertEquals(1, estimateTokens("abcd"))
+        assertEquals(2, estimateTokens("яяяя"))
+        assertEquals(0, estimateTokens(""))
         assertEquals(0.001 * 10 + 0.002 * 5, costOf(priced, 10, 5))
         assertNull(costOf(bare, 10, 5))
         assertNull(contextLength(bare))

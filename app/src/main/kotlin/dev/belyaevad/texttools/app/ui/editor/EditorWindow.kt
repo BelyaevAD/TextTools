@@ -122,7 +122,7 @@ fun editorWindow(
                             editorPage(lists, dialogs, tab.value, languages, copySuffix, lastActionText)
                         }
                         Text(
-                            tr(Ed.HINT, Factory.menuKeys.size),
+                            if (tab.value == 1) tr(Ed.HINT_QUICK) else tr(Ed.HINT, Factory.menuKeys.size),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 12.sp,
                             modifier = Modifier.padding(top = 8.dp),

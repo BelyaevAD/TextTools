@@ -28,12 +28,12 @@ class WindowMetricsTest {
     fun bannerUsesTheMonitorOfTheAnchor() {
         val left = WorkArea(0, 0, 1920, 1080)
         val right = WorkArea(1920, 0, 3840, 1080)
-        assertEquals(1582 to 984, bannerCorner(ScreenPoint(10, 10), listOf(left, right)))
-        assertEquals(3502 to 984, bannerCorner(ScreenPoint(2000, 100), listOf(left, right)))
-        assertEquals(3502 to 984, bannerCorner(ScreenPoint(2000, 1100), listOf(left, right)))
-        assertEquals(1582 to 984, bannerCorner(ScreenPoint(10, 100), listOf(right, WorkArea(40, 0, 1920, 1080))))
-        assertEquals(1582 to 984, bannerCorner(ScreenPoint(-40, -40), listOf(left, right)))
-        assertEquals(942 to 624, bannerCorner(ScreenPoint(0, 0), emptyList()))
+        assertEquals(1582 to 948, bannerCorner(ScreenPoint(10, 10), listOf(left, right)))
+        assertEquals(3502 to 948, bannerCorner(ScreenPoint(2000, 100), listOf(left, right)))
+        assertEquals(3502 to 948, bannerCorner(ScreenPoint(2000, 1100), listOf(left, right)))
+        assertEquals(1582 to 948, bannerCorner(ScreenPoint(10, 100), listOf(right, WorkArea(40, 0, 1920, 1080))))
+        assertEquals(1582 to 948, bannerCorner(ScreenPoint(-40, -40), listOf(left, right)))
+        assertEquals(942 to 588, bannerCorner(ScreenPoint(0, 0), emptyList()))
     }
 
     @Test

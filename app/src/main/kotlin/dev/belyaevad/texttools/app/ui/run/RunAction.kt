@@ -17,7 +17,10 @@ import dev.belyaevad.texttools.domain.RequestMetric
 import dev.belyaevad.texttools.domain.RunOutcome
 import dev.belyaevad.texttools.domain.Settings
 import dev.belyaevad.texttools.domain.Usage
+import dev.belyaevad.texttools.domain.buildInstruction
+import dev.belyaevad.texttools.domain.buildUserContent
 import dev.belyaevad.texttools.domain.costOf
+import dev.belyaevad.texttools.domain.estimateTokens
 import dev.belyaevad.texttools.domain.matchApp
 import dev.belyaevad.texttools.platform.ClipboardProtocol
 import dev.belyaevad.texttools.platform.PasteAttempt
@@ -43,16 +46,56 @@ private val logTime: DateTimeFormatter =
 /** Text UW can paint. Seconds use a point and one decimal. */
 enum class RunPhase { Preparing, Done }
 
+/**
+ * Token line for the progress window.
+ * [approximate] is the estimate sent with the request. A finished call carries the provider counts.
+ */
+data class RunUsage(
+    val characters: Int,
+    val promptTokens: Int,
+    val completionTokens: Int?,
+    val cost: Double?,
+    val approximate: Boolean,
+)
+
 /** A language-neutral status; Compose resolves its text. */
 data class RunStatus(
     val phase: RunPhase,
     val elapsedMillis: Long,
+    val usage: RunUsage? = null,
 )
 
 /** Elapsed time for the banner. A negative count is zero. */
 fun statusSeconds(elapsedMillis: Long): String {
     val seconds = elapsedMillis.coerceAtLeast(0).toDouble() / 1000.0
     return String.format(Locale.US, "%.1f", seconds)
+}
+
+/** Thousands grouped with a space, as the old script's NumFmt. */
+fun groupedCount(value: Int): String {
+    val digits = value.coerceAtLeast(0).toString()
+    val out = StringBuilder()
+    var count = 0
+    for (index in digits.indices.reversed()) {
+        if (count == 3) {
+            out.insert(0, ' ')
+            count = 0
+        }
+        out.insert(0, digits[index])
+        count++
+    }
+    return out.toString()
+}
+
+/** Dollar text for the progress window. A missing price is not passed here. */
+fun bannerMoney(value: Double): String {
+    val pattern =
+        when {
+            value >= 1.0 -> "%.2f"
+            value >= 0.01 -> "%.3f"
+            else -> "%.5f"
+        }
+    return "$" + String.format(Locale.US, pattern, value)
 }
 
 /**
@@ -95,6 +138,12 @@ class RunAction(
     @Volatile
     private var measuredExtra: Int = 0
 
+    @Volatile
+    private var reported: Usage? = null
+
+    @Volatile
+    private var pricedModel: String = ""
+
     private val runner = ActionRunner(measureCall(complete), ::deliver)
 
     /** True from the start of [run] until paste has returned and the result is stored. */
@@ -107,7 +156,11 @@ class RunAction(
      */
     fun banner(nowMillis: Long = now()): RunStatus? {
         val current = phase ?: return null
-        return RunStatus(current.phase, current.frozenMillis ?: (nowMillis - current.startedAt).coerceAtLeast(0))
+        return RunStatus(
+            current.phase,
+            current.frozenMillis ?: (nowMillis - current.startedAt).coerceAtLeast(0),
+            current.usage,
+        )
     }
 
     /**
@@ -132,7 +185,25 @@ class RunAction(
             val extra = instruction.trim()
             measuredInput = selection.length
             measuredExtra = extra.length
-            showPreparing(now())
+            reported = null
+            val hint = matchApp(profiles(), proc, title)?.hint.orEmpty()
+            val system =
+                buildInstruction(action, store.languages().ifEmpty { Factory.languages }, hint)
+            val user = buildUserContent(action, selection, extra)
+            val characters = system.length + user.length
+            val estimated = estimateTokens(system + "\n" + user)
+            val modelName = action.model ?: current.defaultModel
+            pricedModel = modelName
+            showPreparing(
+                now(),
+                RunUsage(
+                    characters = characters,
+                    promptTokens = estimated,
+                    completionTokens = null,
+                    cost = costOf(priceEntry(store.prices()?.body, modelName, current.baseUrl), estimated, 0),
+                    approximate = true,
+                ),
+            )
             val outcome =
                 runner.run(
                     action = action,
@@ -230,6 +301,7 @@ class RunAction(
         call: suspend (String, List<ChatMessage>) -> Pair<String, Usage?>,
     ): suspend (String, List<ChatMessage>) -> Pair<String, Usage?> =
         { model, messages ->
+            pricedModel = model
             val started = monotonic()
             val at = now()
             var output = 0
@@ -239,6 +311,7 @@ class RunAction(
                 val answer = call(model, messages)
                 output = answer.first.trim().length
                 usage = answer.second
+                reported = answer.second
                 outcome = if (output == 0) "failure" else "success"
                 answer
             } catch (cancelled: CancellationException) {
@@ -285,14 +358,32 @@ class RunAction(
         return stored
     }
 
-    private fun showPreparing(at: Long) {
-        phase = Phase(RunPhase.Preparing, at, null)
+    private fun showPreparing(
+        at: Long,
+        usage: RunUsage,
+    ) {
+        phase = Phase(RunPhase.Preparing, at, null, usage)
         hooks.onStatus(banner(at))
     }
 
     private fun showDone(at: Long) {
         val started = phase?.startedAt ?: at
-        phase = Phase(RunPhase.Done, started, (at - started).coerceAtLeast(0))
+        val previous = phase?.usage
+        val actual = reported
+        val line =
+            if (actual == null) {
+                previous
+            } else {
+                val modelName = pricedModel
+                RunUsage(
+                    characters = previous?.characters ?: 0,
+                    promptTokens = actual.promptTokens,
+                    completionTokens = actual.completionTokens,
+                    cost = requestCost(store.prices()?.body, modelName, settings().baseUrl, actual),
+                    approximate = false,
+                )
+            }
+        phase = Phase(RunPhase.Done, started, (at - started).coerceAtLeast(0), line)
         hooks.onStatus(banner(at))
     }
 
@@ -336,6 +427,7 @@ private class Phase(
     val phase: RunPhase,
     val startedAt: Long,
     val frozenMillis: Long?,
+    val usage: RunUsage?,
 )
 
 /** Cost of one call. Null when [usage] or the catalogue price is missing. */

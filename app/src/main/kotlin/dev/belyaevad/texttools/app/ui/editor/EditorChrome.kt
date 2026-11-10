@@ -56,7 +56,7 @@ internal fun framedDialog(
     placementId: String,
     content: @Composable () -> Unit,
 ) {
-    val place = rememberPlacement(placementId, width, height)
+    val place = rememberPlacement(placementId, width, height, atLeastDesign = true)
     val state = rememberDialogState(position = place.position, width = place.width, height = place.height)
     DialogWindow(
         onCloseRequest = onClose,

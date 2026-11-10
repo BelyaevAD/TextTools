@@ -39,7 +39,7 @@ The module has no Compose, Ktor or SQLDelight dependency. Money is not part of `
 
 `matchApp` returns null for an empty process. Among rows of that process, a non-empty title that is contained in the window title wins. Otherwise the first row with an empty title wins. Comparison is case-insensitive.
 
-`costOf` is null when the catalogue row or either per-token price is missing. Otherwise it is prompt tokens times the prompt price plus completion tokens times the completion price. `contextLength` is only the entry's own field.
+`estimateTokens` is the rough count shown before the provider answers: about 4 characters per token for ASCII and 2 otherwise, from the first 4000 characters. `costOf` is null when the catalogue row or either per-token price is missing. Otherwise it is prompt tokens times the prompt price plus completion tokens times the completion price. `contextLength` is only the entry's own field.
 
 `appendHistory` trims source and result to 8000 characters and keeps the newest 20. `trimConversation` returns nine or fewer messages unchanged. A longer list keeps the first message and a tail of seven, moved one message later when that start is not a user turn.
 

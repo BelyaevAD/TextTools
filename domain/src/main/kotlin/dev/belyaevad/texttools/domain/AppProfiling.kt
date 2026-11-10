@@ -7,7 +7,7 @@ package dev.belyaevad.texttools.domain
 val APP_PROFILE_PROMPT: String =
     """
     You look up a Windows desktop application and then write a prompt note from the description you found.
-    Search the web for the executable file name and the window title. Web notes, when present, are search results: use them only when they clearly name this executable. Ignore unrelated hits.
+    Search the web for the executable file name and the window title. The window class, when present, is a characteristic of that window, not a product name by itself. Web notes, when present, are search results: use them only when they clearly name this executable. Ignore unrelated hits. The HINT corrects a general workplace-writing prompt for this application.
 
     If you cannot identify this specific application, output exactly one word: UNKNOWN
     Output UNKNOWN also when the executable name is generic, ambiguous, or could belong to several different products. Never guess, never invent a product.
@@ -30,6 +30,7 @@ fun profileMessages(
     proc: String,
     title: String,
     webNotes: String,
+    windowClass: String = "",
 ): List<ChatMessage> {
     val user =
         buildString {
@@ -37,6 +38,11 @@ fun profileMessages(
             append(proc.trim())
             append("\nWindow title: ")
             append(title.trim().ifEmpty { "(none)" })
+            val kind = windowClass.trim()
+            if (kind.isNotEmpty()) {
+                append("\nWindow class: ")
+                append(kind)
+            }
             val notes = webNotes.trim()
             if (notes.isNotEmpty()) {
                 append("\n\nWeb notes:\n")
@@ -100,6 +106,52 @@ fun withNeutralApp(
     val name = proc.trim()
     if (name.isEmpty() || matchApp(apps, name, title) != null) return apps
     return apps + AppProfile(name, "", name, description, "")
+}
+
+/**
+ * True when [proc] still needs a web lookup.
+ * A missing row will be added. A row that already has a hint, a title of its own, or a name
+ * the user chose is left alone. An automatic row is pending while its description still
+ * starts with [addedPrefix].
+ */
+fun profilePending(
+    apps: List<AppProfile>,
+    proc: String,
+    title: String,
+    addedPrefix: String,
+): Boolean {
+    val name = proc.trim()
+    val prefix = addedPrefix.trim()
+    if (name.isEmpty()) return false
+    val matched = matchApp(apps, name, title) ?: return true
+    if (matched.hint.isNotEmpty() || matched.title.isNotEmpty() || prefix.isEmpty()) return false
+    return matched.name.equals(name, ignoreCase = true) && matched.description.startsWith(prefix)
+}
+
+/**
+ * Stops asking about an automatic row the model could not identify.
+ * [description] must not start with the automatic prefix, or the next hotkey asks again.
+ * Other rows stay. The same list comes back when nothing changes.
+ */
+fun settleUnidentified(
+    apps: List<AppProfile>,
+    proc: String,
+    description: String,
+): List<AppProfile> {
+    val name = proc.trim()
+    val text = description.trim()
+    if (name.isEmpty() || text.isEmpty()) return apps
+    val index =
+        apps.indexOfLast { row ->
+            row.proc.equals(name, ignoreCase = true) &&
+                row.title.isEmpty() &&
+                row.hint.isEmpty() &&
+                row.name.equals(name, ignoreCase = true)
+        }
+    if (index < 0) return apps
+    val current = apps[index]
+    if (current.description == text) return apps
+    return apps.toMutableList().also { it[index] = current.copy(description = text) }
 }
 
 /** Writes a received description onto the neutral row for [proc]. Other rows stay. */

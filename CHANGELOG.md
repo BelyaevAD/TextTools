@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.1 — 2026-11-11
+
+- The action menu opens on the window where the text was selected. The mouse is used only when that window cannot be found.
+- The progress window stays on that window's screen. While the request runs it shows an estimated token count and an approximate cost. When the answer arrives it shows the provider's token counts and the cost.
+- A new application is recognised from its program file, window title and window class. With profiling on, TextTools looks the program up on the web and stores a prompt note for later actions. A lookup that failed can be tried again. If the model cannot identify the program, that answer is kept.
+- The action editor shows the built-in application list until you save your own.
+- The action, application and quick-refinement cards are taller, so the text field and the buttons stay on screen. A card that was saved smaller opens at this height.
+- The Quick refinements tab says where those buttons are used: in the result window, on the Quick row, after an action opens its result there.
+
+Downloads for this version are the Windows installer `TextTools-1.1.0.msi`. The Debian package and the macOS disk image are built on their own systems: `./gradlew :app:packageDeb` and `sh packaging/macos/package-dmg.sh`.
+
 ## v1.0 — 2026-11-09
 
 TextTools on `main` is the Kotlin and Compose Desktop application. The AutoHotkey line remains on `archive/ahk` at tag `v0.3.1`.

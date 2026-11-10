@@ -51,6 +51,8 @@ private const val TOKEN_ELEVATION = 20
 private const val CF_BITMAP = 2
 private const val CARET_DROP_PX = 24
 private const val MENU_MARGIN_PX = 6
+private const val WINDOW_ANCHOR_X = 32
+private const val WINDOW_ANCHOR_Y = 48
 private const val RUN_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run"
 private const val MUTEX_NAME = "Local\\TextTools"
 
@@ -384,7 +386,29 @@ data class WorkArea(
 }
 
 /**
- * Where the action menu should open. A usable caret wins and is moved down 24px; otherwise the cursor is used.
+ * Screen rectangle of the window the user was typing in.
+ * Right and bottom are exclusive, as in [WorkArea].
+ */
+data class WindowBounds(
+    val left: Int,
+    val top: Int,
+    val right: Int,
+    val bottom: Int,
+) {
+    fun contains(point: ScreenPoint): Boolean = point.x >= left && point.x < right && point.y >= top && point.y < bottom
+
+    /** A point inside the window, inset from its top-left. Used when the caret is missing or outside. */
+    fun anchor(): ScreenPoint {
+        val x = (left + WINDOW_ANCHOR_X).coerceAtMost((right - 1).coerceAtLeast(left))
+        val y = (top + WINDOW_ANCHOR_Y).coerceAtMost((bottom - 1).coerceAtLeast(top))
+        return ScreenPoint(x, y)
+    }
+}
+
+/**
+ * Where the action menu should open.
+ * A caret that lies inside [window] wins and is moved down 24px.
+ * Otherwise the input window wins. The cursor is used only when that window is unknown.
  * The point is clamped by 6px inside the work area that contains it.
  * Returns coordinates only. Does not open a window.
  */
@@ -394,10 +418,19 @@ fun menuPosition(
     menuWidth: Int,
     menuHeight: Int,
     workAreas: List<WorkArea>,
+    window: WindowBounds? = null,
 ): ScreenPoint {
-    val anchor = caret?.takeUnless { it.x <= 0 && it.y <= 0 }
-    val x = anchor?.x ?: cursor.x
-    val y = if (anchor != null) anchor.y + CARET_DROP_PX else cursor.y
+    val usable = caret?.takeUnless { it.x <= 0 && it.y <= 0 }
+    val frame = window?.takeIf { it.right > it.left && it.bottom > it.top }
+    val useCaret = if (frame != null) usable != null && frame.contains(usable) else usable != null
+    val anchor =
+        when {
+            useCaret -> usable
+            frame != null -> frame.anchor()
+            else -> cursor
+        } ?: cursor
+    val x = anchor.x
+    val y = if (useCaret) anchor.y + CARET_DROP_PX else anchor.y
     val area = workAreas.firstOrNull { it.containsX(x) && it.containsY(y) } ?: nearestWorkArea(x, y, workAreas)
     if (area == null) return ScreenPoint(x, y)
     val minX = area.left + MENU_MARGIN_PX
@@ -888,10 +921,41 @@ fun exeFileName(path: String): String {
 /** The tracker has a user window that can receive Ctrl+C. */
 fun hasUserSource(watch: ForegroundWatch): Boolean = watch.sourceNow() != null
 
+/**
+ * Process, title, window class and screen rectangle captured before focus moves.
+ * Empty strings and a null rectangle mean the source window was not available.
+ */
+data class SourceSnapshot(
+    val proc: String,
+    val title: String,
+    val windowClass: String,
+    val bounds: WindowBounds?,
+)
+
 /** Process and title for the app-profile hint. The window handle stays in this module. */
 fun sourceApp(watch: ForegroundWatch): SourceApp {
-    val hwnd = watch.sourceNow() ?: return SourceApp("", "")
-    return SourceApp(processImageName(hwnd), windowTitle(hwnd))
+    val shot = sourceSnapshot(watch)
+    return SourceApp(shot.proc, shot.title)
+}
+
+/** The foreground user window, read before the clipboard capture and before this process opens a window. */
+fun sourceSnapshot(watch: ForegroundWatch): SourceSnapshot {
+    if (!windowsHost()) return SourceSnapshot("", "", "", null)
+    val hwnd = watch.sourceNow() ?: return SourceSnapshot("", "", "", null)
+    return SourceSnapshot(processImageName(hwnd), windowTitle(hwnd), windowClassName(hwnd), windowBounds(hwnd))
+}
+
+private fun windowBounds(hwnd: HWND): WindowBounds? {
+    val rect = RECT()
+    if (!User32.INSTANCE.GetWindowRect(hwnd, rect)) return null
+    if (rect.right <= rect.left || rect.bottom <= rect.top) return null
+    return WindowBounds(rect.left, rect.top, rect.right, rect.bottom)
+}
+
+private fun windowClassName(hwnd: HWND): String {
+    val buffer = CharArray(256)
+    User32.INSTANCE.GetClassName(hwnd, buffer, buffer.size)
+    return String(buffer).trimEnd('\u0000')
 }
 
 private fun windowTitle(hwnd: HWND): String {
@@ -917,12 +981,7 @@ private fun processImageName(hwnd: HWND): String {
     }
 }
 
-private fun isShellWindow(hwnd: HWND): Boolean {
-    val buffer = CharArray(256)
-    User32.INSTANCE.GetClassName(hwnd, buffer, buffer.size)
-    val name = String(buffer).trimEnd('\u0000')
-    return isShellClass(name)
-}
+private fun isShellWindow(hwnd: HWND): Boolean = isShellClass(windowClassName(hwnd))
 
 private fun virtualKey(name: String): Int? {
     if (name.isEmpty()) return null

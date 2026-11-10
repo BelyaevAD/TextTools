@@ -100,6 +100,48 @@ class MenuPositionTest {
     }
 
     @Test
+    fun theInputWindowBeatsACursorOnAnotherMonitor() {
+        val point =
+            menuPosition(
+                caret = null,
+                cursor = ScreenPoint(10, 10),
+                menuWidth = 500,
+                menuHeight = 560,
+                workAreas = listOf(desktop, right),
+                window = WindowBounds(2000, 40, 2800, 900),
+            )
+        assertEquals(ScreenPoint(2032, 88), point)
+    }
+
+    @Test
+    fun aCaretOutsideTheInputWindowIsIgnored() {
+        val point =
+            menuPosition(
+                caret = ScreenPoint(10, 10),
+                cursor = ScreenPoint(20, 20),
+                menuWidth = 500,
+                menuHeight = 560,
+                workAreas = listOf(desktop, right),
+                window = WindowBounds(2000, 40, 2800, 900),
+            )
+        assertEquals(ScreenPoint(2032, 88), point)
+    }
+
+    @Test
+    fun aCaretInsideTheInputWindowStillDrops() {
+        val point =
+            menuPosition(
+                caret = ScreenPoint(2100, 200),
+                cursor = ScreenPoint(10, 10),
+                menuWidth = 500,
+                menuHeight = 560,
+                workAreas = listOf(desktop, right),
+                window = WindowBounds(2000, 40, 2800, 900),
+            )
+        assertEquals(ScreenPoint(2100, 224), point)
+    }
+
+    @Test
     fun aPointPastTheRightMonitorUsesThatMonitor() {
         val point =
             menuPosition(

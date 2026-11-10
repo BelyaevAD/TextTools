@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Checkbox
@@ -180,7 +181,7 @@ fun actionCard(
             lineField(
                 promptText,
                 { promptText = it },
-                Modifier.fillMaxWidth().weight(1f),
+                Modifier.fillMaxWidth().heightIn(min = 180.dp).weight(1f),
                 singleLine = false,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -21,7 +21,7 @@ const val MENU_OUTER_WIDTH = 488
 const val BANNER_OUTER_WIDTH = 326
 
 /** Visible height of the busy banner. */
-const val BANNER_OUTER_HEIGHT = 84
+const val BANNER_OUTER_HEIGHT = 120
 
 private const val BANNER_MARGIN = 12
 
@@ -33,11 +33,11 @@ val EditorHeight = 545.dp
 val HistoryWidth = 998.dp
 val HistoryHeight = 456.dp
 val ActionCardWidth = 663.dp
-val ActionCardHeight = 460.dp
+val ActionCardHeight = 720.dp
 val AppCardWidth = 748.dp
-val AppCardHeight = 284.dp
+val AppCardHeight = 440.dp
 val QuickCardWidth = 658.dp
-val QuickCardHeight = 292.dp
+val QuickCardHeight = 380.dp
 val KeyConflictWidth = 455.dp
 val KeyConflictHeight = 222.dp
 

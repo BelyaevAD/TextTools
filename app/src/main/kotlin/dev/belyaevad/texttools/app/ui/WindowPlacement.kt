@@ -44,10 +44,22 @@ internal fun rememberPlacement(
     id: String,
     width: Dp,
     height: Dp,
+    atLeastDesign: Boolean = false,
 ): Placement {
     val saved =
-        remember(id) {
-            WindowFrames.read(id)?.let { placeOnScreen(it, currentWorkAreas()) }
+        remember(id, width, height, atLeastDesign) {
+            WindowFrames.read(id)?.let { frame ->
+                val floored =
+                    if (atLeastDesign) {
+                        frame.copy(
+                            width = maxOf(frame.width, width.value.toInt()),
+                            height = maxOf(frame.height, height.value.toInt()),
+                        )
+                    } else {
+                        frame
+                    }
+                placeOnScreen(floored, currentWorkAreas())
+            }
         }
     return if (saved == null) {
         Placement(WindowPosition.PlatformDefault, width, height, restored = false)

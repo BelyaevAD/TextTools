@@ -178,6 +178,20 @@ fun matchApp(
         ?: same.firstOrNull { it.title.isEmpty() }
 }
 
+/**
+ * Rough token count used before the provider answers.
+ * ASCII-heavy text is about 4 characters per token. Other text is about 2.
+ * A sample of the first 4000 characters sets the mix. Matches the old script's EstTokens.
+ */
+fun estimateTokens(text: String): Int {
+    val count = text.length
+    if (count == 0) return 0
+    val sample = if (count > 4000) text.substring(0, 4000) else text
+    val ascii = sample.count { it.code < 128 }
+    val share = ascii.toDouble() / sample.length
+    return kotlin.math.round((count * share / 4.0) + (count * (1.0 - share) / 2.0)).toInt()
+}
+
 /** Cost estimate. Null when the catalogue has no price, never a fake zero. */
 fun costOf(
     entry: CatalogEntry?,

@@ -43,6 +43,7 @@ import texttools.app.generated.resources.ed_field_prompt
 import texttools.app.generated.resources.ed_field_result
 import texttools.app.generated.resources.ed_grid_order
 import texttools.app.generated.resources.ed_hint
+import texttools.app.generated.resources.ed_hint_quick
 import texttools.app.generated.resources.ed_icon
 import texttools.app.generated.resources.ed_key_none
 import texttools.app.generated.resources.ed_key_swap
@@ -126,6 +127,7 @@ internal enum class Ed(
     FIELD_RESULT(Res.string.ed_field_result),
     GRID_ORDER(Res.string.ed_grid_order),
     HINT(Res.string.ed_hint),
+    HINT_QUICK(Res.string.ed_hint_quick),
     ICON(Res.string.ed_icon),
     KEY_NONE(Res.string.ed_key_none),
     KEY_SWAP(Res.string.ed_key_swap),

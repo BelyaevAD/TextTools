@@ -63,6 +63,9 @@ import dev.belyaevad.texttools.app.ui.run.AppProfiler
 import dev.belyaevad.texttools.app.ui.run.RunAction
 import dev.belyaevad.texttools.app.ui.run.RunPhase
 import dev.belyaevad.texttools.app.ui.run.RunStatus
+import dev.belyaevad.texttools.app.ui.run.RunUsage
+import dev.belyaevad.texttools.app.ui.run.bannerMoney
+import dev.belyaevad.texttools.app.ui.run.groupedCount
 import dev.belyaevad.texttools.app.ui.run.requestCost
 import dev.belyaevad.texttools.app.ui.run.statusSeconds
 import dev.belyaevad.texttools.app.ui.settings.SettingsCallbacks
@@ -100,7 +103,9 @@ import dev.belyaevad.texttools.platform.win.GlobalChord
 import dev.belyaevad.texttools.platform.win.InstanceAction
 import dev.belyaevad.texttools.platform.win.ScreenPoint
 import dev.belyaevad.texttools.platform.win.SecretSlot
+import dev.belyaevad.texttools.platform.win.SourceSnapshot
 import dev.belyaevad.texttools.platform.win.UserSecrets
+import dev.belyaevad.texttools.platform.win.WindowBounds
 import dev.belyaevad.texttools.platform.win.WindowsRunKey
 import dev.belyaevad.texttools.platform.win.autostartEnabled
 import dev.belyaevad.texttools.platform.win.claimFirstInstance
@@ -110,7 +115,7 @@ import dev.belyaevad.texttools.platform.win.enterSingleInstance
 import dev.belyaevad.texttools.platform.win.hasUserSource
 import dev.belyaevad.texttools.platform.win.installedAutostart
 import dev.belyaevad.texttools.platform.win.menuPosition
-import dev.belyaevad.texttools.platform.win.sourceApp
+import dev.belyaevad.texttools.platform.win.sourceSnapshot
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
@@ -132,11 +137,16 @@ import texttools.app.generated.resources.app_no_selection
 import texttools.app.generated.resources.app_no_source
 import texttools.app.generated.resources.app_nothing_to_repeat
 import texttools.app.generated.resources.app_profile_label
+import texttools.app.generated.resources.app_profile_unknown
 import texttools.app.generated.resources.app_request_failed
 import texttools.app.generated.resources.app_request_running
 import texttools.app.generated.resources.app_restart_failed
 import texttools.app.generated.resources.app_run_done
+import texttools.app.generated.resources.app_run_estimate
+import texttools.app.generated.resources.app_run_estimate_cost
 import texttools.app.generated.resources.app_run_preparing
+import texttools.app.generated.resources.app_run_usage
+import texttools.app.generated.resources.app_run_usage_cost
 import texttools.app.generated.resources.app_save_failed
 import texttools.app.generated.resources.app_seconds
 import texttools.app.generated.resources.app_settings_saved
@@ -233,6 +243,7 @@ private data class MenuRequest(
     val actions: List<Action>,
     val at: ScreenPoint,
     val heightPx: Int,
+    val source: SourceSnapshot,
 )
 
 private data class ShownResult(
@@ -336,6 +347,7 @@ private fun ApplicationScope.textToolsContent(
     var flashToken by remember { mutableIntStateOf(if (startupNote == null) 0 else 1) }
     val profileAdded = stringResource(Res.string.settings_profile_added)
     val profileWindow = stringResource(Res.string.settings_profile_window)
+    val profileUnknown = stringResource(Res.string.app_profile_unknown)
     val profileLabel = stringResource(Res.string.app_profile_label)
 
     fun flash(message: UiText) {
@@ -357,6 +369,7 @@ private fun ApplicationScope.textToolsContent(
             slot = slot,
             profileAdded = profileAdded,
             profileWindow = profileWindow,
+            profileUnknown = profileUnknown,
             profileLabel = profileLabel,
             hooks =
                 ActionHooks(
@@ -471,7 +484,7 @@ private fun ApplicationScope.textToolsContent(
             onRun = { action, extra, shift ->
                 val selection = request.selection
                 menu = null
-                runs.start(action, selection, extra, shift, request.at)
+                runs.start(action, selection, extra, shift, request.at, request.source)
             },
             onEditor = {
                 menu = null
@@ -549,6 +562,7 @@ private class ActionRun(
     private val slot: SettingsSlot,
     private val profileAdded: String,
     private val profileWindow: String,
+    private val profileUnknown: String,
     private val profileLabel: String,
     private val hooks: ActionHooks,
 ) {
@@ -558,6 +572,7 @@ private class ActionRun(
         instruction: String,
         shift: Boolean,
         at: ScreenPoint,
+        source: SourceSnapshot,
     ) {
         if (runner.busy) {
             hooks.flash(REQUEST_RUNNING)
@@ -568,11 +583,12 @@ private class ActionRun(
             hooks.openSettings()
             return
         }
-        val app = sourceApp(graph.watch)
         val token = hooks.nextToken()
         hooks.rememberRun(action, instruction)
         hooks.placeBanner(at)
-        scope.launch { runBody(action, selection, instruction, shift, app.proc, app.title, token) }
+        scope.launch {
+            runBody(action, selection, instruction, shift, source.proc, source.title, source.windowClass, token)
+        }
     }
 
     fun flash(message: UiText) = hooks.flash(message)
@@ -584,6 +600,7 @@ private class ActionRun(
         shift: Boolean,
         proc: String,
         title: String,
+        windowClass: String,
         token: Int,
     ) {
         try {
@@ -624,8 +641,11 @@ private class ActionRun(
             ).consider(
                 proc = proc,
                 title = title,
+                windowClass = windowClass,
                 enabled = current.appProfiling && model.isNotBlank(),
                 description = description,
+                addedPrefix = profileAdded,
+                unknownDescription = profileUnknown,
             )
             hooks.showBanner(true)
             withContext(Dispatchers.IO) {
@@ -757,6 +777,7 @@ private suspend fun captureMenu(
         flash(NO_SOURCE)
         return
     }
+    val source = sourceSnapshot(graph.watch)
     val caret = graph.watch.caretNow()
     val cursor = pointerNow()
     val (selection, warning) = takeSelection(graph, seconds)
@@ -766,8 +787,8 @@ private suspend fun captureMenu(
         return
     }
     val actions = graph.store.actions()
-    val placed = placeMenu(actions.size, caret, cursor)
-    open(MenuRequest(selection, actions, placed.first, placed.second))
+    val placed = placeMenu(actions.size, caret, cursor, source.bounds)
+    open(MenuRequest(selection, actions, placed.first, placed.second, source))
 }
 
 private suspend fun captureRepeat(
@@ -786,14 +807,15 @@ private suspend fun captureRepeat(
         runs.flash(NO_SOURCE)
         return
     }
-    val at = pointerNow()
+    val source = sourceSnapshot(graph.watch)
+    val at = source.bounds?.anchor() ?: pointerNow()
     val (selection, warning) = takeSelection(graph, seconds)
     if (menuOpen()) return
     if (selection.isEmpty()) {
         runs.flash(warning ?: NO_SELECTION)
         return
     }
-    runs.start(action, selection, extra, false, at)
+    runs.start(action, selection, extra, false, at, source)
 }
 
 private fun applySavedSettings(
@@ -1065,6 +1087,14 @@ private fun BusyBanner(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp,
                     )
+                    status.usage?.let { usage ->
+                        Text(
+                            usageLine(usage),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 12.sp,
+                            maxLines = 2,
+                        )
+                    }
                 }
             }
         }
@@ -1119,7 +1149,7 @@ private fun EditorScreen(
 ) {
     val actions = remember { graph.store.actions() }
     val quick = remember { graph.store.quick() }
-    val apps = remember { graph.store.apps() }
+    val apps = remember { graph.store.apps().ifEmpty { Factory.apps } }
     val languages = remember { graph.store.languages().ifEmpty { Factory.languages } }
     val models = remember(settings.baseUrl) { graph.store.models(settings.baseUrl).map { it.id } }
     editorWindow(
@@ -1551,9 +1581,31 @@ private fun placeMenu(
     actionCount: Int,
     caret: ScreenPoint?,
     cursor: ScreenPoint,
+    window: WindowBounds?,
 ): Pair<ScreenPoint, Int> {
     val height = menuOuterHeight(actionCount)
-    return menuPosition(caret, cursor, MENU_WIDTH, height, currentWorkAreas()) to height
+    return menuPosition(caret, cursor, MENU_WIDTH, height, currentWorkAreas(), window) to height
+}
+
+@Composable
+private fun usageLine(usage: RunUsage): String {
+    val prompt = groupedCount(usage.promptTokens)
+    val cost = usage.cost?.let { bannerMoney(it) }
+    return if (usage.approximate) {
+        val chars = groupedCount(usage.characters)
+        if (cost == null) {
+            stringResource(Res.string.app_run_estimate, chars, prompt)
+        } else {
+            stringResource(Res.string.app_run_estimate_cost, chars, prompt, cost)
+        }
+    } else {
+        val completion = groupedCount(usage.completionTokens ?: 0)
+        if (cost == null) {
+            stringResource(Res.string.app_run_usage, prompt, completion)
+        } else {
+            stringResource(Res.string.app_run_usage_cost, prompt, completion, cost)
+        }
+    }
 }
 
 private fun pointerNow(): ScreenPoint {

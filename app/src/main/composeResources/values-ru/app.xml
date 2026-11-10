@@ -30,8 +30,13 @@
     <string name="app_editor_saved">Сохранено: действий %1$s, уточнений %2$s, приложений %3$s</string>
     <string name="app_run_preparing">готовлю запрос</string>
     <string name="app_run_done">готово</string>
+    <string name="app_run_estimate">отправлено %1$s симв. ≈ %2$s ток.</string>
+    <string name="app_run_estimate_cost">отправлено %1$s симв. ≈ %2$s ток. · ≈ %3$s</string>
+    <string name="app_run_usage">промпт %1$s ток. · ответ %2$s ток.</string>
+    <string name="app_run_usage_cost">промпт %1$s ток. · ответ %2$s ток. · %3$s</string>
     <string name="app_seconds">%1$s с</string>
     <string name="app_profile_label">описание приложения</string>
+    <string name="app_profile_unknown">Автоматически не распознано</string>
     <string name="error_empty_response">Модель вернула пустой ответ. Выделенный текст не изменён.</string>
     <string name="error_empty_url">Адрес API пуст</string>
     <string name="error_invalid_url">Адрес API не разобран</string>

@@ -30,6 +30,7 @@
     <string name="ed_app_order">Order does not matter:</string>
     <string name="ed_app_order_hint">entries with a title are checked first, so Jira wins over generic Chrome</string>
     <string name="ed_hint">The key is chosen in the action card from %1$d possible keys; a taken key can be swapped or taken. List order only sets the grid layout. Prompts are written in English so the model follows the instruction more closely.</string>
+    <string name="ed_hint_quick">These buttons appear in the result window on the Quick row. That window opens when the action is set to open in a window, or when Shift is held at launch. A button sends its instruction as the next turn of the same conversation.</string>
     <string name="ed_result_replace">replace selection</string>
     <string name="ed_result_window">in a window</string>
     <string name="ed_result_open">open in a window</string>

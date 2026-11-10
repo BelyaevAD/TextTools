@@ -39,6 +39,8 @@ class RunActionTest {
                     complete = { _, _ ->
                         assertTrue(running.busy)
                         assertEquals(RunPhase.Preparing, running.banner()?.phase)
+                        assertEquals(true, running.banner()?.usage?.approximate)
+                        assertTrue((running.banner()?.usage?.promptTokens ?: 0) > 0)
                         assertEquals(0L, running.banner()?.elapsedMillis)
                         now = 2_600L
                         assertEquals(1600L, running.banner()?.elapsedMillis)
@@ -65,6 +67,11 @@ class RunActionTest {
                 assertEquals("MODEL-OUT", opened.clip.text)
                 now = 9_000L
                 assertEquals(RunPhase.Done, opened.action.banner()?.phase)
+                val spent = opened.action.banner()?.usage
+                assertEquals(2, spent?.promptTokens)
+                assertEquals(3, spent?.completionTokens)
+                assertEquals(8.0, spent?.cost)
+                assertEquals(false, spent?.approximate)
                 assertEquals(1600L, opened.action.banner()?.elapsedMillis)
                 assertEquals("0.0", statusSeconds(0))
                 assertEquals("1.5", statusSeconds(1_500))
