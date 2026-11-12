@@ -29,7 +29,9 @@
     <string name="app_settings_saved">Сохранено. Хоткей меню: %1$s</string>
     <string name="app_editor_saved">Сохранено: действий %1$s, уточнений %2$s, приложений %3$s</string>
     <string name="app_run_preparing">готовлю запрос</string>
+    <string name="app_run_preparing_for">готовлю запрос для %1$s</string>
     <string name="app_run_done">готово</string>
+    <string name="app_run_done_for">готово для %1$s</string>
     <string name="app_run_estimate">отправлено %1$s симв. ≈ %2$s ток.</string>
     <string name="app_run_estimate_cost">отправлено %1$s симв. ≈ %2$s ток. · ≈ %3$s</string>
     <string name="app_run_usage">промпт %1$s ток. · ответ %2$s ток.</string>

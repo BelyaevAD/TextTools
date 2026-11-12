@@ -4,7 +4,7 @@ Linked from docs/README.md. Supersedes the INI stores. Tables and files are in [
 
 `TextToolsStore` replaces each list in one transaction. An empty action table is seeded from the factory list. `quick_saved` keeps an intentional empty quick list. Roles are filled from the seed on read. `appendUsage` holds one lock around the read and the replace. History and usage limits are the domain functions the store calls.
 
-`LlmClient.complete` posts `{baseUrl}/chat/completions` with `stream` false and a bearer header. The body is the model and the chat messages. An empty HTTP body is an error. A non-success status becomes a short status text. Empty message content is an error. Usage is read from `prompt_tokens` and `completion_tokens`; a missing usage object is null, and a missing count is zero only when the other count is present. `shouldProxy` is true only when `effectiveProxy` is not empty and the address is not loopback. The proxied client is used only then.
+`LlmClient.complete` posts `{baseUrl}/chat/completions` with `stream` false and a bearer header. The body is the model and the chat messages. An empty HTTP body is an error. A non-success status becomes a short status text. Empty message content is an error. Usage is read from `prompt_tokens` and `completion_tokens`; a missing usage object is null, and a missing count is zero only when the other count is present. `shouldProxy` is true only when `effectiveProxy` is not empty and the address is not loopback. The proxied client is used only then. The app supplies both clients and each waits 180 seconds for response bytes.
 
 `LegacyImport` reads an AHK folder and does not modify it. The file-to-table map is on the schema page. Secrets come back on the result object.
 

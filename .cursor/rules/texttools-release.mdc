@@ -4,16 +4,19 @@ globs:
   - CHANGELOG.md
   - README.md
   - docs/assets/screenshots/**
+  - docs/screenshots/**
   - packaging/windows/**
+  - packaging/screenshots/**
 alwaysApply: false
 ---
 
 # TextTools release
 
 - Start every release with a clean rebuild of each package, even when `dist/` already has files: `./gradlew clean :app:packageMsi` on Windows, `./gradlew clean :app:packageDeb` from a fresh tree in Ubuntu, and the Mac script for the DMG. Publish only the files that rebuild produced.
-- `CHANGELOG.md` follows `archive/ahk`: version, date, what changed for the person using the app. Do not copy old AutoHotkey entries onto `main`.
+- The version is three numbers, `1.1.123`. The changelog heading, README line, `packageVersion`, installer name, and tag match. Each user-visible change gets a new heading and the last number increases by one. Do not open a `v1.2` style heading to hold a batch. Published tags `v1.0` and `v1.1` stay.
+- `CHANGELOG.md` states the version, the date, and what changed for the person using the app. Do not copy old AutoHotkey entries onto `main`.
 - Release notes and the README link only to those built files. Say the DMG is built on a Mac when it was not built here. No secrets.
-- Screenshots show the current interface. Do not reuse AutoHotkey shots from `gh-pages`.
+- Do not capture the screen here. The screenshot skill does that, then blurs the outer 5 pixels. Do not reuse AutoHotkey shots from `gh-pages`.
 - Update `gh-pages` (`index.html` and `en/` together) in its own commit, not in `main`.
-- Move the version tag onto the commit that contains the changelog and the README, then push. Do not rewrite `main`.
+- Tag the commit that contains the changelog and the README with `git tag -a vX.Y.Z`, then push. Do not rewrite `main`.
 - A change to `packaging/windows/main.wxs` keeps `Language="!(loc.ProductLanguage)"` and the `l10n-*.wxl` cultures (`en-us`, `de-de`, `ja-jp`, `zh-cn`, `ru-ru`). The MSI task copies `main.wxs` and the `l10n-*.wxl` files into the jpackage resource directory.

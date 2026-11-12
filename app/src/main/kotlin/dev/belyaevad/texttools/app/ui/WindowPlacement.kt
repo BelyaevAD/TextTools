@@ -164,6 +164,7 @@ internal object WindowFrames {
                     props.store(writer, "TextTools window frames")
                 }
             } catch (_: IOException) {
+                // The in-memory frame stays. The next save tries again.
             }
         }
     }
@@ -173,6 +174,7 @@ internal object WindowFrames {
         try {
             Files.newBufferedReader(file, StandardCharsets.UTF_8).use { reader -> props.load(reader) }
         } catch (_: IOException) {
+            // An unreadable frame file leaves the default window position.
         }
     }
 }

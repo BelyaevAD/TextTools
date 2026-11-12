@@ -61,6 +61,33 @@ class HotkeySwapTest {
     }
 
     @Test
+    fun startRegistersTheSavedChordBeforeTheFactoryPair() {
+        val port = FakeHotkeyPort()
+        val hotkeys = WinHotkeys({}, port)
+        try {
+            assertTrue(hotkeys.start("^Space", "^+A"))
+            assertEquals(chord("^Space"), port.chord(MENU_HOTKEY_ID))
+            assertEquals(chord("^+A"), port.chord(REPEAT_HOTKEY_ID))
+        } finally {
+            hotkeys.stop()
+        }
+    }
+
+    @Test
+    fun aRefusedSavedChordFallsBackToTheFactoryPair() {
+        val port = FakeHotkeyPort()
+        val hotkeys = WinHotkeys({}, port)
+        port.refuse(setOf(chord("^Space"), chord("^+A")))
+        try {
+            assertTrue(hotkeys.start("^Space", "^+A"))
+            assertEquals(chord("^!Space"), port.chord(MENU_HOTKEY_ID))
+            assertEquals(chord("^+Space"), port.chord(REPEAT_HOTKEY_ID))
+        } finally {
+            hotkeys.stop()
+        }
+    }
+
+    @Test
     fun swapBeforeTheLoopDoesNotRegister() {
         val port = FakeHotkeyPort()
         val hotkeys = WinHotkeys({}, port)

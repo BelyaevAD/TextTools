@@ -1,0 +1,32 @@
+features:
+  - id: llm-chat
+    title: OpenAI-compatible chat
+    readme: docs/modules/data.md
+    classes:
+      - data/src/main/kotlin/dev/belyaevad/texttools/data/Llm.kt
+      - app/src/main/kotlin/dev/belyaevad/texttools/app/AppGraph.kt
+    notes:
+      - "current: LlmClient posts one non-streaming completion to the provider chat/completions path with a bearer header. The direct client is used unless a proxy is configured and the base URL is not loopback, in which case the proxy client is used. Both clients wait 180 seconds for response bytes. An empty body, empty content, or a non-success status fails the call. Token counts come from prompt_tokens and completion_tokens. When error reports are on, a failed call, including a socket timeout, is sent to GlitchTip."
+      - "2026-11-11 fix: Model HTTP clients wait 180 seconds to read a chat completion. Why: OkHttp's 10 second read timeout aborted a live OpenAI completion and opened TEXTTOOLS-4. Now: both clients use a 180 second read timeout, and a timeout is still reported when error reports are on."
+  - id: release-line
+    title: Three-part release numbers
+    classes:
+      - .cursor/skills/texttools-release/SKILL.md
+      - .cursor/rules/texttools-release.mdc
+      - CHANGELOG.md
+      - app/build.gradle.kts
+    notes:
+      - "current: A release number has three parts and is the same in the changelog heading, the README version line, packageVersion, the installer name, and the tag. After published v1.1 the next release is v1.1.1, and each later user-visible change increments the last part instead of opening a two-part heading. Published tags v1.0 and v1.1 stay. The open draft is v1.1.1."
+      - "2026-11-13 change: Release numbers are three parts and the last part moves for every user-visible change. Why: two-part headings such as v1.2 batched work and made releases rare. Now: the draft that was v1.2 is v1.1.1, and the next user-visible change starts v1.1.2."
+  - id: screenshot-frame
+    title: Screenshot frame blur
+    classes:
+      - packaging/screenshots/BlurBorder.java
+      - packaging/screenshots/capture-foreground.ps1
+      - packaging/screenshots/sync-catalog.ps1
+      - docs/screenshots/catalog.yaml
+      - .cursor/skills/texttools-screenshots/SKILL.md
+      - .cursor/rules/texttools-screenshots.mdc
+    notes:
+      - "current: The agent that edits the product does not capture the screen. A subagent opens each surface in docs/screenshots/catalog.yaml, packaging/screenshots/capture-foreground.ps1 saves that TextTools window, and BlurBorder blurs the outer 5 pixels from the window edge so the desktop behind the window is not a hard rim. sync-catalog.ps1 appends a surface when a new window, editor page, or settings tab appears, and skips alert dialogs and a private function that only draws a window another function in the same file already opens. Interior pixels stay sharp."
+      - "2026-11-13 add: Blur the outer 5 pixels of a screenshot and capture it from a subagent. Why: the window capture includes a sliver of the desktop, and taking the shot in the main agent is expensive. Now: the catalog grows from the code, the subagent captures, and the 5 pixel frame is blurred."

@@ -582,14 +582,17 @@ private fun noticeText(notice: SettingsNotice): String =
             stringResource(Res.string.settings_models_failed) + "\n\n" +
                 noticeText(notice.reason, notice.httpStatus, notice.detail)
         is SettingsNotice.TestOk -> stringResource(Res.string.settings_test_ok) + "\n\n" + notice.reply
-        is SettingsNotice.TestFailed ->
-            stringResource(Res.string.settings_test_fail) + "\n\n" +
-                noticeText(notice.reason, notice.httpStatus, notice.detail)
+        is SettingsNotice.TestFailed -> failedNotice(notice.reason, notice.httpStatus, notice.detail)
         SettingsNotice.RetargetDone -> stringResource(Res.string.settings_retarget_done)
-        is SettingsNotice.RetargetFailed ->
-            stringResource(Res.string.settings_test_fail) + "\n\n" +
-                noticeText(notice.reason, notice.httpStatus, notice.detail)
+        is SettingsNotice.RetargetFailed -> failedNotice(notice.reason, notice.httpStatus, notice.detail)
     }
+
+@Composable
+private fun failedNotice(
+    reason: ErrorReason,
+    status: Int?,
+    detail: String,
+): String = stringResource(Res.string.settings_test_fail) + "\n\n" + noticeText(reason, status, detail)
 
 @Composable
 private fun noticeText(

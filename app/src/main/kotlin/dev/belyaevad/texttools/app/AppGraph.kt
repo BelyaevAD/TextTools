@@ -34,6 +34,7 @@ import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.Duration
 
 /**
  * Desktop wiring. Construction does not call [WinHotkeys.start], [ForegroundWatch.start], or open a window.
@@ -121,11 +122,15 @@ private fun setUserVersion(
     }
 }
 
+// shortcut: 180s with no response bytes, raise when a slow model still times out.
+private val CHAT_READ_TIMEOUT: Duration = Duration.ofSeconds(180)
+
 private fun directClient(): HttpClient =
     HttpClient(OkHttp) {
         engine {
             config {
                 proxy(Proxy.NO_PROXY)
+                readTimeout(CHAT_READ_TIMEOUT)
             }
         }
     }
@@ -137,6 +142,7 @@ private fun proxiedClient(secrets: UserSecrets): HttpClient =
             config {
                 proxySelector(SecretProxySelector(secrets))
                 proxyAuthenticator(SecretProxyAuthenticator(secrets))
+                readTimeout(CHAT_READ_TIMEOUT)
             }
         }
     }

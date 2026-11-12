@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.1.1 — 2026-11-12
+
+- The action menu opens beside the input field when the selection is in a field, and beside the cursor when the selection is on a page. The side nearest the cursor is used when it stays on screen and does not cover that point.
+- The result is pasted back into that field when the field can take text. A page selection opens the result window beside the cursor.
+- The progress window names the application when that application has a prompt note.
+- A model call waits up to 180 seconds for the response.
+- The saved hotkeys are registered. Ctrl+Alt+Space and Ctrl+Shift+Space are used when Windows refuses the saved menu hotkey.
+
+Downloads for this version are the Windows installer `TextTools-1.1.1.msi`. The Debian package and the macOS disk image are built on their own systems: `./gradlew :app:packageDeb` and `sh packaging/macos/package-dmg.sh`.
+
 ## v1.1 — 2026-11-11
 
 - The action menu opens on the window where the text was selected. The mouse is used only when that window cannot be found.

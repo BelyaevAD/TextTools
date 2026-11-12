@@ -9,6 +9,10 @@ plugins {
     alias(libs.plugins.ktlint) apply false
 }
 
+repositories {
+    mavenCentral()
+}
+
 subprojects {
     repositories {
         mavenCentral()

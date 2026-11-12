@@ -21,6 +21,13 @@ interface ClipIo {
     fun hasImageOrFiles(): Boolean = false
 
     /**
+     * True when the source field can take the result.
+     * A Win32 caret counts. So does a focused editable control that does not publish one.
+     * Tests paste unless they override this.
+     */
+    fun canAcceptText(): Boolean = true
+
+    /**
      * True when the source window belongs to another process and is elevated,
      * or its token cannot be read. Paste must not be sent.
      */
@@ -76,14 +83,13 @@ class ClipboardProtocol internal constructor(
             warnNonTextOnce()
             return ""
         }
-        if (saved == null) return ""
         if (!io.writeText("")) {
-            io.writeText(saved)
+            if (saved != null) io.writeText(saved)
             return ""
         }
         io.sendCopy()
         val text = waitForCopy(waitMillis)
-        io.writeText(saved)
+        io.writeText(saved ?: "")
         return text
     }
 
@@ -106,6 +112,10 @@ class ClipboardProtocol internal constructor(
         if (io.elevatedForeign()) return PasteAttempt.ShowInWindow
         if (!io.writeText(text)) return PasteAttempt.ShowInWindow
         if (!io.activateSource()) return PasteAttempt.ShowInWindow
+        if (!io.canAcceptText()) {
+            io.writeText(saved)
+            return PasteAttempt.ShowInWindow
+        }
         io.sendPaste()
         return PasteAttempt.Sent(saved, text)
     }

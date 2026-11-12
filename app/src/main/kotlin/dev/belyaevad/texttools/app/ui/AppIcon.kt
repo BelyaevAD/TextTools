@@ -36,7 +36,9 @@ internal fun installApplicationIcon() {
             taskbar.iconImage = image
         }
     } catch (_: UnsupportedOperationException) {
+        // This JDK has no taskbar icon. The window icon still applies.
     } catch (_: SecurityException) {
+        // A denied taskbar write leaves the window icon in place.
     }
 }
 

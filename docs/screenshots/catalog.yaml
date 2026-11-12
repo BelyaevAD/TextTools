@@ -1,0 +1,80 @@
+# Shot list. packaging/screenshots/sync-catalog.ps1 appends a row for a new window, editor page, or settings tab.
+surfaces:
+  - id: menu
+    file: docs/assets/screenshots/en/menu.png
+    source: ActionMenuWindow
+    match: TextTools
+    readme: true
+    gate: false
+    open: Select text and press Ctrl+Alt+Space. The window title is exactly TextTools and it closes when focus leaves, so start the capture waiter before opening it.
+  - id: tray-menu
+    file: docs/assets/screenshots/en/tray-menu.png
+    source: tray-menu
+    match: ""
+    readme: true
+    gate: false
+    popup: true
+    open: Open the TextTools tray icon menu. Do not click Exit, Restart, or Clear.
+  - id: settings-api
+    file: docs/assets/screenshots/en/settings-api.png
+    source: settings_tab_api
+    match: TextTools - settings
+    readme: true
+    gate: true
+    open: Tray, Settings, API tab. Leave the key, proxy password, and DSN empty.
+  - id: settings-languages
+    file: docs/assets/screenshots/en/settings-languages.png
+    source: settings_tab_langs
+    match: TextTools - settings
+    readme: true
+    gate: true
+    open: Tray, Settings, Output languages tab.
+  - id: settings-interface
+    file: docs/assets/screenshots/en/settings-interface.png
+    source: settings_tab_ui
+    match: TextTools - settings
+    readme: true
+    gate: true
+    open: Tray, Settings, Interface tab. Leave the DSN empty.
+  - id: result
+    file: docs/assets/screenshots/en/result.png
+    source: ResultWindow
+    match: TextTools - Last result
+    readme: true
+    gate: true
+    open: Tray, Last result. Do not type a key, a proxy password, or a DSN.
+  - id: stats-window
+    file: docs/assets/screenshots/en/stats-window.png
+    source: StatsWindow
+    match: TextTools - Statistics
+    readme: false
+    gate: true
+    open: Tray, Statistics. Do not type a key, a proxy password, or a DSN.
+  - id: history-window
+    file: docs/assets/screenshots/en/history-window.png
+    source: HistoryWindow
+    match: TextTools - History
+    readme: false
+    gate: true
+    open: Tray, History. Do not type a key, a proxy password, or a DSN.
+  - id: actions-page
+    file: docs/assets/screenshots/en/actions-page.png
+    source: actionsPage
+    match: TextTools - action editor
+    readme: false
+    gate: true
+    open: Tray, Action editor, then the page drawn by actionsPage. Do not type a key, a proxy password, or a DSN.
+  - id: quick-page
+    file: docs/assets/screenshots/en/quick-page.png
+    source: quickPage
+    match: TextTools - action editor
+    readme: false
+    gate: true
+    open: Tray, Action editor, then the page drawn by quickPage. Do not type a key, a proxy password, or a DSN.
+  - id: apps-page
+    file: docs/assets/screenshots/en/apps-page.png
+    source: appsPage
+    match: TextTools - action editor
+    readme: false
+    gate: true
+    open: Tray, Action editor, then the page drawn by appsPage. Do not type a key, a proxy password, or a DSN.

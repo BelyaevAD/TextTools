@@ -71,11 +71,7 @@ class UsageTelemetryTest {
                     UsageTelemetry(
                         store,
                         { TelemetrySettings(traces = true, dsn = "https://example.invalid") },
-                        object : UsageMetricSink {
-                            override fun publish(batch: UsageBatch) {
-                                seen += batch
-                            }
-                        },
+                        UsageMetricSink { batch -> seen += batch },
                     )
                 telemetry.close()
                 assertEquals(1, seen.size)
@@ -101,11 +97,7 @@ class UsageTelemetryTest {
                 UsageTelemetry(
                     store,
                     { TelemetrySettings(traces = false, dsn = "https://example.invalid") },
-                    object : UsageMetricSink {
-                        override fun publish(batch: UsageBatch) {
-                            sent += 1
-                        }
-                    },
+                    UsageMetricSink { sent += 1 },
                 ).close()
                 assertEquals(0, sent)
                 assertEquals(1, store.pendingUsageEvents().size)

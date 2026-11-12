@@ -1,0 +1,3 @@
+edges:
+  - from: release-line
+    to: screenshot-frame

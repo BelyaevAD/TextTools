@@ -251,12 +251,15 @@ class RunActionTest {
             scene.use { opened ->
                 opened.action.run(proof(), "Hello", "", false, "chrome.exe", "Jira")
                 assertTrue("issue keys" in system)
+                assertEquals("Jira (в браузере)", opened.action.banner()?.source)
                 opened.store.saveApps(listOf(AppProfile("note.exe", "Mine", "Note", "", "STORED HINT")))
                 opened.action.run(proof(), "Hello", "", false, "NOTE.EXE", "x Mine y")
                 assertTrue("STORED HINT" in system)
+                assertEquals("Note", opened.action.banner()?.source)
                 opened.action.run(proof(), "Hello", "", false, "chrome.exe", "Jira")
                 assertFalse("SOURCE APPLICATION:" in system)
                 assertFalse("issue keys" in system)
+                assertEquals(null, opened.action.banner()?.source)
                 assertEquals(0, opened.store.usage().size)
             }
         }

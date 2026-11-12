@@ -110,86 +110,88 @@ class LegacyImport(private val store: TextToolsStore) {
 private val minuteStamp: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
 private val secondStamp: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
 
-private fun parseActions(ini: Map<String, String>): List<Action> {
-    val out = mutableListOf<Action>()
-    for (index in 1..Factory.MAX_ACTIONS) {
-        val rawName = ini["action$index.name"] ?: break
-        if (rawName.isEmpty()) break
-        val rawTask = ini["action$index.task"].orEmpty()
-        if (rawTask.isEmpty()) continue
-        val rawId = ini["action$index.id"].orEmpty()
-        val rawKey = ini["action$index.key"] ?: Factory.menuKeys.getOrElse(index - 1) { "" }
-        val rawModel = ini["action$index.model"].orEmpty()
-        out += Action(
-            factoryId = rawId.takeUnless { it.isEmpty() || it == "-" },
-            name = jsonUnesc(rawName),
-            icon = jsonUnesc(ini["action$index.icon"].orEmpty()),
-            prefix = jsonUnesc(ini["action$index.prefix"].orEmpty()),
-            task = jsonUnesc(rawTask),
-            lang = ini["action$index.lang"] ?: "auto",
-            styleOn = (ini["action$index.ru"] ?: "1") == "1",
-            openInWindow = (ini["action$index.win"] ?: "0") == "1",
-            menuKey = rawKey.takeUnless { it.isEmpty() || it == "-" },
-            model = rawModel.takeUnless { it.isEmpty() || it == "-" },
-            role = null,
-        )
+private fun parseActions(ini: Map<String, String>): List<Action> =
+    buildList {
+        for (index in 1..Factory.MAX_ACTIONS) {
+            val rawName = ini["action$index.name"] ?: break
+            if (rawName.isEmpty()) break
+            val rawTask = ini["action$index.task"].orEmpty()
+            if (rawTask.isEmpty()) continue
+            val rawId = ini["action$index.id"].orEmpty()
+            val rawKey = ini["action$index.key"] ?: Factory.menuKeys.getOrElse(index - 1) { "" }
+            val rawModel = ini["action$index.model"].orEmpty()
+            add(
+                Action(
+                    factoryId = rawId.takeUnless { it.isEmpty() || it == "-" },
+                    name = jsonUnesc(rawName),
+                    icon = jsonUnesc(ini["action$index.icon"].orEmpty()),
+                    prefix = jsonUnesc(ini["action$index.prefix"].orEmpty()),
+                    task = jsonUnesc(rawTask),
+                    lang = ini["action$index.lang"] ?: "auto",
+                    styleOn = (ini["action$index.ru"] ?: "1") == "1",
+                    openInWindow = (ini["action$index.win"] ?: "0") == "1",
+                    menuKey = rawKey.takeUnless { it.isEmpty() || it == "-" },
+                    model = rawModel.takeUnless { it.isEmpty() || it == "-" },
+                    role = null,
+                ),
+            )
+        }
     }
-    return out
-}
 
-private fun parseQuick(ini: Map<String, String>): List<QuickRefine> {
-    val out = mutableListOf<QuickRefine>()
-    for (index in 1..Factory.MAX_ACTIONS) {
-        val rawLabel = ini["quick$index.label"] ?: break
-        if (rawLabel.isEmpty()) break
-        val rawInstr = ini["quick$index.instr"].orEmpty()
-        if (rawInstr.isEmpty()) continue
-        out += QuickRefine(jsonUnesc(rawLabel), jsonUnesc(rawInstr))
+private fun parseQuick(ini: Map<String, String>): List<QuickRefine> =
+    buildList {
+        for (index in 1..Factory.MAX_ACTIONS) {
+            val rawLabel = ini["quick$index.label"] ?: break
+            if (rawLabel.isEmpty()) break
+            val rawInstr = ini["quick$index.instr"].orEmpty()
+            if (rawInstr.isEmpty()) continue
+            add(QuickRefine(jsonUnesc(rawLabel), jsonUnesc(rawInstr)))
+        }
     }
-    return out
-}
 
-private fun parseApps(ini: Map<String, String>): List<AppProfile> {
-    val out = mutableListOf<AppProfile>()
-    for (index in 1..Factory.MAX_ACTIONS) {
-        val proc = jsonUnesc(ini["app$index.proc"] ?: break)
-        if (proc.isEmpty()) break
-        out += AppProfile(
-            proc = proc,
-            title = emptyDash(jsonUnesc(ini["app$index.title"].orEmpty())),
-            name = emptyDash(jsonUnesc(ini["app$index.name"].orEmpty())),
-            description = emptyDash(jsonUnesc(ini["app$index.desc"].orEmpty())),
-            hint = emptyDash(jsonUnesc(ini["app$index.hint"].orEmpty())),
-        )
+private fun parseApps(ini: Map<String, String>): List<AppProfile> =
+    buildList {
+        for (index in 1..Factory.MAX_ACTIONS) {
+            val proc = jsonUnesc(ini["app$index.proc"] ?: break)
+            if (proc.isEmpty()) break
+            add(
+                AppProfile(
+                    proc = proc,
+                    title = emptyDash(jsonUnesc(ini["app$index.title"].orEmpty())),
+                    name = emptyDash(jsonUnesc(ini["app$index.name"].orEmpty())),
+                    description = emptyDash(jsonUnesc(ini["app$index.desc"].orEmpty())),
+                    hint = emptyDash(jsonUnesc(ini["app$index.hint"].orEmpty())),
+                ),
+            )
+        }
     }
-    return out
-}
 
-private fun parseLangs(ini: Map<String, String>): List<OutputLanguage> {
-    val out = mutableListOf<OutputLanguage>()
-    for (index in 1..Factory.MAX_ACTIONS) {
-        val code = ini["lang$index.code"] ?: break
-        if (code.isEmpty()) break
-        val name = jsonUnesc(ini["lang$index.name"] ?: code)
-        val rawPrompt = ini["lang$index.prompt"]
-        val prompt = if (rawPrompt.isNullOrEmpty()) name else jsonUnesc(rawPrompt)
-        out += OutputLanguage(code, name, prompt, (ini["lang$index.on"] ?: "0") == "1")
+private fun parseLangs(ini: Map<String, String>): List<OutputLanguage> =
+    buildList {
+        for (index in 1..Factory.MAX_ACTIONS) {
+            val code = ini["lang$index.code"] ?: break
+            if (code.isEmpty()) break
+            val name = jsonUnesc(ini["lang$index.name"] ?: code)
+            val rawPrompt = ini["lang$index.prompt"]
+            val prompt = if (rawPrompt.isNullOrEmpty()) name else jsonUnesc(rawPrompt)
+            add(OutputLanguage(code, name, prompt, (ini["lang$index.on"] ?: "0") == "1"))
+        }
     }
-    return out
-}
 
 /** The file is newest first. An empty file clears history; unreadable rows leave it alone. */
 private fun parseHistory(text: String): List<HistoryRecord>? {
-    val newestFirst = mutableListOf<HistoryRecord>()
     var nonBlank = false
-    for (raw in text.split('\n')) {
-        if (newestFirst.size >= HISTORY_LIMIT) break
-        val line = raw.trim('\r', ' ', '\t')
-        if (line.isEmpty()) continue
-        nonBlank = true
-        val row = historyLine(line) ?: continue
-        newestFirst += row
-    }
+    val newestFirst =
+        buildList {
+            for (raw in text.split('\n')) {
+                if (size >= HISTORY_LIMIT) break
+                val line = raw.trim('\r', ' ', '\t')
+                if (line.isEmpty()) continue
+                nonBlank = true
+                val row = historyLine(line) ?: continue
+                add(row)
+            }
+        }
     if (newestFirst.isEmpty()) {
         return if (nonBlank) null else emptyList()
     }
@@ -217,15 +219,17 @@ private fun historyLine(line: String): HistoryRecord? {
 
 /** An empty file clears the log; a file with no readable rows leaves it alone. */
 private fun parseUsage(text: String): List<UsageRecord>? {
-    val out = mutableListOf<UsageRecord>()
     var nonBlank = false
-    for (raw in text.split('\n')) {
-        val line = raw.trim('\r', ' ', '\t')
-        if (line.isEmpty()) continue
-        nonBlank = true
-        val row = usageLine(line) ?: continue
-        out += row
-    }
+    val out =
+        buildList {
+            for (raw in text.split('\n')) {
+                val line = raw.trim('\r', ' ', '\t')
+                if (line.isEmpty()) continue
+                nonBlank = true
+                val row = usageLine(line) ?: continue
+                add(row)
+            }
+        }
     if (out.isEmpty()) {
         return if (nonBlank) null else emptyList()
     }
@@ -254,24 +258,39 @@ private fun splitList(raw: String?): List<String> {
 
 private fun emptyDash(value: String): String = if (value == "-") "" else value
 
+private sealed interface IniLine {
+    data object Skip : IniLine
+
+    data class Section(val name: String) : IniLine
+
+    data class Entry(val key: String, val value: String) : IniLine
+}
+
+private fun iniLine(raw: String): IniLine {
+    val line = raw.trim().trimStart('\uFEFF')
+    if (line.isEmpty() || line.startsWith(";")) return IniLine.Skip
+    if (line.startsWith("[") && line.endsWith("]")) {
+        return IniLine.Section(line.substring(1, line.length - 1).trim())
+    }
+    val eq = line.indexOf('=')
+    if (eq < 1) return IniLine.Skip
+    val key = line.substring(0, eq).trim()
+    if (key.isEmpty()) return IniLine.Skip
+    return IniLine.Entry(key, line.substring(eq + 1).trim())
+}
+
 private fun readIni(file: File): Map<String, String>? {
     val text = readUtf8(file) ?: return null
-    val out = linkedMapOf<String, String>()
     var section = ""
-    for (raw in text.split('\n')) {
-        val line = raw.trim().trimStart('\uFEFF')
-        if (line.isEmpty() || line.startsWith(";")) continue
-        if (line.startsWith("[") && line.endsWith("]")) {
-            section = line.substring(1, line.length - 1).trim()
-            continue
+    return buildMap {
+        for (raw in text.split('\n')) {
+            when (val parsed = iniLine(raw)) {
+                IniLine.Skip -> Unit
+                is IniLine.Section -> section = parsed.name
+                is IniLine.Entry -> put("$section.${parsed.key}", parsed.value)
+            }
         }
-        val eq = line.indexOf('=')
-        if (eq < 1) continue
-        val key = line.substring(0, eq).trim()
-        if (key.isEmpty()) continue
-        out["$section.${key}"] = line.substring(eq + 1).trim()
     }
-    return out
 }
 
 private fun readUtf8(file: File): String? {

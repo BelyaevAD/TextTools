@@ -51,6 +51,7 @@ private const val TOKEN_ELEVATION = 20
 private const val CF_BITMAP = 2
 private const val CARET_DROP_PX = 24
 private const val MENU_MARGIN_PX = 6
+private const val RESULT_GAP_PX = 12
 private const val WINDOW_ANCHOR_X = 32
 private const val WINDOW_ANCHOR_Y = 48
 private const val RUN_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run"
@@ -58,6 +59,8 @@ private const val MUTEX_NAME = "Local\\TextTools"
 
 internal const val MENU_HOTKEY_ID = 1
 internal const val REPEAT_HOTKEY_ID = 2
+private const val FACTORY_MENU_HOTKEY = "^!Space"
+private const val FACTORY_REPEAT_HOTKEY = "^+Space"
 
 private val shellClasses =
     setOf(
@@ -132,6 +135,8 @@ internal class HotkeyRegistration(
 
     fun hasAny(): Boolean = menu != null || repeat != null
 
+    fun menuReady(): Boolean = menu != null
+
     fun replace(
         nextMenu: Chord,
         nextRepeat: Chord,
@@ -170,8 +175,8 @@ internal class HotkeyRegistration(
 
 /**
  * Registers the two TextTools chords on a Windows message loop.
- * [start] uses Ctrl+Alt+Space and Ctrl+Shift+Space.
- * [swap] replaces that pair. Returns false when the strings are invalid, the loop is down,
+ * [start] registers the saved pair. The factory pair is only the fallback when that pair is refused.
+ * [swap] replaces the live pair. Returns false when the strings are invalid, the loop is down,
  * or Windows did not accept both chords.
  */
 class WinHotkeys internal constructor(
@@ -183,6 +188,12 @@ class WinHotkeys internal constructor(
     @Volatile
     private var threadId: Int = 0
 
+    @Volatile
+    private var initialMenu: String = FACTORY_MENU_HOTKEY
+
+    @Volatile
+    private var initialRepeat: String = FACTORY_REPEAT_HOTKEY
+
     private val running = AtomicBoolean(false)
     private val both = AtomicBoolean(false)
     private val jobs = LinkedBlockingQueue<SwapJob>()
@@ -190,12 +201,18 @@ class WinHotkeys internal constructor(
     private var thread: Thread? = null
 
     /**
-     * Starts the loop. The chords are registered on that same thread, which is where Windows delivers them.
-     * True only when both chords were accepted.
+     * Starts the loop and registers [menu] and [repeat].
+     * The factory pair is used only when [menu] cannot be parsed, or when Windows refuses the saved pair.
+     * True when the menu chord is registered. The chords are registered on this thread, which is where Windows delivers them.
      */
-    fun start(): Boolean {
+    fun start(
+        menu: String = FACTORY_MENU_HOTKEY,
+        repeat: String = FACTORY_REPEAT_HOTKEY,
+    ): Boolean {
         if (!windowsHost()) return false
         if (thread != null) return both.get()
+        initialMenu = menu
+        initialRepeat = repeat
         val ready = CountDownLatch(1)
         val worker =
             Thread(
@@ -254,15 +271,23 @@ class WinHotkeys internal constructor(
         try {
             threadId = Kernel32.INSTANCE.GetCurrentThreadId()
             User32.INSTANCE.PeekMessage(MSG(), null, 0, 0, 0)
-            val menuChord = parseChord("^!Space")
-            val repeatChord = parseChord("^+Space")
-            val accepted =
-                if (menuChord != null && repeatChord != null) {
-                    registration.replace(menuChord, repeatChord)
-                } else {
-                    false
+            val requestedMenu = parseChord(initialMenu)
+            val requestedRepeat = parseChord(initialRepeat)
+            val factoryMenu = parseChord(FACTORY_MENU_HOTKEY)
+            val factoryRepeat = parseChord(FACTORY_REPEAT_HOTKEY)
+            val menuChord = requestedMenu ?: factoryMenu
+            val repeatChord = requestedRepeat ?: factoryRepeat
+            if (menuChord != null && repeatChord != null) {
+                registration.replace(menuChord, repeatChord)
+                if (!registration.menuReady() && menuChord != factoryMenu) {
+                    val fallbackMenu = factoryMenu
+                    val fallbackRepeat = factoryRepeat
+                    if (fallbackMenu != null && fallbackRepeat != null) {
+                        registration.replace(fallbackMenu, fallbackRepeat)
+                    }
                 }
-            both.set(accepted)
+            }
+            both.set(registration.menuReady())
             running.set(registration.hasAny())
             ready.countDown()
             if (running.get()) pumpMessages()
@@ -407,8 +432,8 @@ data class WindowBounds(
 
 /**
  * Where the action menu should open.
- * A caret that lies inside [window] wins and is moved down 24px.
- * Otherwise the input window wins. The cursor is used only when that window is unknown.
+ * A caret inside [window] is an input field: the menu opens 24px below it.
+ * No caret means there is no input field, so the menu opens at [cursor].
  * The point is clamped by 6px inside the work area that contains it.
  * Returns coordinates only. Does not open a window.
  */
@@ -420,17 +445,11 @@ fun menuPosition(
     workAreas: List<WorkArea>,
     window: WindowBounds? = null,
 ): ScreenPoint {
-    val usable = caret?.takeUnless { it.x <= 0 && it.y <= 0 }
+    val usable = caret?.takeUnless { it.x == 0 && it.y == 0 }
     val frame = window?.takeIf { it.right > it.left && it.bottom > it.top }
-    val useCaret = if (frame != null) usable != null && frame.contains(usable) else usable != null
-    val anchor =
-        when {
-            useCaret -> usable
-            frame != null -> frame.anchor()
-            else -> cursor
-        } ?: cursor
-    val x = anchor.x
-    val y = if (useCaret) anchor.y + CARET_DROP_PX else anchor.y
+    val useCaret = usable != null && (frame == null || frame.contains(usable))
+    val x = if (useCaret) usable.x else cursor.x
+    val y = if (useCaret) usable.y + CARET_DROP_PX else cursor.y
     val area = workAreas.firstOrNull { it.containsX(x) && it.containsY(y) } ?: nearestWorkArea(x, y, workAreas)
     if (area == null) return ScreenPoint(x, y)
     val minX = area.left + MENU_MARGIN_PX
@@ -438,6 +457,178 @@ fun menuPosition(
     val maxX = (area.right - menuWidth - MENU_MARGIN_PX).coerceAtLeast(minX)
     val maxY = (area.bottom - menuHeight - MENU_MARGIN_PX).coerceAtLeast(minY)
     return ScreenPoint(x.coerceIn(minX, maxX), y.coerceIn(minY, maxY))
+}
+
+/**
+ * A point for a result window beside [window], on the same work area.
+ * The right side is tried first, then the left, then below. A side that would
+ * hang off the work area is shifted until it fits, so a low window still gets
+ * the result beside it. shortcut: a source that fills the work area is covered,
+ * because no side fits.
+ */
+fun besideWindow(
+    window: WindowBounds,
+    width: Int,
+    height: Int,
+    areas: List<WorkArea>,
+): ScreenPoint {
+    val centerX = (window.left + window.right) / 2
+    val centerY = (window.top + window.bottom) / 2
+    val area =
+        areas.firstOrNull { it.containsX(centerX) && it.containsY(centerY) }
+            ?: nearestWorkArea(centerX, centerY, areas)
+            ?: return ScreenPoint(window.right + RESULT_GAP_PX, window.top)
+    val minX = area.left + MENU_MARGIN_PX
+    val minY = area.top + MENU_MARGIN_PX
+    val maxX = (area.right - width - MENU_MARGIN_PX).coerceAtLeast(minX)
+    val maxY = (area.bottom - height - MENU_MARGIN_PX).coerceAtLeast(minY)
+
+    fun place(
+        x: Int,
+        y: Int,
+    ) = ScreenPoint(x.coerceIn(minX, maxX), y.coerceIn(minY, maxY))
+
+    fun covers(point: ScreenPoint): Boolean {
+        val right = point.x + width
+        val bottom = point.y + height
+        return point.x < window.right && right > window.left && point.y < window.bottom && bottom > window.top
+    }
+
+    val right = place(window.right + RESULT_GAP_PX, window.top)
+    val left = place(window.left - width - RESULT_GAP_PX, window.top)
+    val below = place(window.left, window.bottom + RESULT_GAP_PX)
+    return listOf(right, left, below).firstOrNull { !covers(it) } ?: right
+}
+
+/**
+ * Where a popup should open so it stays on [cursor]'s screen and does not cover [target].
+ * Right, left, below and above are tried. The side nearest the cursor wins.
+ * shortcut: a target that fills the work area is covered, because no side fits.
+ */
+fun popupBeside(
+    target: WindowBounds,
+    width: Int,
+    height: Int,
+    areas: List<WorkArea>,
+    cursor: ScreenPoint,
+): ScreenPoint {
+    val centerX = (target.left + target.right) / 2
+    val centerY = (target.top + target.bottom) / 2
+    val area =
+        areas.firstOrNull { it.containsX(cursor.x) && it.containsY(cursor.y) }
+            ?: areas.firstOrNull { it.containsX(centerX) && it.containsY(centerY) }
+            ?: nearestWorkArea(cursor.x, cursor.y, areas)
+            ?: return ScreenPoint(target.right + RESULT_GAP_PX, target.top)
+    val minX = area.left + MENU_MARGIN_PX
+    val minY = area.top + MENU_MARGIN_PX
+    val maxX = (area.right - width - MENU_MARGIN_PX).coerceAtLeast(minX)
+    val maxY = (area.bottom - height - MENU_MARGIN_PX).coerceAtLeast(minY)
+
+    fun along(
+        value: Int,
+        min: Int,
+        max: Int,
+    ) = value.coerceIn(min, max)
+
+    val gap = RESULT_GAP_PX
+    val candidates =
+        listOf(
+            ScreenPoint(target.right + gap, along(cursor.y, minY, maxY)),
+            ScreenPoint(target.left - width - gap, along(cursor.y, minY, maxY)),
+            ScreenPoint(along(cursor.x, minX, maxX), target.bottom + gap),
+            ScreenPoint(along(cursor.x, minX, maxX), target.top - height - gap),
+        )
+
+    fun inside(point: ScreenPoint) = point.x in minX..maxX && point.y in minY..maxY
+
+    fun overlaps(point: ScreenPoint): Boolean {
+        val right = point.x + width
+        val bottom = point.y + height
+        return point.x < target.right && right > target.left && point.y < target.bottom && bottom > target.top
+    }
+
+    fun gapTo(point: ScreenPoint): Long {
+        val dx =
+            when {
+                cursor.x < point.x -> (point.x - cursor.x).toLong()
+                cursor.x > point.x + width -> (cursor.x - (point.x + width)).toLong()
+                else -> 0L
+            }
+        val dy =
+            when {
+                cursor.y < point.y -> (point.y - cursor.y).toLong()
+                cursor.y > point.y + height -> (cursor.y - (point.y + height)).toLong()
+                else -> 0L
+            }
+        return dx * dx + dy * dy
+    }
+
+    val open = candidates.filter { inside(it) && !overlaps(it) }
+    if (open.isNotEmpty()) return open.minBy { gapTo(it) }
+    val nearest = candidates.minBy { gapTo(it) }
+    return ScreenPoint(nearest.x.coerceIn(minX, maxX), nearest.y.coerceIn(minY, maxY))
+}
+
+/**
+ * The rectangle the popup must avoid.
+ * An input field wins. A caret inside the window is a short line in that field.
+ * A page selection uses the cursor.
+ */
+fun anchorBox(
+    field: WindowBounds?,
+    caret: ScreenPoint?,
+    cursor: ScreenPoint,
+    window: WindowBounds?,
+): WindowBounds {
+    if (field != null && !pageSized(field, window)) return field
+    val mark = caret?.takeUnless { it.x == 0 && it.y == 0 }
+    if (mark != null && (window == null || window.contains(mark))) {
+        return WindowBounds(mark.x, mark.y, mark.x + 2, mark.y + 20)
+    }
+    return WindowBounds(cursor.x, cursor.y, cursor.x + 1, cursor.y + 1)
+}
+
+private fun pageSized(
+    box: WindowBounds,
+    window: WindowBounds?,
+): Boolean {
+    if (window == null) return false
+    val frameW = window.right - window.left
+    val frameH = window.bottom - window.top
+    if (frameW <= 0 || frameH <= 0) return false
+    val wide = box.right - box.left
+    val high = box.bottom - box.top
+    return wide * 100 >= frameW * 85 && high * 100 >= frameH * 85
+}
+
+/** The box the action menu and the result window must sit beside. Read before focus moves. */
+fun selectionAnchor(
+    watch: ForegroundWatch,
+    caret: ScreenPoint?,
+    cursor: ScreenPoint,
+    window: WindowBounds?,
+): WindowBounds {
+    val hwnd = watch.sourceNow()
+    val field = if (hwnd == null) null else focusedInputBounds(hwnd) ?: controlBounds(hwnd)
+    return anchorBox(field, caret, cursor, window)
+}
+
+internal fun controlBounds(hwnd: HWND): WindowBounds? {
+    if (!windowsHost()) return null
+    return try {
+        val threadId = User32.INSTANCE.GetWindowThreadProcessId(hwnd, null)
+        if (threadId == 0) return null
+        val info = GuiThreadInfo()
+        info.cbSize = info.size()
+        if (!CaretUser32.INSTANCE.GetGUIThreadInfo(threadId, info)) return null
+        val control = info.hwndCaret ?: info.hwndFocus ?: return null
+        val rect = RECT()
+        if (!User32.INSTANCE.GetWindowRect(control, rect)) return null
+        if (rect.right <= rect.left || rect.bottom <= rect.top) return null
+        WindowBounds(rect.left, rect.top, rect.right, rect.bottom)
+    } catch (_: Throwable) {
+        null
+    }
 }
 
 /**
@@ -790,6 +981,12 @@ internal class AwtClip(
         }
         Thread.sleep(PASTE_SETTLE_MILLIS)
         return true
+    }
+
+    override fun canAcceptText(): Boolean {
+        val hwnd = focus() ?: return false
+        if (caretScreenPoint(hwnd) != null) return true
+        return focusedInputAcceptsText(hwnd)
     }
 
     override fun hasImageOrFiles(): Boolean = clipboardHasImageOrFiles()

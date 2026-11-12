@@ -26,6 +26,7 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.ApplicationScope
@@ -40,6 +41,7 @@ import dev.belyaevad.texttools.app.ui.AppTheme
 import dev.belyaevad.texttools.app.ui.BANNER_OUTER_HEIGHT
 import dev.belyaevad.texttools.app.ui.BANNER_OUTER_WIDTH
 import dev.belyaevad.texttools.app.ui.MENU_OUTER_WIDTH
+import dev.belyaevad.texttools.app.ui.ResultWidth
 import dev.belyaevad.texttools.app.ui.UiText
 import dev.belyaevad.texttools.app.ui.applyUiLocale
 import dev.belyaevad.texttools.app.ui.bannerCorner
@@ -59,6 +61,7 @@ import dev.belyaevad.texttools.app.ui.menuOuterHeight
 import dev.belyaevad.texttools.app.ui.resolve
 import dev.belyaevad.texttools.app.ui.result.RefineDelivery
 import dev.belyaevad.texttools.app.ui.result.ResultWindow
+import dev.belyaevad.texttools.app.ui.resultOuterHeight
 import dev.belyaevad.texttools.app.ui.run.AppProfiler
 import dev.belyaevad.texttools.app.ui.run.RunAction
 import dev.belyaevad.texttools.app.ui.run.RunPhase
@@ -114,7 +117,8 @@ import dev.belyaevad.texttools.platform.win.currentWorkAreas
 import dev.belyaevad.texttools.platform.win.enterSingleInstance
 import dev.belyaevad.texttools.platform.win.hasUserSource
 import dev.belyaevad.texttools.platform.win.installedAutostart
-import dev.belyaevad.texttools.platform.win.menuPosition
+import dev.belyaevad.texttools.platform.win.popupBeside
+import dev.belyaevad.texttools.platform.win.selectionAnchor
 import dev.belyaevad.texttools.platform.win.sourceSnapshot
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -142,9 +146,11 @@ import texttools.app.generated.resources.app_request_failed
 import texttools.app.generated.resources.app_request_running
 import texttools.app.generated.resources.app_restart_failed
 import texttools.app.generated.resources.app_run_done
+import texttools.app.generated.resources.app_run_done_for
 import texttools.app.generated.resources.app_run_estimate
 import texttools.app.generated.resources.app_run_estimate_cost
 import texttools.app.generated.resources.app_run_preparing
+import texttools.app.generated.resources.app_run_preparing_for
 import texttools.app.generated.resources.app_run_usage
 import texttools.app.generated.resources.app_run_usage_cost
 import texttools.app.generated.resources.app_save_failed
@@ -244,6 +250,8 @@ private data class MenuRequest(
     val at: ScreenPoint,
     val heightPx: Int,
     val source: SourceSnapshot,
+    val anchor: WindowBounds,
+    val cursor: ScreenPoint,
 )
 
 private data class ShownResult(
@@ -253,6 +261,7 @@ private data class ShownResult(
     val conversation: List<ChatMessage>,
     val chips: List<QuickRefine>,
     val markdown: Boolean,
+    val at: ScreenPoint? = null,
 )
 
 /** Tray entry. Hotkeys are started here; [AppGraph] construction does not start them. */
@@ -265,12 +274,13 @@ fun main() {
     val closed = AtomicBoolean(false)
     Runtime.getRuntime().addShutdownHook(Thread { closeGraph(graph, closed) })
     graph.watch.start()
-    val hotkeysOk = graph.hotkeys.start()
     val slot = SettingsSlot(loadSettings(graph.secrets))
+    val hotkeysOk = graph.hotkeys.start(slot.value.hotkey, slot.value.hotkeyRepeat)
     applyUiLocale(slot.value.uiLang)
     val sentryFile = loadSentryFile(sentryConfigFile(Path.of(System.getProperty("user.dir")), dataDirectory()))
     applySentry(sentryFile, slot.value)
-    val startupNote = startupNote(graph, slot.value, hotkeysOk)
+    val startupNote = startupNote(graph, hotkeysOk)
+    noteStartup(slot.value.hotkey, slot.value.hotkeyRepeat, hotkeysOk, startupNote === HOTKEY_FAIL)
     application {
         val telemetry =
             remember { UsageTelemetry(graph.store, { TelemetrySettings(slot.value.sentryTraces, sentryFile.dsn) }, SentryUsageMetricSink) }
@@ -484,7 +494,7 @@ private fun ApplicationScope.textToolsContent(
             onRun = { action, extra, shift ->
                 val selection = request.selection
                 menu = null
-                runs.start(action, selection, extra, shift, request.at, request.source)
+                runs.start(action, selection, extra, shift, RunTarget(request.at, request.source, request.anchor, request.cursor))
             },
             onEditor = {
                 menu = null
@@ -555,6 +565,13 @@ private data class ActionHooks(
     val currentToken: () -> Int,
 )
 
+private data class RunTarget(
+    val at: ScreenPoint,
+    val source: SourceSnapshot,
+    val anchor: WindowBounds,
+    val cursor: ScreenPoint,
+)
+
 private class ActionRun(
     private val graph: AppGraph,
     private val runner: RunAction,
@@ -571,8 +588,7 @@ private class ActionRun(
         selection: String,
         instruction: String,
         shift: Boolean,
-        at: ScreenPoint,
-        source: SourceSnapshot,
+        target: RunTarget,
     ) {
         if (runner.busy) {
             hooks.flash(REQUEST_RUNNING)
@@ -585,9 +601,9 @@ private class ActionRun(
         }
         val token = hooks.nextToken()
         hooks.rememberRun(action, instruction)
-        hooks.placeBanner(at)
+        hooks.placeBanner(target.at)
         scope.launch {
-            runBody(action, selection, instruction, shift, source.proc, source.title, source.windowClass, token)
+            runBody(action, selection, instruction, shift, target, token)
         }
     }
 
@@ -598,11 +614,12 @@ private class ActionRun(
         selection: String,
         instruction: String,
         shift: Boolean,
-        proc: String,
-        title: String,
-        windowClass: String,
+        target: RunTarget,
         token: Int,
     ) {
+        val proc = target.source.proc
+        val title = target.source.title
+        val windowClass = target.source.windowClass
         try {
             val current = slot.value
             val description = profileDescription(title.trim().take(60), profileAdded, profileWindow)
@@ -652,7 +669,7 @@ private class ActionRun(
                 graph.catalogue.refresh(graph.store, current.proxy, current.proxyOn)
             }
             val outcome = actionOutcome(action, selection, instruction, shift, proc, title)
-            val hold = publishOutcome(action, outcome)
+            val hold = publishOutcome(action, outcome, target.anchor, target.cursor)
             if (hold && token == hooks.currentToken()) delay(BANNER_HOLD_MILLIS)
         } finally {
             if (token == hooks.currentToken()) hooks.showBanner(false)
@@ -681,21 +698,28 @@ private class ActionRun(
     private fun publishOutcome(
         action: Action,
         outcome: RunOutcome?,
+        anchor: WindowBounds,
+        cursor: ScreenPoint,
     ): Boolean {
         when (outcome) {
             null -> hooks.flash(REQUEST_FAILED)
             is RunOutcome.Pasted -> return true
-            is RunOutcome.InWindow ->
+            is RunOutcome.InWindow -> {
+                val chips = graph.store.quick()
+                val height =
+                    resultOuterHeight(outcome.conversation.isNotEmpty(), chips.isNotEmpty()).value.toInt()
                 hooks.showResult(
                     ShownResult(
                         title = action.name,
                         text = outcome.text,
                         model = outcome.model,
                         conversation = outcome.conversation,
-                        chips = graph.store.quick(),
+                        chips = chips,
                         markdown = slot.value.markdown,
+                        at = popupBeside(anchor, ResultWidth.value.toInt(), height, currentWorkAreas(), cursor),
                     ),
                 )
+            }
             is RunOutcome.Failed -> hooks.flash(uiText(outcome.reason.resource, outcome.httpStatus?.toString().orEmpty()))
             RunOutcome.Busy -> hooks.flash(REQUEST_RUNNING)
             RunOutcome.NeedsKey -> {
@@ -780,6 +804,7 @@ private suspend fun captureMenu(
     val source = sourceSnapshot(graph.watch)
     val caret = graph.watch.caretNow()
     val cursor = pointerNow()
+    val anchor = selectionAnchor(graph.watch, caret, cursor, source.bounds)
     val (selection, warning) = takeSelection(graph, seconds)
     if (menuOpen()) return
     if (selection.isEmpty()) {
@@ -787,8 +812,8 @@ private suspend fun captureMenu(
         return
     }
     val actions = graph.store.actions()
-    val placed = placeMenu(actions.size, caret, cursor, source.bounds)
-    open(MenuRequest(selection, actions, placed.first, placed.second, source))
+    val placed = placeMenu(actions.size, anchor, cursor)
+    open(MenuRequest(selection, actions, placed.first, placed.second, source, anchor, cursor))
 }
 
 private suspend fun captureRepeat(
@@ -808,14 +833,17 @@ private suspend fun captureRepeat(
         return
     }
     val source = sourceSnapshot(graph.watch)
-    val at = source.bounds?.anchor() ?: pointerNow()
+    val caret = graph.watch.caretNow()
+    val cursor = pointerNow()
+    val anchor = selectionAnchor(graph.watch, caret, cursor, source.bounds)
+    val at = popupBeside(anchor, BANNER_OUTER_WIDTH, BANNER_OUTER_HEIGHT, currentWorkAreas(), cursor)
     val (selection, warning) = takeSelection(graph, seconds)
     if (menuOpen()) return
     if (selection.isEmpty()) {
         runs.flash(warning ?: NO_SELECTION)
         return
     }
-    runs.start(action, selection, extra, false, at, source)
+    runs.start(action, selection, extra, false, RunTarget(at, source, anchor, cursor))
 }
 
 private fun applySavedSettings(
@@ -904,6 +932,7 @@ private fun toolWindows(
             onDelivered = { delivery -> rememberDelivery(graph, slot.value, result, delivery) },
             language = language,
             placementId = "result",
+            anchor = result.at,
         )
     }
     if (open.showSettings) {
@@ -1077,10 +1106,27 @@ private fun BusyBanner(
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    Text(
-                        stringResource(if (status.phase == RunPhase.Preparing) Res.string.app_run_preparing else Res.string.app_run_done),
-                        fontSize = 14.sp,
-                    )
+                    val program = status.source
+                    val heading =
+                        if (program.isNullOrEmpty()) {
+                            stringResource(
+                                if (status.phase == RunPhase.Preparing) {
+                                    Res.string.app_run_preparing
+                                } else {
+                                    Res.string.app_run_done
+                                },
+                            )
+                        } else {
+                            stringResource(
+                                if (status.phase == RunPhase.Preparing) {
+                                    Res.string.app_run_preparing_for
+                                } else {
+                                    Res.string.app_run_done_for
+                                },
+                                program,
+                            )
+                        }
+                    Text(heading, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                     Text(
                         stringResource(Res.string.app_seconds, statusSeconds(status.elapsedMillis)),
@@ -1195,20 +1241,42 @@ private fun waitToOwnInstance(): Boolean {
     }
 }
 
+private fun noteStartup(
+    hotkey: String,
+    repeat: String,
+    registered: Boolean,
+    failed: Boolean,
+) {
+    val line =
+        if (failed) {
+            "hotkey refused: $hotkey / $repeat (factory registered=$registered)"
+        } else {
+            "hotkey active: $hotkey / $repeat"
+        }
+    try {
+        val dir = dataDirectory()
+        Files.createDirectories(dir)
+        Files.writeString(
+            dir.resolve(LOG_FILE),
+            "${logTime.format(Instant.now())}  $line\n",
+            StandardCharsets.UTF_8,
+            StandardOpenOption.CREATE,
+            StandardOpenOption.APPEND,
+        )
+    } catch (_: IOException) {
+        // A failed log write must not stop the hotkey.
+    }
+}
+
 private fun startupNote(
     graph: AppGraph,
-    settings: Settings,
     hotkeysOk: Boolean,
-): UiText? {
-    val factory = Factory.defaultSettings
-    val custom = settings.hotkey != factory.hotkey || settings.hotkeyRepeat != factory.hotkeyRepeat
-    val applied = if (hotkeysOk && custom) graph.hotkeys.swap(settings.hotkey, settings.hotkeyRepeat) else hotkeysOk
-    return when {
-        !hotkeysOk || (custom && !applied) -> HOTKEY_FAIL
+): UiText? =
+    when {
+        !hotkeysOk -> HOTKEY_FAIL
         !hasApiKey(graph.secrets) -> NEED_KEY
         else -> null
     }
-}
 
 private fun hasApiKey(secrets: UserSecrets): Boolean = !secrets.get(SecretSlot.ApiKey).isNullOrBlank()
 
@@ -1579,12 +1647,11 @@ private fun appendLog(
 
 private fun placeMenu(
     actionCount: Int,
-    caret: ScreenPoint?,
+    anchor: WindowBounds,
     cursor: ScreenPoint,
-    window: WindowBounds?,
 ): Pair<ScreenPoint, Int> {
     val height = menuOuterHeight(actionCount)
-    return menuPosition(caret, cursor, MENU_WIDTH, height, currentWorkAreas(), window) to height
+    return popupBeside(anchor, MENU_WIDTH, height, currentWorkAreas(), cursor) to height
 }
 
 @Composable
@@ -1771,29 +1838,33 @@ private fun httpError(code: Int): AppException {
 }
 
 private fun modelIds(body: String): List<String> {
-    val ids = mutableListOf<String>()
     var from = 0
-    while (from < body.length) {
-        val at = body.indexOf("\"id\"", from)
-        if (at < 0) break
-        val value = jsonStringFieldAt(body, at + 4)
-        if (!value.isNullOrEmpty()) ids += value
-        from = at + 4
-    }
+    val ids =
+        buildList {
+            while (from < body.length) {
+                val at = body.indexOf("\"id\"", from)
+                if (at < 0) break
+                val value = jsonStringFieldAt(body, at + 4)
+                if (!value.isNullOrEmpty()) add(value)
+                from = at + 4
+            }
+        }
     return ids.distinct()
 }
 
 private fun catalogEntries(body: String?): List<CatalogEntry> {
     if (body.isNullOrBlank()) return emptyList()
-    val marks = mutableListOf<Pair<String, Int>>()
     var from = 0
-    while (from < body.length) {
-        val at = body.indexOf("\"id\"", from)
-        if (at < 0) break
-        val id = jsonStringFieldAt(body, at + 4)
-        if (!id.isNullOrEmpty()) marks += id to at
-        from = at + 4
-    }
+    val marks =
+        buildList {
+            while (from < body.length) {
+                val at = body.indexOf("\"id\"", from)
+                if (at < 0) break
+                val id = jsonStringFieldAt(body, at + 4)
+                if (!id.isNullOrEmpty()) add(id to at)
+                from = at + 4
+            }
+        }
     return marks.mapIndexed { index, (id, at) ->
         val end = marks.getOrNull(index + 1)?.second ?: body.length
         val slice = body.substring(at, end)

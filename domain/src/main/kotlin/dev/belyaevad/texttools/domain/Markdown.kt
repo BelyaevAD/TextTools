@@ -34,18 +34,18 @@ sealed class MdBlock {
 /** Parses the markdown subset the result window needs. Model text is data, not HTML. */
 fun parseMarkdown(source: String): List<MdBlock> {
     val lines = source.replace("\r\n", "\n").split('\n')
-    val blocks = mutableListOf<MdBlock>()
     var index = 0
-    while (index < lines.size) {
-        val taken = takeBlock(lines, index)
-        if (taken == null) {
-            index += 1
-        } else {
-            blocks += taken.first
-            index = taken.second
+    return buildList {
+        while (index < lines.size) {
+            val taken = takeBlock(lines, index)
+            if (taken == null) {
+                index += 1
+            } else {
+                add(taken.first)
+                index = taken.second
+            }
         }
     }
-    return blocks
 }
 
 private fun takeBlock(
@@ -67,12 +67,14 @@ private fun readFence(
     index: Int,
 ): Pair<MdBlock, Int>? {
     if (!lines[index].startsWith("```")) return null
-    val body = mutableListOf<String>()
     var cursor = index + 1
-    while (cursor < lines.size && !lines[cursor].startsWith("```")) {
-        body += lines[cursor]
-        cursor += 1
-    }
+    val body =
+        buildList {
+            while (cursor < lines.size && !lines[cursor].startsWith("```")) {
+                add(lines[cursor])
+                cursor += 1
+            }
+        }
     if (cursor < lines.size) cursor += 1
     return MdBlock.Code(body.joinToString("\n")) to cursor
 }
@@ -84,12 +86,14 @@ private fun readTable(
     val line = lines[index]
     if (index + 1 >= lines.size || !line.trim().startsWith("|") || !lines[index + 1].contains("---")) return null
     val header = splitRow(line)
-    val rows = mutableListOf<List<String>>()
     var cursor = index + 2
-    while (cursor < lines.size && lines[cursor].trim().startsWith("|")) {
-        rows += splitRow(lines[cursor])
-        cursor += 1
-    }
+    val rows =
+        buildList {
+            while (cursor < lines.size && lines[cursor].trim().startsWith("|")) {
+                add(splitRow(lines[cursor]))
+                cursor += 1
+            }
+        }
     return MdBlock.Table(header, rows) to cursor
 }
 
@@ -98,12 +102,14 @@ private fun readBullets(
     index: Int,
 ): Pair<MdBlock, Int>? {
     if (!lines[index].startsWith("- ")) return null
-    val items = mutableListOf<String>()
     var cursor = index
-    while (cursor < lines.size && lines[cursor].startsWith("- ")) {
-        items += lines[cursor].removePrefix("- ")
-        cursor += 1
-    }
+    val items =
+        buildList {
+            while (cursor < lines.size && lines[cursor].startsWith("- ")) {
+                add(lines[cursor].removePrefix("- "))
+                cursor += 1
+            }
+        }
     return MdBlock.ListBlock(ordered = false, items) to cursor
 }
 
@@ -113,12 +119,14 @@ private fun readNumbers(
 ): Pair<MdBlock, Int>? {
     val pattern = Regex("""\d+\. .+""")
     if (!pattern.matches(lines[index])) return null
-    val items = mutableListOf<String>()
     var cursor = index
-    while (cursor < lines.size && pattern.matches(lines[cursor])) {
-        items += lines[cursor].substringAfter(". ")
-        cursor += 1
-    }
+    val items =
+        buildList {
+            while (cursor < lines.size && pattern.matches(lines[cursor])) {
+                add(lines[cursor].substringAfter(". "))
+                cursor += 1
+            }
+        }
     return MdBlock.ListBlock(ordered = true, items) to cursor
 }
 

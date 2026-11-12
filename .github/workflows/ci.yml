@@ -18,7 +18,9 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
-      - run: ./gradlew check dokkaGenerate --no-daemon
+      - name: check
+        shell: bash
+        run: bash ./gradlew check dokkaGenerate --no-daemon
 
   package:
     if: github.event_name == 'workflow_dispatch'
@@ -39,7 +41,9 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
-      - run: ./gradlew ${{ matrix.task }} --no-daemon
+      - name: package
+        shell: bash
+        run: bash ./gradlew ${{ matrix.task }} --no-daemon
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.task }}

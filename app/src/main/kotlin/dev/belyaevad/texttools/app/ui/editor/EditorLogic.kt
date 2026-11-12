@@ -135,22 +135,22 @@ internal fun languageOptions(
     languages: List<OutputLanguage>,
     autoLabel: String,
     missingSuffix: String,
-): List<Labeled> {
-    val options = mutableListOf(Labeled("auto", autoLabel))
-    languages.filter { it.enabled && it.code.isNotBlank() }.forEach { language ->
-        if (options.none { it.id.equals(language.code, ignoreCase = true) }) {
-            options.add(Labeled(language.code, language.name))
+): List<Labeled> =
+    buildList {
+        add(Labeled("auto", autoLabel))
+        languages.filter { it.enabled && it.code.isNotBlank() }.forEach { language ->
+            if (none { it.id.equals(language.code, ignoreCase = true) }) {
+                add(Labeled(language.code, language.name))
+            }
+        }
+        val code = action.lang.trim()
+        val known = any { it.id.equals(code, ignoreCase = true) }
+        val custom = code.isNotEmpty() && !code.equals("auto", ignoreCase = true) && !known
+        if (custom) {
+            val label = languages.firstOrNull { it.code.equals(code, ignoreCase = true) }?.name ?: code
+            add(Labeled(code, "$label $missingSuffix"))
         }
     }
-    val code = action.lang.trim()
-    val known = options.any { it.id.equals(code, ignoreCase = true) }
-    val custom = code.isNotEmpty() && !code.equals("auto", ignoreCase = true) && !known
-    if (custom) {
-        val label = languages.firstOrNull { it.code.equals(code, ignoreCase = true) }?.name ?: code
-        options.add(Labeled(code, "$label $missingSuffix"))
-    }
-    return options
-}
 
 internal fun selectedLanguageIndex(
     action: Action,

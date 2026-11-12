@@ -32,6 +32,23 @@ class ClipboardTest {
     }
 
     @Test
+    fun pasteShowsAWindowWhenTheSourceHasNoInputCaret() {
+        val io = FakeClip(text = "old", inputCaret = false)
+        assertIs<PasteAttempt.ShowInWindow>(ClipboardProtocol(io).paste("result"))
+        assertEquals("old", io.text)
+        assertEquals(0, io.pastes)
+    }
+
+    @Test
+    fun anEmptyClipboardStillCopiesTheSelection() {
+        val io = FakeClip(text = null)
+        io.afterCopy = "from the page"
+        assertEquals("from the page", ClipboardProtocol(io).capture(50))
+        assertEquals("", io.text)
+        assertEquals(1, io.copies)
+    }
+
+    @Test
     fun restoreAfterPastePutsTheOldTextBackOnlyWhileTheResultIsStillThere() {
         val io = FakeClip(text = "old")
         val sent = assertIs<PasteAttempt.Sent>(ClipboardProtocol(io).paste("result"))
@@ -112,6 +129,7 @@ private class FakeClip(
     var canActivate: Boolean = true,
     var imageOrFiles: Boolean = false,
     var elevated: Boolean = false,
+    var inputCaret: Boolean = true,
 ) : ClipIo {
     var afterCopy: String = ""
     var writes: Int = 0
@@ -137,6 +155,8 @@ private class FakeClip(
     }
 
     override fun activateSource(): Boolean = canActivate
+
+    override fun canAcceptText(): Boolean = inputCaret
 
     override fun hasImageOrFiles(): Boolean = imageOrFiles
 

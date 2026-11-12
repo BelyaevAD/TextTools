@@ -63,6 +63,7 @@ data class RunStatus(
     val phase: RunPhase,
     val elapsedMillis: Long,
     val usage: RunUsage? = null,
+    val source: String? = null,
 )
 
 /** Elapsed time for the banner. A negative count is zero. */
@@ -160,6 +161,7 @@ class RunAction(
             current.phase,
             current.frozenMillis ?: (nowMillis - current.startedAt).coerceAtLeast(0),
             current.usage,
+            current.source,
         )
     }
 
@@ -186,7 +188,9 @@ class RunAction(
             measuredInput = selection.length
             measuredExtra = extra.length
             reported = null
-            val hint = matchApp(profiles(), proc, title)?.hint.orEmpty()
+            val profile = matchApp(profiles(), proc, title)
+            val hint = profile?.hint.orEmpty()
+            val source = profile?.takeIf { it.hint.isNotEmpty() }?.name?.takeIf { it.isNotEmpty() }
             val system =
                 buildInstruction(action, store.languages().ifEmpty { Factory.languages }, hint)
             val user = buildUserContent(action, selection, extra)
@@ -203,6 +207,7 @@ class RunAction(
                     cost = costOf(priceEntry(store.prices()?.body, modelName, current.baseUrl), estimated, 0),
                     approximate = true,
                 ),
+                source,
             )
             val outcome =
                 runner.run(
@@ -211,7 +216,7 @@ class RunAction(
                     customText = extra,
                     settings = current,
                     languages = store.languages().ifEmpty { Factory.languages },
-                    sourceHint = matchApp(profiles(), proc, title)?.hint.orEmpty(),
+                    sourceHint = hint,
                     hasKey = true,
                     forceWindow = shift,
                 )
@@ -361,8 +366,9 @@ class RunAction(
     private fun showPreparing(
         at: Long,
         usage: RunUsage,
+        source: String?,
     ) {
-        phase = Phase(RunPhase.Preparing, at, null, usage)
+        phase = Phase(RunPhase.Preparing, at, null, usage, source)
         hooks.onStatus(banner(at))
     }
 
@@ -383,7 +389,7 @@ class RunAction(
                     approximate = false,
                 )
             }
-        phase = Phase(RunPhase.Done, started, (at - started).coerceAtLeast(0), line)
+        phase = Phase(RunPhase.Done, started, (at - started).coerceAtLeast(0), line, phase?.source)
         hooks.onStatus(banner(at))
     }
 
@@ -428,6 +434,7 @@ private class Phase(
     val startedAt: Long,
     val frozenMillis: Long?,
     val usage: RunUsage?,
+    val source: String?,
 )
 
 /** Cost of one call. Null when [usage] or the catalogue price is missing. */

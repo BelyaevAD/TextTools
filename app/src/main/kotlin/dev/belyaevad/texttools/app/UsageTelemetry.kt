@@ -48,12 +48,12 @@ private data class UsageKey(
     val outcome: String,
 )
 
-interface UsageMetricSink {
+fun interface UsageMetricSink {
     fun publish(batch: UsageBatch)
 }
 
-object SentryUsageMetricSink : UsageMetricSink {
-    override fun publish(batch: UsageBatch) {
+val SentryUsageMetricSink =
+    UsageMetricSink { batch ->
         val tags =
             mapOf(
                 "model" to batch.model,
@@ -82,7 +82,6 @@ object SentryUsageMetricSink : UsageMetricSink {
             Sentry.metrics().distribution("llm.completion_tokens", batch.completionTokens.toDouble(), null, tags)
         }
     }
-}
 
 /** One aggregate per hour/model/kind/outcome, never a Sentry event per model request. */
 class UsageTelemetry(

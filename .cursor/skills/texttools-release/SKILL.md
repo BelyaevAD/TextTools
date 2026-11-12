@@ -15,17 +15,21 @@ Delete the build output and rebuild every package, even if `dist/` already conta
 
 Copy the new msi and deb into `dist/`. Those files, and a DMG only when the Mac script produced one, are the only release assets.
 
+## Version
+
+The number has three parts, as in `1.1.123`. The changelog heading, the README version line, `packageVersion`, the installer name `TextTools-X.Y.Z.msi`, and the tag are that same number. A user-visible change gets its own heading `## vX.Y.Z — YYYY-MM-DD` and the last part increases by one. Do not batch that change into a two-part heading such as `v1.2`. Tags `v1.0` and `v1.1` stay as published. The first three-part release after `v1.1` is `v1.1.1`.
+
 ## Notes and pictures
 
-- `CHANGELOG.md` on `main` matches `archive/ahk`: `## vX.Y — YYYY-MM-DD`, then what changed for the user. Leave the AutoHotkey history on `archive/ahk`.
-- README images are three shots of the current app (menu, settings, result) under `docs/assets/screenshots/en/`. Do not use `gh-pages` AutoHotkey shots. Do not publish a shot that shows a key, a proxy password, or a DSN.
+- `CHANGELOG.md` on `main` uses `## vX.Y.Z — YYYY-MM-DD`, then what changed for the user. Leave the AutoHotkey history on `archive/ahk`. The published headings `v1.0` and `v1.1` stay two-part.
+- Do not capture the screen in this agent. Follow `.cursor/skills/texttools-screenshots/SKILL.md`. README keeps the pictures it already links. Refresh every catalog surface marked `readme: true`. A new window, page, or tab is appended to `docs/screenshots/catalog.yaml` by `packaging/screenshots/sync-catalog.ps1` and stays out of the README until `readme` is set true. Do not use `gh-pages` AutoHotkey shots. Do not publish a shot that shows a key, a proxy password, or a DSN.
 - Release text links only the assets just built.
 
 ## Git
 
-- Commit the changelog and README before moving the tag. `git tag -f -a vX.Y` on that commit, then push `main` and the tag. Tags `v0.1.0`–`v0.3.1` stay. Do not force-push `main`.
+- Commit the changelog and README before tagging. `git tag -a vX.Y.Z` on that commit, then push `main` and the tag. Do not use `-f`. Tags `v0.1.0`–`v0.3.1`, `v1.0`, and `v1.1` stay. Do not force-push `main`.
 - The site is a separate commit on `gh-pages`: `index.html` and `en/` change together (title, description, download links, screenshots).
-- Keep `.cursor/` ignored except this skill and `.cursor/rules/texttools-release.mdc`.
+- Keep `.cursor/` ignored except the release skill, the screenshot skill, and `.cursor/rules/texttools-release.mdc` plus `.cursor/rules/texttools-screenshots.mdc`.
 
 ## Installer languages
 

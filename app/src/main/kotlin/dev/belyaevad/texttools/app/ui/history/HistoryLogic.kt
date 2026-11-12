@@ -86,14 +86,16 @@ internal fun historyModel(model: String): String = if (model.isEmpty()) DASH els
  * The highest count comes first. Equal counts keep the order they first appeared.
  */
 internal fun actionRuns(log: String): List<ActionRun> {
-    val counts = linkedMapOf<String, Int>()
-    for (line in log.split('\n')) {
-        val at = line.indexOf(ACTION_MARK)
-        if (at < 0) continue
-        val raw = line.substring(at + ACTION_MARK.length).substringBefore(',')
-        val name = raw.trim().replace(CUSTOM_MARK, "").replace(INSTRUCTION_MARK, "")
-        counts[name] = (counts[name] ?: 0) + 1
-    }
+    val counts =
+        buildMap {
+            for (line in log.split('\n')) {
+                val at = line.indexOf(ACTION_MARK)
+                if (at < 0) continue
+                val raw = line.substring(at + ACTION_MARK.length).substringBefore(',')
+                val name = raw.trim().replace(CUSTOM_MARK, "").replace(INSTRUCTION_MARK, "")
+                put(name, (this[name] ?: 0) + 1)
+            }
+        }
     return counts.map { (name, count) -> ActionRun(name, count) }.sortedByDescending { it.count }
 }
 
@@ -301,22 +303,24 @@ private fun modelSpend(
     usage: List<UsageRecord>,
     price: (model: String, promptTokens: Int, completionTokens: Int) -> Double?,
 ): List<ModelSpend> {
-    val order = mutableListOf<String>()
     val totals = linkedMapOf<String, TokenAcc>()
-    for (row in usage) {
-        val current = totals[row.model]
-        if (current == null) {
-            order += row.model
-            totals[row.model] = TokenAcc(1, row.promptTokens.toLong(), row.completionTokens.toLong())
-        } else {
-            totals[row.model] =
-                TokenAcc(
-                    current.requests + 1,
-                    current.prompt + row.promptTokens,
-                    current.completion + row.completionTokens,
-                )
+    val order =
+        buildList {
+            for (row in usage) {
+                val current = totals[row.model]
+                if (current == null) {
+                    add(row.model)
+                    totals[row.model] = TokenAcc(1, row.promptTokens.toLong(), row.completionTokens.toLong())
+                } else {
+                    totals[row.model] =
+                        TokenAcc(
+                            current.requests + 1,
+                            current.prompt + row.promptTokens,
+                            current.completion + row.completionTokens,
+                        )
+                }
+            }
         }
-    }
     return order
         .map { model ->
             val acc = totals.getValue(model)

@@ -32,8 +32,8 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Msi, TargetFormat.Dmg, TargetFormat.Deb)
             packageName = "TextTools"
-            packageVersion = "1.1.0"
-            description = "TextTools 1.1"
+            packageVersion = "1.1.1"
+            description = "TextTools 1.1.1"
             vendor = "BelyaevAD"
             modules("java.sql", "java.net.http", "java.management", "jdk.unsupported")
             windows {
@@ -91,9 +91,10 @@ tasks.withType<org.jetbrains.compose.desktop.application.tasks.AbstractJPackageT
     // before the tool starts. appResourcesDir is the app's own resources folder, not this one.
     val windowsPackaging = rootProject.layout.projectDirectory.dir("packaging/windows")
     val resourcesDir = layout.buildDirectory.dir("compose/tmp/resources")
-    val stop = object {
-        @Volatile var value: Boolean = false
-    }
+    val stop =
+        object {
+            @Volatile var value: Boolean = false
+        }
     doFirst {
         val wixDir = wixToolsetDir.get().asFile
         val realLight = wixDir.resolve("light-wix.exe")
@@ -105,19 +106,35 @@ tasks.withType<org.jetbrains.compose.desktop.application.tasks.AbstractJPackageT
             if (!realConfig.isFile) config.copyTo(realConfig)
             config.delete()
         }
-        val shimDir = layout.buildDirectory.dir("wix-shim").get().asFile
-        shimDir.resolve("light.exe").copyTo(light, overwrite = true)
-        shimDir.resolve("light-multilang.ps1").copyTo(wixDir.resolve("light-multilang.ps1"), overwrite = true)
+        val shimDir =
+            layout.buildDirectory
+                .dir("wix-shim")
+                .get()
+                .asFile
+        shimDir
+            .resolve("light.exe")
+            .copyTo(light, overwrite = true)
+        shimDir
+            .resolve("light-multilang.ps1")
+            .copyTo(wixDir.resolve("light-multilang.ps1"), overwrite = true)
         val sourceDir = windowsPackaging.asFile
         val destDir = resourcesDir.get().asFile
+
         fun patchRuntimeCfg() {
             val candidates = mutableListOf<File>()
-            File(System.getProperty("java.io.tmpdir")).listFiles()?.forEach { dir ->
-                if (dir.name.startsWith("jdk.jpackage")) {
-                    candidates.add(File(dir, "images/win-msi.image/TextTools/app/TextTools.cfg"))
+            File(System.getProperty("java.io.tmpdir"))
+                .listFiles()
+                ?.forEach { dir ->
+                    if (dir.name.startsWith("jdk.jpackage")) {
+                        candidates.add(File(dir, "images/win-msi.image/TextTools/app/TextTools.cfg"))
+                    }
                 }
-            }
-            candidates.add(layout.buildDirectory.get().asFile.resolve("compose/binaries/main/app/TextTools/app/TextTools.cfg"))
+            candidates.add(
+                layout.buildDirectory
+                    .get()
+                    .asFile
+                    .resolve("compose/binaries/main/app/TextTools/app/TextTools.cfg"),
+            )
             for (cfg in candidates) {
                 if (!cfg.isFile) continue
                 val text = cfg.readText()
@@ -137,7 +154,8 @@ tasks.withType<org.jetbrains.compose.desktop.application.tasks.AbstractJPackageT
                 try {
                     patchRuntimeCfg()
                     if (destDir.isDirectory) {
-                        sourceDir.listFiles()
+                        sourceDir
+                            .listFiles()
                             ?.filter { it.isFile && (it.name == "main.wxs" || it.extension.equals("wxl", true)) }
                             ?.forEach { file ->
                                 val target = destDir.resolve(file.name)

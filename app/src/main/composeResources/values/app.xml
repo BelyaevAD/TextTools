@@ -29,7 +29,9 @@
     <string name="app_settings_saved">Saved. Menu hotkey: %1$s</string>
     <string name="app_editor_saved">Saved: %1$s actions, %2$s refinements, %3$s applications</string>
     <string name="app_run_preparing">preparing request</string>
+    <string name="app_run_preparing_for">preparing request for %1$s</string>
     <string name="app_run_done">done</string>
+    <string name="app_run_done_for">done for %1$s</string>
     <string name="app_run_estimate">sent %1$s chars ≈ %2$s tokens</string>
     <string name="app_run_estimate_cost">sent %1$s chars ≈ %2$s tokens · ≈ %3$s</string>
     <string name="app_run_usage">prompt %1$s tokens · reply %2$s tokens</string>

@@ -26,7 +26,13 @@ class AppProfiler(
     private val note: (String) -> Unit = {},
     private val onUsage: (Usage) -> Unit = {},
 ) {
-    private val asking = ConcurrentHashMap.newKeySet<String>()
+    /**
+     * One lookup per executable for the whole process.
+     * [consider] builds a new profiler on every action, so an instance field would not stop a second action from asking again while the first lookup is still running.
+     */
+    private companion object {
+        val asking = ConcurrentHashMap.newKeySet<String>()
+    }
 
     /**
      * Remembers [proc] when it is new and, when profiling is on, looks it up without waiting.

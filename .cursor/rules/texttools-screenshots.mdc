@@ -1,0 +1,10 @@
+---
+description: Use when a TextTools screenshot is needed. The main agent does not capture the screen.
+alwaysApply: true
+---
+
+# TextTools screenshots
+
+- Do not capture the screen in this agent. Start one subagent with `.cursor/skills/texttools-screenshots/SKILL.md` and let it click. The capture script saves the window.
+- The shot list is `docs/screenshots/catalog.yaml`. `packaging/screenshots/sync-catalog.ps1` appends a surface when a window, editor page, or settings tab appears. Do not add window names to this rule.
+- The saved shot blurs the outer 5 pixels. Do not publish a key, a proxy password, or a DSN.

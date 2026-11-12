@@ -34,4 +34,11 @@ class ElevationTest {
         val info = TokenElevationInfo()
         assertEquals(4, info.size())
     }
+
+    @Test
+    fun guiThreadInfoFieldsAreVisibleToJna() {
+        val info = GuiThreadInfo()
+        info.cbSize = info.size()
+        assertTrue(info.cbSize > 4)
+    }
 }

@@ -11,6 +11,7 @@ texttools.db
 !.cursor/rules/
 .cursor/rules/*
 !.cursor/rules/texttools-release.mdc
+!.cursor/rules/texttools-screenshots.mdc
 !.cursor/skills/
 !.cursor/skills/**
 

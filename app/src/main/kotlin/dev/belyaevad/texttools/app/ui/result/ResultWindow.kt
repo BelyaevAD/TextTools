@@ -23,6 +23,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -45,6 +46,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.rememberWindowState
 import dev.belyaevad.texttools.app.ui.AppField
 import dev.belyaevad.texttools.app.ui.AppIcon
@@ -61,6 +63,7 @@ import dev.belyaevad.texttools.domain.QuickRefine
 import dev.belyaevad.texttools.domain.Usage
 import dev.belyaevad.texttools.domain.parseMarkdown
 import dev.belyaevad.texttools.domain.trimConversation
+import dev.belyaevad.texttools.platform.win.ScreenPoint
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -132,6 +135,7 @@ fun ResultWindow(
     onRequest: (Int) -> Unit = {},
     language: String = "",
     placementId: String = "result",
+    anchor: ScreenPoint? = null,
 ) {
     val live = remember { ResultLive(text, conversation, raw = !markdown) }
     // Left running on close so a refine in flight can still call onDelivered.
@@ -147,7 +151,11 @@ fun ResultWindow(
             ResultWidth,
             resultOuterHeight(conversation != null, chips.isNotEmpty()),
         )
-    val windowState = rememberWindowState(width = place.width, height = place.height, position = place.position)
+    val position = anchor?.let { WindowPosition(it.x.dp, it.y.dp) } ?: place.position
+    val windowState = rememberWindowState(width = place.width, height = place.height, position = position)
+    LaunchedEffect(anchor) {
+        if (anchor != null) windowState.position = WindowPosition(anchor.x.dp, anchor.y.dp)
+    }
 
     Window(
         onCloseRequest = onClose,
@@ -183,9 +191,7 @@ fun ResultWindow(
                                         model,
                                         chip.instruction,
                                         chip.label,
-                                        complete,
-                                        onDelivered,
-                                        onRequest,
+                                        RefineCall(complete, onDelivered, onRequest),
                                     )
                                 },
                             )
@@ -196,7 +202,7 @@ fun ResultWindow(
                                 busy = live.busy,
                                 onDraft = { live.draft = it },
                                 onSend = {
-                                    launchRefine(jobs, live, model, live.draft, "", complete, onDelivered, onRequest)
+                                    launchRefine(jobs, live, model, live.draft, "", RefineCall(complete, onDelivered, onRequest))
                                 },
                             )
                         }
@@ -218,32 +224,36 @@ fun ResultWindow(
     }
 }
 
+private class RefineCall(
+    val complete: suspend (model: String, messages: List<ChatMessage>) -> Pair<String, Usage?>,
+    val onDelivered: suspend (RefineDelivery) -> Unit,
+    val onRequest: (Int) -> Unit,
+)
+
 /**
  * Sends [question] on [model]. An empty question does nothing.
- * [messages] passed to [complete] are the trimmed dialogue, including the new user turn.
+ * [messages] passed to [call] are the trimmed dialogue, including the new user turn.
  */
-@Suppress("LongParameterList", "SwallowedException")
+@Suppress("SwallowedException")
 private fun launchRefine(
     jobs: CoroutineScope,
     live: ResultLive,
     model: String,
     question: String,
     label: String,
-    complete: suspend (model: String, messages: List<ChatMessage>) -> Pair<String, Usage?>,
-    onDelivered: suspend (RefineDelivery) -> Unit,
-    onRequest: (Int) -> Unit,
+    call: RefineCall,
 ) {
     val instruction = question.trim()
     if (instruction.isEmpty()) return
     val previous = live.conversation ?: return
     if (live.busy) return
-    onRequest(instruction.length)
+    call.onRequest(instruction.length)
     val messages = trimConversation(previous + ChatMessage(role = "user", content = instruction))
     live.busy = true
     jobs.launch {
         val reply =
             try {
-                complete(model, messages)
+                call.complete(model, messages)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
@@ -254,7 +264,7 @@ private fun launchRefine(
         if (reply == null) return@launch
         val answer = reply.first.trim()
         if (answer.isEmpty()) return@launch
-        onDelivered(
+        call.onDelivered(
             RefineDelivery(
                 model = model,
                 instruction = instruction,

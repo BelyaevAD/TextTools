@@ -6,19 +6,21 @@ fun buildInstruction(
     languages: List<OutputLanguage>,
     sourceHint: String,
 ): String {
-    val parts = mutableListOf<String>()
-    parts += languageBlock(action.lang, languages)
-    parts += Factory.BLOCK_CONTEXT
-    if (sourceHint.isNotEmpty()) {
-        parts += "SOURCE APPLICATION: $sourceHint"
-    }
-    parts += Factory.BLOCK_FIDELITY
-    if (action.styleOn) {
-        parts += styleBlock(action.lang)
-    }
-    parts += action.task.trim()
-    parts += Factory.BLOCK_BREVITY
-    parts += Factory.BLOCK_OUTPUT
+    val parts =
+        buildList {
+            add(languageBlock(action.lang, languages))
+            add(Factory.BLOCK_CONTEXT)
+            if (sourceHint.isNotEmpty()) {
+                add("SOURCE APPLICATION: $sourceHint")
+            }
+            add(Factory.BLOCK_FIDELITY)
+            if (action.styleOn) {
+                add(styleBlock(action.lang))
+            }
+            add(action.task.trim())
+            add(Factory.BLOCK_BREVITY)
+            add(Factory.BLOCK_OUTPUT)
+        }
     return parts.joinToString("\n\n")
 }
 

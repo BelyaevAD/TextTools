@@ -155,22 +155,29 @@ class SettingsForm(
 
     /** Ticks recommended ids in place and appends any the list did not have. */
     internal fun applyRecommended(picks: List<RecommendedModel>): List<String> {
-        val missing = mutableListOf<String>()
         var next = models
-        for (pick in picks) {
-            if (pick.id.isEmpty()) continue
-            val index = next.indexOfFirst { it.id == pick.id }
-            if (index >= 0) {
-                if (!next[index].selected) {
-                    next = next.mapIndexed { i, row -> if (i == index) row.copy(selected = true) else row }
+        val missing =
+            buildList {
+                for (pick in picks) {
+                    val (updated, added) = withRecommendation(next, pick)
+                    next = updated
+                    if (added != null) add(added)
                 }
-            } else {
-                next = next + KnownModel(pick.id, selected = true)
-                missing += pick.id
             }
-        }
         models = next
         return missing
+    }
+
+    private fun withRecommendation(
+        current: List<KnownModel>,
+        pick: RecommendedModel,
+    ): Pair<List<KnownModel>, String?> {
+        if (pick.id.isEmpty()) return current to null
+        val index = current.indexOfFirst { it.id == pick.id }
+        if (index < 0) return (current + KnownModel(pick.id, selected = true)) to pick.id
+        if (current[index].selected) return current to null
+        val ticked = current.mapIndexed { i, row -> if (i == index) row.copy(selected = true) else row }
+        return ticked to null
     }
 
     /** Ticks retargeted ids in place and appends any the list did not have. */
@@ -234,11 +241,13 @@ class SettingsForm(
         if (repeat.isNotEmpty() && !ahkHotkey(repeat)) return SaveResult.Blocked(SettingsNotice.HotkeyBad(repeat))
         if (defaultModel.trim().isEmpty()) return SaveResult.Blocked(SettingsNotice.ModelEmpty)
         val clip = parseClip(clipWait) ?: return SaveResult.Blocked(SettingsNotice.ClipBad)
-        val read = readProxy()
-        if (read is ProxyRead.Bad) {
-            return SaveResult.Blocked(SettingsNotice.ProxyBad(redactSecret(read.detail, apiKey)))
-        }
-        val accepted = read as ProxyRead.Ok
+        val accepted =
+            when (val read = readProxy()) {
+                is ProxyRead.Bad -> {
+                    return SaveResult.Blocked(SettingsNotice.ProxyBad(redactSecret(read.detail, apiKey)))
+                }
+                is ProxyRead.Ok -> read
+            }
         return SaveResult.Ready(
             SettingsDraft(
                 settings =
