@@ -11,7 +11,7 @@ import kotlin.test.assertTrue
 class AutostartTest {
     @Test
     fun commandQuotesTheInstalledExeAndLeavesTheRegistryAlone() {
-        val before = runSnapshot()
+        val before = if (windowsHost()) runSnapshot() else null
         val exe = Path.of("C:\\Users\\John Doe\\AppData\\Local\\TextTools\\TextTools.exe")
         val command = installedAutostart(exe)
         assertEquals("HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", command.key)
@@ -19,8 +19,10 @@ class AutostartTest {
         assertEquals("\"${exe.toAbsolutePath().normalize()}\"", command.command)
         assertTrue(autostartMatchesInstall(command, exe))
         assertFalse(autostartMatchesInstall(command.copy(command = "\"C:\\Windows\\notepad.exe\""), exe))
-        val after = runSnapshot()
-        assertEquals(before, after, "autostart registry value changed")
+        if (before != null) {
+            val after = runSnapshot()
+            assertEquals(before, after, "autostart registry value changed")
+        }
     }
 
     @Test

@@ -60,6 +60,7 @@ class SecretStoreTest {
 
     @Test
     fun dpapiRoundTripDoesNotStoreThePlaintext() {
+        if (!windowsHost()) return
         val root = Files.createTempDirectory("texttools-p5-dpapi-")
         try {
             val secrets = userSecrets(root, DpapiProtector)
@@ -78,6 +79,7 @@ class SecretStoreTest {
 
     @Test
     fun aForeignBlobIsNotReadAsText() {
+        if (!windowsHost()) return
         val root = Files.createTempDirectory("texttools-p5-foreign-")
         try {
             Files.write(root.resolve("api-key.dpapi"), byteArrayOf(1, 2, 3, 4))

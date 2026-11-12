@@ -62,6 +62,7 @@ class HotkeySwapTest {
 
     @Test
     fun startRegistersTheSavedChordBeforeTheFactoryPair() {
+        if (!windowsHost()) return
         val port = FakeHotkeyPort()
         val hotkeys = WinHotkeys({}, port)
         try {
@@ -75,6 +76,7 @@ class HotkeySwapTest {
 
     @Test
     fun aRefusedSavedChordFallsBackToTheFactoryPair() {
+        if (!windowsHost()) return
         val port = FakeHotkeyPort()
         val hotkeys = WinHotkeys({}, port)
         port.refuse(setOf(chord("^Space"), chord("^+A")))
@@ -97,6 +99,7 @@ class HotkeySwapTest {
 
     @Test
     fun invalidChordDoesNotChangeARunningPair() {
+        if (!windowsHost()) return
         val port = FakeHotkeyPort()
         val hotkeys = WinHotkeys({}, port)
         try {
@@ -111,6 +114,7 @@ class HotkeySwapTest {
 
     @Test
     fun loopSwapRestoresThePreviousPairWhenBothAreRefused() {
+        if (!windowsHost()) return
         val port = FakeHotkeyPort()
         val hotkeys = WinHotkeys({}, port)
         try {
