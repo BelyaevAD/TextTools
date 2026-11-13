@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://buttons.github.io; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; frame-src https://ghbtns.com https://buttons.github.io; connect-src 'self' https://api.github.com">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TextTools — LLM для выделенного текста на Windows</title>
+    <meta name="description" content="Выдели текст в любом окне Windows, нажми хоткей и отдай его модели: вычитка, переписывание, краткое изложение, таблица, разбор кода. Kotlin, OpenAI-совместимый API, MIT.">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <meta name="author" content="BelyaevAD">
+    <meta name="theme-color" content="#0e221d">
+    <link rel="canonical" href="https://belyaevad.github.io/TextTools/">
+    <link rel="alternate" hreflang="ru" href="https://belyaevad.github.io/TextTools/">
+    <link rel="alternate" hreflang="en" href="https://belyaevad.github.io/TextTools/en/">
+    <link rel="alternate" hreflang="x-default" href="https://belyaevad.github.io/TextTools/">
+    <link rel="sitemap" type="application/xml" href="https://belyaevad.github.io/TextTools/sitemap.xml">
+    <link rel="icon" type="image/svg+xml" href="assets/brand-mark.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/site.css">
+
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="ru_RU">
+    <meta property="og:locale:alternate" content="en_US">
+    <meta property="og:title" content="TextTools — LLM для выделенного текста">
+    <meta property="og:description" content="Хоткей в любом окне Windows → сетка действий → результат на месте или в отдельном окне. Kotlin, MIT.">
+    <meta property="og:url" content="https://belyaevad.github.io/TextTools/">
+    <meta property="og:site_name" content="TextTools">
+    <meta property="og:image" content="https://belyaevad.github.io/TextTools/assets/og-card.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="TextTools — меню действий над выделенным текстом">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="TextTools">
+    <meta name="twitter:description" content="LLM для выделенного текста на Windows.">
+    <meta name="twitter:image" content="https://belyaevad.github.io/TextTools/assets/og-card.png">
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "SoftwareApplication",
+            "name": "TextTools",
+            "applicationCategory": "UtilitiesApplication",
+            "operatingSystem": "Windows 10, Windows 11",
+            "softwareVersion": "1.1.0",
+            "url": "https://belyaevad.github.io/TextTools/",
+            "downloadUrl": "https://github.com/BelyaevAD/TextTools/releases/tag/v1.1",
+            "installUrl": "https://github.com/BelyaevAD/TextTools",
+            "description": "Приложение на Kotlin: выделение текста в любом окне Windows, хоткей и действия через OpenAI-совместимый API.",
+            "license": "https://github.com/BelyaevAD/TextTools/blob/main/LICENSE",
+            "isAccessibleForFree": true,
+            "screenshot": [
+              "https://belyaevad.github.io/TextTools/assets/screenshots/en/menu.png",
+              "https://belyaevad.github.io/TextTools/assets/screenshots/en/settings-api.png",
+              "https://belyaevad.github.io/TextTools/assets/screenshots/en/settings-interface.png",
+              "https://belyaevad.github.io/TextTools/assets/screenshots/en/result.png"
+            ],
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "USD"
+            },
+            "author": {
+              "@type": "Person",
+              "name": "Alexander Belyaev",
+              "url": "https://belyaevad.github.io/"
+            }
+          },
+          {
+            "@type": "SoftwareSourceCode",
+            "name": "TextTools",
+            "codeRepository": "https://github.com/BelyaevAD/TextTools",
+            "url": "https://belyaevad.github.io/TextTools/",
+            "programmingLanguage": "Kotlin",
+            "runtimePlatform": "JDK 21",
+            "license": "https://github.com/BelyaevAD/TextTools/blob/main/LICENSE",
+            "keywords": "Kotlin, Compose Desktop, LLM, OpenAI-compatible, text processing, Windows",
+            "inLanguage": ["ru", "en"]
+          },
+          {
+            "@type": "WebSite",
+            "name": "TextTools",
+            "url": "https://belyaevad.github.io/TextTools/",
+            "inLanguage": "ru",
+            "publisher": {
+              "@type": "Person",
+              "name": "BelyaevAD",
+              "url": "https://github.com/BelyaevAD"
+            }
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <header class="site-header">
+      <nav class="nav shell" aria-label="Основная навигация">
+        <a class="brand" href="./">
+          <img src="assets/brand-mark.svg" alt="" width="36" height="36">
+          <span>TextTools</span>
+        </a>
+        <div class="nav-right">
+          <div class="nav-links">
+            <a href="https://github.com/BelyaevAD/TextTools/blob/main/README.md" target="_blank" rel="noopener noreferrer">Документация</a>
+            <a href="https://github.com/BelyaevAD/TextTools/releases" target="_blank" rel="noopener noreferrer">Релизы</a>
+          </div>
+          <span class="nav-star">
+            <a class="github-button" href="https://github.com/BelyaevAD/TextTools" rel="noopener" data-color-scheme="no-preference: dark; light: dark; dark: dark;" data-icon="octicon-star" data-size="large" data-show-count="true" aria-label="Star BelyaevAD/TextTools on GitHub">Star</a>
+          </span>
+          <div class="language-switch" aria-label="Выбор языка">
+            <a href="./" lang="ru" aria-current="page">RU</a>
+            <a href="en/" lang="en">EN</a>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero-band">
+        <div class="hero-inner shell">
+          <div class="hero-copy">
+            <p class="eyebrow">Windows · Kotlin</p>
+            <h1>TextTools</h1>
+            <p class="hero-lead">Выдели текст в любом приложении, нажми хоткей — появится сетка действий. Вычитка, переписывание, краткое изложение, таблица, разбор кода и остальное. Результат либо встанет вместо выделения, либо откроется в отдельном окне.</p>
+            <div class="hero-actions">
+              <a class="button" href="https://github.com/BelyaevAD/TextTools/releases/tag/v1.1" target="_blank" rel="noopener noreferrer">Скачать v1.1</a>
+              <a class="button secondary" href="https://github.com/BelyaevAD/TextTools/blob/main/README.md" target="_blank" rel="noopener noreferrer">Документация</a>
+            </div>
+            <div class="hero-meta" aria-label="Кратко">
+              <span>Windows 10/11</span>
+              <span>OpenAI-совместимый API</span>
+              <span>MIT</span>
+            </div>
+          </div>
+
+          <figure class="hero-visual">
+            <div class="hero-frame">
+              <img
+                src="assets/screenshots/en/menu.png"
+                width="488"
+                height="300"
+                alt="Сетка действий TextTools: вычитка, перевод, таблица, разбор кода"
+                fetchpriority="high">
+            </div>
+            <figcaption>Ctrl+Alt+Space открывает сетку. Shift показывает ответ в окне.</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="shell">
+          <div class="section-heading">
+            <h2>Зачем это</h2>
+            <p>Приложение на Kotlin. Ключ лежит в хранилище системы; к модели уходит только текст конкретного действия.</p>
+          </div>
+          <div class="feature-grid">
+            <article class="feature">
+              <h3>Один хоткей в любом окне</h3>
+              <p>Браузер, почта, IDE, Excel — без плагинов и без копирования в чат. Открыл меню, выбрал действие или дописал свою инструкцию.</p>
+            </article>
+            <article class="feature">
+              <h3>Свой endpoint</h3>
+              <p>OpenRouter, OpenAI, прокси Anthropic, локальный Ollama — всё, что отвечает на <code>/v1/chat/completions</code>. Можно задать модель по умолчанию и отдельно на действие.</p>
+            </article>
+            <article class="feature">
+              <h3>Правки без правки кода</h3>
+              <p>Кнопки, промпты и подсказки «откуда текст» (IDE, почта, таблица…) настраиваются из трея. Сломал — сбросил к заводским.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section white" id="screenshots">
+        <div class="shell">
+          <div class="section-heading">
+            <h2>Как выглядит</h2>
+            <p>Текущий интерфейс. Снимки сделаны с установленной версии 1.0: сетка действий, три вкладки настроек, окно результата и меню трея.</p>
+          </div>
+          <div class="shot-gallery">
+            <figure class="shot-card">
+              <a href="assets/screenshots/en/menu.png" target="_blank" rel="noopener">
+                <img src="assets/screenshots/en/menu.png" width="488" height="300" alt="Сетка действий TextTools" loading="lazy">
+              </a>
+              <figcaption><strong>Сетка действий</strong><span>Пятнадцать заводских действий и свободная инструкция. Shift открывает ответ в окне</span></figcaption>
+            </figure>
+            <figure class="shot-card">
+              <a href="assets/screenshots/en/settings-api.png" target="_blank" rel="noopener">
+                <img src="assets/screenshots/en/settings-api.png" width="892" height="786" alt="Вкладка API: адрес, ключ, прокси и список моделей" loading="lazy">
+              </a>
+              <figcaption><strong>API</strong><span>Адрес OpenAI-совместимого сервиса, ключ, прокси, модель по умолчанию, контекст и цена</span></figcaption>
+            </figure>
+            <figure class="shot-card">
+              <a href="assets/screenshots/en/settings-languages.png" target="_blank" rel="noopener">
+                <img src="assets/screenshots/en/settings-languages.png" width="892" height="786" alt="Вкладка языков ответа" loading="lazy">
+              </a>
+              <figcaption><strong>Языки ответа</strong><span>Отмеченные языки попадают в карточку действия. Свой язык можно добавить</span></figcaption>
+            </figure>
+            <figure class="shot-card">
+              <a href="assets/screenshots/en/settings-interface.png" target="_blank" rel="noopener">
+                <img src="assets/screenshots/en/settings-interface.png" width="892" height="786" alt="Вкладка интерфейса: язык, хоткеи, Markdown, автозапуск" loading="lazy">
+              </a>
+              <figcaption><strong>Интерфейс</strong><span>Английский или русский, хоткеи, Markdown, автозапуск, профилирование и отчёты</span></figcaption>
+            </figure>
+            <figure class="shot-card">
+              <a href="assets/screenshots/en/result.png" target="_blank" rel="noopener">
+                <img src="assets/screenshots/en/result.png" width="824" height="569" alt="Окно последнего результата" loading="lazy">
+              </a>
+              <figcaption><strong>Результат</strong><span>Копирование или вставка обратно в окно, откуда взяли текст</span></figcaption>
+            </figure>
+            <figure class="shot-card">
+              <a href="assets/screenshots/en/tray-menu.png" target="_blank" rel="noopener">
+                <img src="assets/screenshots/en/tray-menu.png" width="144" height="271" alt="Меню трея TextTools" loading="lazy">
+              </a>
+              <figcaption><strong>Меню трея</strong><span>Последний результат, история, статистика, редактор действий и настройки</span></figcaption>
+            </figure>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="shell">
+          <div class="section-heading">
+            <h2>Что есть из коробки</h2>
+            <p>Пятнадцать действий в сетке и свободная инструкция. Ниже — часть заводского набора.</p>
+          </div>
+          <div class="coverage" aria-label="Действия">
+            <div class="coverage-item"><code>proofread</code><strong>Поправить форму, смысл не трогать</strong></div>
+            <div class="coverage-item"><code>rewrite</code><strong>Сделать яснее, без воды</strong></div>
+            <div class="coverage-item"><code>summary</code><strong>Сжать до сути</strong></div>
+            <div class="coverage-item"><code>table</code><strong>Собрать Markdown-таблицу</strong></div>
+            <div class="coverage-item"><code>spec</code><strong>Набросать спеку под разработку</strong></div>
+            <div class="coverage-item"><code>code</code><strong>Разобрать кусок кода</strong></div>
+            <div class="coverage-item"><code>reply</code><strong>Черновик ответа</strong></div>
+            <div class="coverage-item"><code>reqreview</code><strong>Пройтись по требованиям</strong></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section dark">
+        <div class="quick-start shell">
+          <div class="quick-copy">
+            <p class="eyebrow">Установка</p>
+            <h2>Пара минут</h2>
+            <p>Установщик Windows — в релизе v1.1. Пакет Debian и образ для Mac для этого тега не пересобирались. Захват выделения и вставка в другое окно есть только в сборке Windows.</p>
+            <a class="button secondary" href="https://github.com/BelyaevAD/TextTools/blob/main/README.md" target="_blank" rel="noopener noreferrer">Полная инструкция</a>
+          </div>
+          <div class="code-window" aria-label="Команды установки">
+            <div class="code-toolbar">
+              <span class="window-dot"></span>
+              <span class="window-dot yellow"></span>
+              <span class="window-dot green"></span>
+              <span>powershell</span>
+            </div>
+            <pre><code>https://github.com/BelyaevAD/TextTools/releases/download/v1.1/TextTools-1.1.0.msi
+
+<span class="code-comment"># deb: в Ubuntu, ./gradlew clean :app:packageDeb</span>
+<span class="code-comment"># DMG: на Mac, sh packaging/macos/package-dmg.sh</span></code></pre>
+          </div>
+        </div>
+      </section>
+
+      <section class="section white">
+        <div class="shell">
+          <div class="section-heading">
+            <h2>Про ключ и стабильность</h2>
+            <p>Ключ и прокси лежат в хранилище системы, не в файле настроек и не в SQLite. Профилирование приложений и отчёты об ошибках выключены, пока их не включить. История на диске хранит тексты — в git её лучше не класть.</p>
+          </div>
+          <ul class="safety-list">
+            <li>Ключ и прокси остаются в хранилище системы. Опциональный HTTP/HTTPS/SOCKS-прокси задаётся в настройках API.</li>
+            <li>По умолчанию хоткей <code>Ctrl+Alt+Space</code>: <code>Ctrl+Space</code> часто уже занят IME и другими хуками.</li>
+            <li>Локальный Ollama: <code>http://localhost:11434/v1</code>, ключ <code>ollama</code>.</li>
+            <li>Язык интерфейса — встроенные английский и русский. Пакеты <code>lang/*.ini</code> этой версией не загружаются.</li>
+            <li>Токены считаются точно — их возвращает само API. Деньги это <strong>оценка</strong>: цены берутся из каталога OpenRouter даже на другом провайдере, потому что публичного прайс-эндпоинта у него нет.</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-inner shell">
+        <p>TextTools · MIT · идея навеяна Writing Tools, код и промпты свои</p>
+        <div class="footer-links">
+          <a href="https://github.com/BelyaevAD/TextTools" target="_blank" rel="noopener noreferrer">GitHub</a>
+          <a href="https://github.com/BelyaevAD/TextTools/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">Лицензия</a>
+          <a href="en/" lang="en">English</a>
+          <a href="https://belyaevad.github.io/" target="_blank" rel="noopener noreferrer">belyaevad.github.io</a>
+        </div>
+      </div>
+    </footer>
+    <script async defer src="https://buttons.github.io/buttons.js"></script>
+  </body>
+</html>

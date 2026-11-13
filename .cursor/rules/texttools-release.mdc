@@ -17,6 +17,6 @@ alwaysApply: false
 - `CHANGELOG.md` states the version, the date, and what changed for the person using the app. Do not copy old AutoHotkey entries onto `main`.
 - Release notes and the README link only to those built files. Say the DMG is built on a Mac when it was not built here. No secrets.
 - Do not capture the screen here. The screenshot skill does that, then blurs the outer 5 pixels. Do not reuse AutoHotkey shots from `gh-pages`.
-- Update `gh-pages` (`index.html` and `en/` together) in its own commit, not in `main`.
+- Update `gh-pages` (`index.html` and `en/` together) in its own commit, not in `main`. The Russian page uses `assets/screenshots/ru/`. The English page uses `assets/screenshots/en/`. Same file names. A new window a person uses is on the README and on both pages in that release.
 - Tag the commit that contains the changelog and the README with `git tag -a vX.Y.Z`, then push. Do not rewrite `main`.
 - A change to `packaging/windows/main.wxs` keeps `Language="!(loc.ProductLanguage)"` and the `l10n-*.wxl` cultures (`en-us`, `de-de`, `ja-jp`, `zh-cn`, `ru-ru`). The MSI task copies `main.wxs` and the `l10n-*.wxl` files into the jpackage resource directory.

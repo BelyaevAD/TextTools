@@ -130,7 +130,7 @@ One row per actual model call: `action`, `refine` or `profile`, with `success`, 
 | `%LOCALAPPDATA%\TextTools\secrets\proxy-url.dpapi` | DPAPI blob for the current user. |
 | `%LOCALAPPDATA%\TextTools\lang\user\<code>.ini` | User language pack. |
 | `%LOCALAPPDATA%\TextTools\sentry.properties` | Last place the error-report file is looked up. |
-| `%LOCALAPPDATA%\TextTools\windows.properties` | Outer x, y, width and height of each window id. A missing id uses the first platform position. |
+| `%APPDATA%\TextTools\windows.properties` | Outer x, y, width and height of each window id. A missing id uses the first platform position. A newer file left in the install folder is moved here once. |
 
 An AHK folder imported by `LegacyImport` is read, not modified. A missing file or a file that is not valid UTF-8 leaves the table it owns as it was.
 

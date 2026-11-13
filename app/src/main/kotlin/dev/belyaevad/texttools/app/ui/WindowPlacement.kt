@@ -9,6 +9,7 @@ import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.WindowScope
 import dev.belyaevad.texttools.platform.win.WorkArea
 import dev.belyaevad.texttools.platform.win.currentWorkAreas
+import dev.belyaevad.texttools.platform.win.userDataRoot
 import java.awt.event.ComponentAdapter
 import java.awt.event.ComponentEvent
 import java.io.IOException
@@ -124,15 +125,9 @@ private fun distanceTo(
     return dx.toLong() + dy.toLong()
 }
 
-/** `%LOCALAPPDATA%\TextTools\windows.properties`. Numbers only. */
+/** `%APPDATA%\TextTools\windows.properties`. Numbers only. */
 internal object WindowFrames {
-    private val file: Path =
-        Path.of(
-            System.getenv("LOCALAPPDATA")?.takeIf { it.isNotBlank() }
-                ?: Path.of(System.getProperty("user.home"), "AppData", "Local").toString(),
-            "TextTools",
-            "windows.properties",
-        )
+    private val file: Path = userDataRoot().resolve("windows.properties")
     private val props = Properties()
 
     init {

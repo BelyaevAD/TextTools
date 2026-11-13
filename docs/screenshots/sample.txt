@@ -1,0 +1,5 @@
+TextTools starts from a passage you have already selected. The menu hotkey opens a small grid beside the caret, and each action has one job: proofread, rewrite for clarity, shorten, translate, or turn a rough note into a prompt. You choose the action, add a short instruction when you need one, and the selected words go to the model you set in Settings.
+
+The result is pasted back into the field when that field can take text. A selection on a page, or an action that asks for a window, opens the result beside the cursor. You can read it there, copy it, or run one more step on it. The repeat hotkey runs the last action on a new selection without opening the grid again.
+
+Language, Markdown, and the default model are chosen once. The interface is English or Russian. This passage is the same text in every release picture, so the window shows the shape of a real request and not a new sample each time.

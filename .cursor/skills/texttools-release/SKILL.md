@@ -22,13 +22,13 @@ The number has three parts, as in `1.1.123`. The changelog heading, the README v
 ## Notes and pictures
 
 - `CHANGELOG.md` on `main` uses `## vX.Y.Z — YYYY-MM-DD`, then what changed for the user. Leave the AutoHotkey history on `archive/ahk`. The published headings `v1.0` and `v1.1` stay two-part.
-- Do not capture the screen in this agent. Follow `.cursor/skills/texttools-screenshots/SKILL.md`. README keeps the pictures it already links. Refresh every catalog surface marked `readme: true`. A new window, page, or tab is appended to `docs/screenshots/catalog.yaml` by `packaging/screenshots/sync-catalog.ps1` and stays out of the README until `readme` is set true. Do not use `gh-pages` AutoHotkey shots. Do not publish a shot that shows a key, a proxy password, or a DSN.
+- Do not capture the screen in this agent. Follow `.cursor/skills/texttools-screenshots/SKILL.md`. README keeps the pictures it already links, and gains a picture when a new window, editor page, or settings tab is how a person uses a new feature. Refresh every catalog surface marked `readme: true`, in English and in Russian. A new window, page, or tab is appended to `docs/screenshots/catalog.yaml` by `packaging/screenshots/sync-catalog.ps1`. Set `readme: true` for that surface in the same release and show it on both GitHub Pages pages in the language of each page. An alert stays out of the README and the site. Do not use `gh-pages` AutoHotkey shots. An API key that shows only asterisks or dots may stay. Do not publish a readable key, a proxy password, or a DSN. Body text is `docs/screenshots/sample.txt`, unchanged from release to release.
 - Release text links only the assets just built.
 
 ## Git
 
 - Commit the changelog and README before tagging. `git tag -a vX.Y.Z` on that commit, then push `main` and the tag. Do not use `-f`. Tags `v0.1.0`–`v0.3.1`, `v1.0`, and `v1.1` stay. Do not force-push `main`.
-- The site is a separate commit on `gh-pages`: `index.html` and `en/` change together (title, description, download links, screenshots).
+- The site is a separate commit on `gh-pages`: `index.html` and `en/` change together (title, description, download links, screenshots). The Russian page links `assets/screenshots/ru/`. The English page links `assets/screenshots/en/`. The file names match. Do not point the Russian page at the English pictures.
 - Keep `.cursor/` ignored except the release skill, the screenshot skill, and `.cursor/rules/texttools-release.mdc` plus `.cursor/rules/texttools-screenshots.mdc`.
 
 ## Installer languages

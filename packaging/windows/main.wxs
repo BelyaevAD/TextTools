@@ -118,6 +118,9 @@
     <CustomAction Id="JpKeepUserFiles" Execute="immediate" Impersonate="yes" Return="ignore"
       Directory="TARGETDIR"
       ExeCommand="[SystemFolder]cmd.exe /c copy /y &quot;%LOCALAPPDATA%\TextTools\texttools.db-wal&quot; &quot;%APPDATA%\TextTools\&quot;&amp;copy /y &quot;%LOCALAPPDATA%\TextTools\ui.properties&quot; &quot;%APPDATA%\TextTools\&quot;" />
+    <CustomAction Id="JpKeepUserWindows" Execute="immediate" Impersonate="yes" Return="ignore"
+      Directory="TARGETDIR"
+      ExeCommand="[SystemFolder]cmd.exe /c xcopy /D /Y /I &quot;%LOCALAPPDATA%\TextTools\windows.properties&quot; &quot;%APPDATA%\TextTools\&quot;" />
     <CustomAction Id="JpKeepUserSecrets" Execute="immediate" Impersonate="yes" Return="ignore"
       Directory="TARGETDIR"
       ExeCommand="[SystemFolder]cmd.exe /c if exist &quot;%APPDATA%\TextTools\secrets\api-key.dpapi&quot; exit /b 0&amp;mkdir &quot;%APPDATA%\TextTools\secrets&quot;&amp;copy /y &quot;%LOCALAPPDATA%\TextTools\secrets\*.dpapi&quot; &quot;%APPDATA%\TextTools\secrets\&quot;" />
@@ -171,7 +174,8 @@
       <Custom Action="JpKeepUserDb" After="CostFinalize"/>
       <Custom Action="JpKeepUserFiles" After="JpKeepUserDb"/>
       <Custom Action="JpKeepUserSecrets" After="JpKeepUserFiles"/>
-      <RemoveExistingProducts After="JpKeepUserSecrets"/>
+      <Custom Action="JpKeepUserWindows" After="JpKeepUserSecrets"/>
+      <RemoveExistingProducts After="JpKeepUserWindows"/>
       <Custom Action="JpFindRelatedProducts" After="FindRelatedProducts"/>
     </InstallExecuteSequence>
 

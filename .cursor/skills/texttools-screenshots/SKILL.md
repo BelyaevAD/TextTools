@@ -28,7 +28,7 @@ Read `docs/screenshots/catalog.yaml`. Skip a surface whose file already exists u
 powershell -NoProfile -File packaging/screenshots/capture-foreground.ps1 -Out <file> -Match "<match>" -Wait 25
 ```
 
-3. Do what `open` says. Do not type a key, a proxy password, or a DSN. If one is visible, clear it or skip the shot.
+3. Do what `open` says. An API key that shows only asterisks or dots may stay in the picture. If any character of the key is readable, clear that field for the shot and do not save. A proxy password and a DSN must not be visible. The hint under an empty proxy field may stay.
 4. If `gate` is true, create `tmp/screenshot-gate` only after that surface is the one on screen.
 5. Wait until the script exits. It prints `captured: <file> title: <title>`. If `match` was empty, write that title into `match`.
 6. On a non-zero exit, repeat this surface once. Then stop that surface and report the script line.
@@ -37,8 +37,20 @@ Do not save a screen grab as the asset. One look is allowed only to see why a cl
 
 ## A surface the script did not list
 
-If you had to open a window, page, or tab that has no catalog row, append one row with `source: seen-<id>`, `readme: false`, the file path, the exact title as `match`, and the `open` steps you used. Do not edit this skill.
+If you had to open a window, page, or tab that has no catalog row, append one row with `source: seen-<id>`, the file path, the exact title as `match`, and the `open` steps you used. Do not edit this skill.
 
-Leave `readme` as it is. A release may set it true when the README should show that surface.
+A window, editor page, or settings tab that a person uses to do the work gets `readme: true` in the release that adds it. Add its picture and one sentence to the README, and add the English and Russian pictures to both GitHub Pages pages, each page in its own language. An alert stays `readme: false` and stays off the README and the site.
 
 Return the files written and the catalog rows added. Do not paste the images.
+
+## Two languages
+
+The old script saved one folder per interface language, `docs/assets/screenshots/en/` and `docs/assets/screenshots/ru/`, with the same file names. Keep that. The catalog `file` path is the English shot. The Russian shot is that path with `/en/` replaced by `/ru/`.
+
+For a release refresh of every `readme: true` surface, capture the English pass first with the interface set to English, then the Russian pass with the interface set to Russian. Use `docs/screenshots/sample.txt` in both. After the last shot, put the user's interface language back.
+
+The GitHub Pages commit copies both folders into `assets/screenshots/`. `index.html` (Russian) links `assets/screenshots/ru/`. `en/index.html` links `assets/screenshots/en/`. Do not leave the Russian page on the English pictures.
+
+## Sample text
+
+`docs/screenshots/sample.txt` is the only body text for a shot. Copy it exactly into the selection or the result window. It is three short paragraphs about improving selected text with TextTools. Do not rewrite it, shorten it, or replace it with a new model answer for a release. If showing it replaces the user's last result, put the previous result back after the shot.

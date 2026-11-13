@@ -7,4 +7,8 @@ alwaysApply: true
 
 - Do not capture the screen in this agent. Start one subagent with `.cursor/skills/texttools-screenshots/SKILL.md` and let it click. The capture script saves the window.
 - The shot list is `docs/screenshots/catalog.yaml`. `packaging/screenshots/sync-catalog.ps1` appends a surface when a window, editor page, or settings tab appears. Do not add window names to this rule.
-- The saved shot blurs the outer 5 pixels. Do not publish a key, a proxy password, or a DSN.
+- The saved shot blurs the outer 5 pixels. An API key that shows only asterisks or dots may stay. Do not publish a readable key, a proxy password, or a DSN.
+- Body text in a shot is `docs/screenshots/sample.txt`, copied exactly. Do not write a new sample for a release.
+- Take each release picture twice. English UI is saved under `docs/assets/screenshots/en/`. Russian UI is the same file name under `docs/assets/screenshots/ru/`. The catalog path is the English file.
+- On the GitHub Pages site, `index.html` uses `assets/screenshots/ru/` and `en/` uses `assets/screenshots/en/`. Same file names. Do not point the Russian page at the English pictures.
+- A new window, editor page, or settings tab that a person uses to do the work is shown in the README and on both site pages in that same release. An alert stays out of both.

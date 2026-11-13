@@ -205,6 +205,7 @@ import java.net.http.HttpResponse
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.StandardCopyOption
 import java.nio.file.StandardOpenOption
 import java.time.Duration
 import java.time.Instant
@@ -1528,11 +1529,11 @@ private fun prepareUserData() {
         "texttools.db-wal",
         "texttools.db-shm",
         "ui.properties",
-        "windows.properties",
         "TextTools_last.txt",
     )) {
         copyIfMissing(source.resolve(name), dest.resolve(name))
     }
+    moveNewerWindowPositions(source.resolve("windows.properties"), dest.resolve("windows.properties"))
     val secrets = source.resolve("secrets")
     if (!Files.isDirectory(secrets)) return
     val secretDest = dest.resolve("secrets")
@@ -1552,6 +1553,20 @@ private fun copyIfMissing(
 ) {
     if (!Files.isRegularFile(from) || Files.exists(to)) return
     Files.copy(from, to)
+}
+
+/** Older builds wrote this file into the install folder. Keep the newer copy, then remove the install-folder one. */
+private fun moveNewerWindowPositions(
+    from: Path,
+    to: Path,
+) {
+    if (!Files.isRegularFile(from) || from == to) return
+    val sourceTime = Files.getLastModifiedTime(from)
+    val destTime = if (Files.isRegularFile(to)) Files.getLastModifiedTime(to) else null
+    if (destTime == null || sourceTime > destTime) {
+        Files.copy(from, to, StandardCopyOption.REPLACE_EXISTING)
+    }
+    Files.deleteIfExists(from)
 }
 
 private fun importScriptSettings(graph: AppGraph) {
