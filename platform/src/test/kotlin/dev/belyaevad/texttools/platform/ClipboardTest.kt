@@ -28,7 +28,7 @@ class ClipboardTest {
     fun pasteFallsBackWhenTheWindowWillNotActivate() {
         val io = FakeClip(text = "old", canActivate = false)
         assertIs<PasteAttempt.ShowInWindow>(ClipboardProtocol(io).paste("result"))
-        assertEquals("result", io.text)
+        assertEquals("old", io.text)
     }
 
     @Test

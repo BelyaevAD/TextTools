@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.1.2 — 2026-11-13
+
+- Hotkeys are registered when the app starts. Opening settings and pressing Save is not required.
+- An older settings file is read as before and written back in the current form. Values already set are kept.
+- Settings shows the app version beside the Save button.
+- If the result cannot be pasted, the previous clipboard text is put back. The result stays in its window.
+
+Downloads for this version are the Windows installer `TextTools-1.1.2.msi`. The Debian package and the macOS disk image are built on their own systems: `./gradlew :app:packageDeb` and `sh packaging/macos/package-dmg.sh`.
+
 ## v1.1.1 — 2026-11-12
 
 - The action menu opens beside the input field when the selection is in a field, and beside the cursor when the selection is on a page. The side nearest the cursor is used when it stays on screen and does not cover that point.

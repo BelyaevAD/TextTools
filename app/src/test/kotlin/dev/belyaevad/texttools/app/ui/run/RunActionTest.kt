@@ -181,7 +181,7 @@ class RunActionTest {
                 assertIs<RunOutcome.InWindow>(failedPaste)
                 assertEquals(0, opened.clip.pastes)
                 assertTrue(opened.queued.isEmpty())
-                assertEquals("out-3", opened.clip.text)
+                assertEquals("saved", opened.clip.text)
                 assertEquals(listOf("out-3", "out-2", "out-1"), opened.store.history().map { it.result })
                 val log = Files.readString(opened.dir.resolve("TextTools.log"))
                 assertTrue("action: Proofread (Shift: into window), selected" in log)

@@ -270,27 +270,24 @@ class WinHotkeys internal constructor(
     private fun threadMain(ready: CountDownLatch) {
         try {
             threadId = Kernel32.INSTANCE.GetCurrentThreadId()
+            // A chord registered before GetMessage is stored and then never delivered.
             User32.INSTANCE.PeekMessage(MSG(), null, 0, 0, 0)
-            val requestedMenu = parseChord(initialMenu)
-            val requestedRepeat = parseChord(initialRepeat)
-            val factoryMenu = parseChord(FACTORY_MENU_HOTKEY)
-            val factoryRepeat = parseChord(FACTORY_REPEAT_HOTKEY)
-            val menuChord = requestedMenu ?: factoryMenu
-            val repeatChord = requestedRepeat ?: factoryRepeat
+            running.set(true)
+            val menuChord = parseChord(initialMenu) ?: parseChord(FACTORY_MENU_HOTKEY)
+            val repeatChord = parseChord(initialRepeat) ?: parseChord(FACTORY_REPEAT_HOTKEY)
             if (menuChord != null && repeatChord != null) {
-                registration.replace(menuChord, repeatChord)
-                if (!registration.menuReady() && menuChord != factoryMenu) {
-                    val fallbackMenu = factoryMenu
-                    val fallbackRepeat = factoryRepeat
-                    if (fallbackMenu != null && fallbackRepeat != null) {
-                        registration.replace(fallbackMenu, fallbackRepeat)
-                    }
+                jobs.offer(SwapJob(menuChord, repeatChord, CompletableFuture(), initial = true))
+                val posted = User32.INSTANCE.PostThreadMessage(threadId, WM_SWAP, null, null)
+                if (posted == 0) {
+                    jobs.poll()
+                    both.set(false)
+                    ready.countDown()
                 }
+            } else {
+                both.set(false)
+                ready.countDown()
             }
-            both.set(registration.menuReady())
-            running.set(registration.hasAny())
-            ready.countDown()
-            if (running.get()) pumpMessages()
+            pumpMessages(ready)
         } finally {
             running.set(false)
             registration.clear()
@@ -298,7 +295,7 @@ class WinHotkeys internal constructor(
         }
     }
 
-    private fun pumpMessages() {
+    private fun pumpMessages(ready: CountDownLatch) {
         val user32 = User32.INSTANCE
         val msg = MSG()
         while (true) {
@@ -312,12 +309,26 @@ class WinHotkeys internal constructor(
             } else if (msg.message == WM_SWAP) {
                 val job = jobs.poll()
                 if (job != null) {
-                    job.answer.complete(registration.replace(job.menu, job.repeat))
+                    job.answer.complete(applySwap(job))
+                    if (job.initial) ready.countDown()
                 }
             }
             user32.TranslateMessage(msg)
             user32.DispatchMessage(msg)
         }
+    }
+
+    private fun applySwap(job: SwapJob): Boolean {
+        var accepted = registration.replace(job.menu, job.repeat)
+        if (job.initial && !registration.menuReady()) {
+            val factoryMenu = parseChord(FACTORY_MENU_HOTKEY)
+            val factoryRepeat = parseChord(FACTORY_REPEAT_HOTKEY)
+            if (factoryMenu != null && factoryRepeat != null) {
+                accepted = registration.replace(factoryMenu, factoryRepeat)
+            }
+        }
+        if (job.initial) both.set(registration.menuReady())
+        return accepted
     }
 }
 
@@ -325,6 +336,7 @@ private data class SwapJob(
     val menu: Chord,
     val repeat: Chord,
     val answer: CompletableFuture<Boolean>,
+    val initial: Boolean = false,
 )
 
 private class User32HotkeyPort : HotkeyPort {

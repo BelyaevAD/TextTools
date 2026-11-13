@@ -16,7 +16,9 @@ features:
       - CHANGELOG.md
       - app/build.gradle.kts
     notes:
-      - "current: A release number has three parts and is the same in the changelog heading, the README version line, packageVersion, the installer name, and the tag. After published v1.1 the next release is v1.1.1, and each later user-visible change increments the last part instead of opening a two-part heading. Published tags v1.0 and v1.1 stay. The open draft is v1.1.1."
+      - "current: A release number has three parts and is the same in the changelog heading, the README version line, packageVersion, the installer name, and the tag. v1.1.2 is published. There is no open draft. Each user-visible change increments the last part. Published tags v1.0 and v1.1 stay two-part."
+      - "2026-11-13 change: v1.1.2 is published. Why: Settings now shows the version, and the hotkey and settings fixes ship with that number. Now: the tag, the Windows installer, and the changelog heading are 1.1.2, and there is no open draft."
+      - "2026-11-13 change: The open draft is v1.1.2. Why: hotkey registration and settings migration are a user-visible fix after v1.1.1. Now: the heading, the README line, and packageVersion say 1.1.2 until that tag is cut."
       - "2026-11-13 change: Release numbers are three parts and the last part moves for every user-visible change. Why: two-part headings such as v1.2 batched work and made releases rare. Now: the draft that was v1.2 is v1.1.1, and the next user-visible change starts v1.1.2."
   - id: screenshot-frame
     title: Screenshot frame blur
@@ -30,3 +32,15 @@ features:
     notes:
       - "current: The agent that edits the product does not capture the screen. A subagent opens each surface in docs/screenshots/catalog.yaml, packaging/screenshots/capture-foreground.ps1 saves that TextTools window, and BlurBorder blurs the outer 5 pixels from the window edge so the desktop behind the window is not a hard rim. sync-catalog.ps1 appends a surface when a new window, editor page, or settings tab appears, and skips alert dialogs and a private function that only draws a window another function in the same file already opens. Interior pixels stay sharp."
       - "2026-11-13 add: Blur the outer 5 pixels of a screenshot and capture it from a subagent. Why: the window capture includes a sliver of the desktop, and taking the shot in the main agent is expensive. Now: the catalog grows from the code, the subagent captures, and the 5 pixel frame is blurred."
+  - id: ui-settings
+    title: Settings file and hotkeys
+    classes:
+      - app/src/main/kotlin/dev/belyaevad/texttools/app/Main.kt
+      - app/src/main/kotlin/dev/belyaevad/texttools/app/AppVersion.kt
+      - app/src/main/kotlin/dev/belyaevad/texttools/app/UiSettings.kt
+      - platform/src/main/kotlin/dev/belyaevad/texttools/platform/win/WinSession.kt
+    notes:
+      - "current: Saved hotkeys are registered on the hotkey thread after its message loop is pumping, so they work as soon as the process starts. The settings window shows TextTools and the app version beside Save. ui.properties with no version, or a lower one, is read with stored values kept and missing keys filled from the factory, then written back as version 1 by moving a finished temp file over the live file. A file that cannot be read is left unchanged. A file already at version 1 is left in place unless a resolved value changed. Unknown keys are kept. The autostart key stays absent until the user saved it or an installed program resolved it."
+      - "2026-11-13 change: Settings shows the app version beside Save. Why: the running program did not say which version it was. Now: the version string matches packageVersion."
+      - "2026-11-13 fix: Replace ui.properties by moving a finished temp file. Why: a crash while writing the live file could leave version 1 and drop keys. Now: the live file is replaced only after the new bytes are closed, and an unreadable file is left as it is."
+      - "2026-11-13 fix: Register hotkeys inside the message loop and rewrite an older settings file in the current form. Why: a chord registered before the loop pumped did not fire until Save, and an older ui.properties never gained new keys. Now: startup registers the saved pair on the first pump, and a pre-version file is written back without dropping its values."

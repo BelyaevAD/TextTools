@@ -111,7 +111,10 @@ class ClipboardProtocol internal constructor(
         val saved = io.readText() ?: return PasteAttempt.ShowInWindow
         if (io.elevatedForeign()) return PasteAttempt.ShowInWindow
         if (!io.writeText(text)) return PasteAttempt.ShowInWindow
-        if (!io.activateSource()) return PasteAttempt.ShowInWindow
+        if (!io.activateSource()) {
+            io.writeText(saved)
+            return PasteAttempt.ShowInWindow
+        }
         if (!io.canAcceptText()) {
             io.writeText(saved)
             return PasteAttempt.ShowInWindow

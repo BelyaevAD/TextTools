@@ -32,8 +32,8 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Msi, TargetFormat.Dmg, TargetFormat.Deb)
             packageName = "TextTools"
-            packageVersion = "1.1.1"
-            description = "TextTools 1.1.1"
+            packageVersion = "1.1.2"
+            description = "TextTools 1.1.2"
             vendor = "BelyaevAD"
             modules("java.sql", "java.net.http", "java.management", "jdk.unsupported")
             windows {

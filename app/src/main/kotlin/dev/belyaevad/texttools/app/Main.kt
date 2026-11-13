@@ -1373,7 +1373,7 @@ private fun saveSettings(
         graph.secrets.put(SecretSlot.ProxyUrl, draft.settings.proxy)
         graph.store.saveLanguages(draft.languages)
         if (draft.modelsUrl.isNotBlank()) graph.store.saveModels(draft.modelsUrl, draft.models)
-        writeUiSettings(draft.settings)
+        writeUiSettings(draft.settings, persistAutostart = true)
         publish(draft.settings)
         applySentry(sentryFile, draft.settings)
         currentInstalledExe()?.let { WindowsRunKey().apply(draft.settings.autostart, it) }
@@ -1512,16 +1512,24 @@ private fun dataDirectory(): Path {
 private data class LoadedUi(
     val settings: Settings,
     val autostartStored: Boolean?,
+    val rewrite: Boolean,
 )
 
 private fun loadSettings(secrets: UserSecrets): Settings {
     val loaded = readUi(secrets)
-    val exe = currentInstalledExe() ?: return loaded.settings
-    val matches = WindowsRunKey().read() == installedAutostart(exe).command
-    val enabled = autostartEnabled(loaded.autostartStored, matches)
-    val next = loaded.settings.copy(autostart = enabled)
-    WindowsRunKey().apply(enabled, exe)
-    if (loaded.autostartStored == null || next != loaded.settings) writeUiSettings(next)
+    val exe = currentInstalledExe()
+    val next =
+        if (exe == null) {
+            loaded.settings
+        } else {
+            val matches = WindowsRunKey().read() == installedAutostart(exe).command
+            val enabled = autostartEnabled(loaded.autostartStored, matches)
+            WindowsRunKey().apply(enabled, exe)
+            loaded.settings.copy(autostart = enabled)
+        }
+    if (loaded.rewrite || next != loaded.settings) {
+        writeUiSettings(next, persistAutostart = loaded.autostartStored != null || exe != null)
+    }
     return next
 }
 
@@ -1529,78 +1537,41 @@ private fun readUi(secrets: UserSecrets): LoadedUi {
     val factory = Factory.defaultSettings
     val proxy = secrets.get(SecretSlot.ProxyUrl).orEmpty()
     val file = dataDirectory().resolve(UI_FILE)
-    if (!Files.isRegularFile(file)) {
-        return LoadedUi(factory.copy(proxy = proxy, proxyOn = proxy.isNotEmpty()), null)
+    val props = Properties()
+    val missing = !Files.isRegularFile(file)
+    var failed = false
+    if (!missing) {
+        try {
+            Files.newBufferedReader(file, StandardCharsets.UTF_8).use { props.load(it) }
+        } catch (_: IOException) {
+            failed = true
+        }
     }
-    return try {
-        val props = Properties()
-        Files.newBufferedReader(file, StandardCharsets.UTF_8).use { props.load(it) }
-        val clip = props.getProperty("clipWaitSeconds")?.toDoubleOrNull() ?: factory.clipWaitSeconds
-        val stored = props.getProperty("autostart")
-        LoadedUi(
-            factory.copy(
-                baseUrl = textProp(props, "baseUrl", factory.baseUrl).ifBlank { factory.baseUrl },
-                defaultModel = textProp(props, "defaultModel", factory.defaultModel).ifBlank { factory.defaultModel },
-                proxy = proxy,
-                proxyOn = proxyFlag(props, proxy.isNotEmpty()),
-                hotkey = textProp(props, "hotkey", factory.hotkey).ifBlank { factory.hotkey },
-                hotkeyRepeat = textProp(props, "hotkeyRepeat", factory.hotkeyRepeat),
-                markdown = boolProp(props, "markdown", factory.markdown),
-                uiLang = textProp(props, "uiLang", factory.uiLang).ifBlank { factory.uiLang },
-                appProfiling = boolProp(props, "appProfiling", factory.appProfiling),
-                clipWaitSeconds = clipWaitSeconds(clip),
-                sentryErrors = boolProp(props, "sentryErrors", factory.sentryErrors),
-                sentryTraces = boolProp(props, "sentryTraces", factory.sentryTraces),
-                autostart = stored?.equals("true", ignoreCase = true) ?: factory.autostart,
-                profileModel = textProp(props, "profileModel", factory.profileModel),
-            ),
-            stored?.let { it.equals("true", ignoreCase = true) },
-        )
-    } catch (_: IOException) {
-        LoadedUi(factory.copy(proxy = proxy, proxyOn = proxy.isNotEmpty()), null)
-    }
+    val stored = if (props.containsKey("autostart")) props.getProperty("autostart") else null
+    return LoadedUi(
+        settingsFromProperties(props, proxy, factory),
+        stored?.equals("true", ignoreCase = true),
+        rewrite = !failed && (missing || uiSettingsStale(props)),
+    )
 }
 
-private fun writeUiSettings(settings: Settings) {
-    val props = Properties()
-    props.setProperty("baseUrl", settings.baseUrl)
-    props.setProperty("defaultModel", settings.defaultModel)
-    props.setProperty("proxyOn", settings.proxyOn?.toString().orEmpty())
-    props.setProperty("hotkey", settings.hotkey)
-    props.setProperty("hotkeyRepeat", settings.hotkeyRepeat)
-    props.setProperty("markdown", settings.markdown.toString())
-    props.setProperty("uiLang", settings.uiLang)
-    props.setProperty("appProfiling", settings.appProfiling.toString())
-    props.setProperty("clipWaitSeconds", settings.clipWaitSeconds.toString())
-    props.setProperty("sentryErrors", settings.sentryErrors.toString())
-    props.setProperty("sentryTraces", settings.sentryTraces.toString())
-    props.setProperty("autostart", settings.autostart.toString())
-    props.setProperty("profileModel", settings.profileModel)
+private fun writeUiSettings(
+    settings: Settings,
+    persistAutostart: Boolean,
+) {
+    val previous = Properties()
+    val file = dataDirectory().resolve(UI_FILE)
+    if (Files.isRegularFile(file)) {
+        try {
+            Files.newBufferedReader(file, StandardCharsets.UTF_8).use { previous.load(it) }
+        } catch (_: IOException) {
+            return
+        }
+    }
+    val props = currentUiProperties(previous, settings, persistAutostart)
     val dir = dataDirectory()
     Files.createDirectories(dir)
-    Files.newBufferedWriter(dir.resolve(UI_FILE), StandardCharsets.UTF_8).use { props.store(it, null) }
-}
-
-private fun textProp(
-    props: Properties,
-    key: String,
-    fallback: String,
-): String = if (props.containsKey(key)) props.getProperty(key).orEmpty().trim() else fallback
-
-private fun boolProp(
-    props: Properties,
-    key: String,
-    fallback: Boolean,
-): Boolean = props.getProperty(key)?.toBooleanStrictOrNull() ?: fallback
-
-private fun proxyFlag(
-    props: Properties,
-    fallback: Boolean,
-): Boolean? {
-    if (!props.containsKey("proxyOn")) return fallback
-    val raw = props.getProperty("proxyOn").orEmpty()
-    if (raw.isEmpty()) return null
-    return raw.toBooleanStrictOrNull() ?: fallback
+    writeUiFile(dir.resolve(UI_FILE), props)
 }
 
 private fun readLast(): String? {

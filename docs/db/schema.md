@@ -103,10 +103,11 @@ One row per actual model call: `action`, `refine` or `profile`, with `success`, 
 
 ## ui.properties
 
-`%LOCALAPPDATA%\TextTools\ui.properties`. Absent file means `Factory.defaultSettings`, except that a saved proxy secret turns the proxy on. A missing key keeps the factory value. `proxyOn` with an empty value means the checkbox was never a hard off: the proxy URL stays in force.
+`%LOCALAPPDATA%\TextTools\ui.properties`. `version` is `1` for the current key set. A file with no version, or a lower one, is read with the same rules and then written back: stored values stay, a missing key is filled from the factory, and keys this version does not know are kept. A blank menu hotkey is stored as the factory chord. Absent file means `Factory.defaultSettings`, except that a saved proxy secret turns the proxy on, and the file is then created. `proxyOn` with an empty value means the checkbox was never a hard off: the proxy URL stays in force. `autostart` stays absent until the user has saved it or an installed program resolved it.
 
 | Key | Meaning |
 | --- | --- |
+| version | `1` for this key set. Missing or lower means the file is rewritten after it is read. |
 | baseUrl | OpenAI-compatible address. Blank falls back to the factory address. |
 | defaultModel | Blank falls back to the factory model. |
 | proxyOn | `true`, `false`, or empty. The proxy URL itself is not in this file. |

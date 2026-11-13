@@ -1,3 +1,5 @@
 edges:
   - from: release-line
     to: screenshot-frame
+  - from: ui-settings
+    to: release-line
