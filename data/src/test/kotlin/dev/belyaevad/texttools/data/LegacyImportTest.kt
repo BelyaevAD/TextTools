@@ -208,6 +208,21 @@ class LegacyImportTest {
             driver.close()
         }
     }
+
+    @Test
+    fun utf16ScriptFileIsImported() {
+        val root = Files.createTempDirectory("tt-utf16").toFile()
+        val dataDir = Files.createTempDirectory("tt-utf16-data").toFile()
+        val body = "[action1]\r\nname=Вычитать\r\ntask=Keep\r\n".toByteArray(Charsets.UTF_16LE)
+        File(root, "actions.ini").writeBytes(byteArrayOf(0xFF.toByte(), 0xFE.toByte()) + body)
+        val (driver, store) = memoryStore()
+        try {
+            LegacyImport(store).importFolder(root, dataDir)
+            assertEquals("Вычитать", store.actions().single().name)
+        } finally {
+            driver.close()
+        }
+    }
 }
 
 private const val FIXTURE_KEY: String = "tt-db7-key-9f3c2a7b"

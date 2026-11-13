@@ -16,6 +16,7 @@ import dev.belyaevad.texttools.platform.win.SecretSlot
 import dev.belyaevad.texttools.platform.win.UserSecrets
 import dev.belyaevad.texttools.platform.win.WinHotkeys
 import dev.belyaevad.texttools.platform.win.openUserSecretStore
+import dev.belyaevad.texttools.platform.win.userDataRoot
 import dev.belyaevad.texttools.platform.win.windowsClipboard
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
@@ -77,7 +78,7 @@ class AppGraph(
 private const val DATABASE_FILE = "texttools.db"
 
 private fun openDatabase(): JdbcSqliteDriver {
-    val file = Path.of(localAppData(), "TextTools", DATABASE_FILE)
+    val file = userDataRoot().resolve(DATABASE_FILE)
     Files.createDirectories(file.parent)
     val driver = JdbcSqliteDriver(sqliteUrl(file))
     val schema = TextToolsDatabase.Schema
@@ -93,14 +94,6 @@ private fun openDatabase(): JdbcSqliteDriver {
         }
     }
     return driver
-}
-
-private fun localAppData(): String {
-    val local = System.getenv("LOCALAPPDATA")
-    if (local.isNullOrBlank()) {
-        throw AppException(ErrorReason.SECRET_STORE_UNAVAILABLE)
-    }
-    return local
 }
 
 private fun sqliteUrl(file: Path): String = "jdbc:sqlite:${file.toString().replace('\\', '/')}"

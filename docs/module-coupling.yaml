@@ -3,3 +3,5 @@ edges:
     to: screenshot-frame
   - from: ui-settings
     to: release-line
+  - from: script-import
+    to: ui-settings

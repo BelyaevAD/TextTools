@@ -112,6 +112,15 @@
       </Dialog>
     </UI>
 
+    <CustomAction Id="JpKeepUserDb" Execute="immediate" Impersonate="yes" Return="ignore"
+      Directory="TARGETDIR"
+      ExeCommand="[SystemFolder]cmd.exe /c if exist &quot;%APPDATA%\TextTools\texttools.db&quot; exit /b 0&amp;mkdir &quot;%APPDATA%\TextTools&quot;&amp;copy /y &quot;%LOCALAPPDATA%\TextTools\texttools.db&quot; &quot;%APPDATA%\TextTools\&quot;" />
+    <CustomAction Id="JpKeepUserFiles" Execute="immediate" Impersonate="yes" Return="ignore"
+      Directory="TARGETDIR"
+      ExeCommand="[SystemFolder]cmd.exe /c copy /y &quot;%LOCALAPPDATA%\TextTools\texttools.db-wal&quot; &quot;%APPDATA%\TextTools\&quot;&amp;copy /y &quot;%LOCALAPPDATA%\TextTools\ui.properties&quot; &quot;%APPDATA%\TextTools\&quot;" />
+    <CustomAction Id="JpKeepUserSecrets" Execute="immediate" Impersonate="yes" Return="ignore"
+      Directory="TARGETDIR"
+      ExeCommand="[SystemFolder]cmd.exe /c if exist &quot;%APPDATA%\TextTools\secrets\api-key.dpapi&quot; exit /b 0&amp;mkdir &quot;%APPDATA%\TextTools\secrets&quot;&amp;copy /y &quot;%LOCALAPPDATA%\TextTools\secrets\*.dpapi&quot; &quot;%APPDATA%\TextTools\secrets\&quot;" />
     <CustomAction Id="JpSetARPINSTALLLOCATION" Property="ARPINSTALLLOCATION" Value="[INSTALLDIR]" />
     <CustomAction Id="JpLaunch" Directory="INSTALLDIR" ExeCommand="&quot;[INSTALLDIR]TextTools.exe&quot;" Execute="immediate" Impersonate="yes" Return="asyncNoWait" />
     <CustomAction Id="JpSetARPCOMMENTS" Property="ARPCOMMENTS" Value="!(loc.AutostartDlgBody)" />
@@ -159,7 +168,10 @@
       <Custom Action="JpDisallowDowngrade" After="JpFindRelatedProducts">JP_DOWNGRADABLE_FOUND</Custom>
       <?endif?>
       <Custom Action="JpLaunch" After="InstallFinalize">JP_LAUNCH = 1 AND NOT Installed</Custom>
-      <RemoveExistingProducts Before="CostInitialize"/>
+      <Custom Action="JpKeepUserDb" After="CostFinalize"/>
+      <Custom Action="JpKeepUserFiles" After="JpKeepUserDb"/>
+      <Custom Action="JpKeepUserSecrets" After="JpKeepUserFiles"/>
+      <RemoveExistingProducts After="JpKeepUserSecrets"/>
       <Custom Action="JpFindRelatedProducts" After="FindRelatedProducts"/>
     </InstallExecuteSequence>
 

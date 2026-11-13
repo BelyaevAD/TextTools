@@ -78,6 +78,7 @@ import dev.belyaevad.texttools.app.ui.settings.SettingsWindow
 import dev.belyaevad.texttools.app.ui.systemFormatLocale
 import dev.belyaevad.texttools.app.ui.uiText
 import dev.belyaevad.texttools.data.HistoryRecord
+import dev.belyaevad.texttools.data.LegacyImport
 import dev.belyaevad.texttools.data.TextToolsStore
 import dev.belyaevad.texttools.data.UsageEvent
 import dev.belyaevad.texttools.data.UsageRecord
@@ -120,6 +121,7 @@ import dev.belyaevad.texttools.platform.win.installedAutostart
 import dev.belyaevad.texttools.platform.win.popupBeside
 import dev.belyaevad.texttools.platform.win.selectionAnchor
 import dev.belyaevad.texttools.platform.win.sourceSnapshot
+import dev.belyaevad.texttools.platform.win.userDataRoot
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
@@ -269,11 +271,13 @@ fun main() {
     installApplicationIcon()
     Locale.setDefault(Locale.Category.FORMAT, systemFormatLocale)
     ownTheInstance()
+    prepareUserData()
     val commands = Channel<GlobalChord>(Channel.UNLIMITED)
     val graph = AppGraph { commands.trySend(it) }
     val closed = AtomicBoolean(false)
     Runtime.getRuntime().addShutdownHook(Thread { closeGraph(graph, closed) })
     graph.watch.start()
+    importScriptSettings(graph)
     val slot = SettingsSlot(loadSettings(graph.secrets))
     val hotkeysOk = graph.hotkeys.start(slot.value.hotkey, slot.value.hotkeyRepeat)
     applyUiLocale(slot.value.uiLang)
@@ -425,26 +429,34 @@ private fun ApplicationScope.textToolsContent(
             busy = { runner.busy },
             flash = ::flash,
             onMenu = {
-                captureMenu(
-                    graph = graph,
-                    seconds = slot.value.clipWaitSeconds,
-                    menuOpen = { menu != null },
-                    flash = ::flash,
-                ) { request ->
-                    menu = request
+                if (!hasApiKey(graph.secrets)) {
+                    showSettings = true
+                } else {
+                    captureMenu(
+                        graph = graph,
+                        seconds = slot.value.clipWaitSeconds,
+                        menuOpen = { menu != null },
+                        flash = ::flash,
+                    ) { request ->
+                        menu = request
+                    }
                 }
             },
             onRepeat = {
-                val active = currentRuns.value
-                if (active != null) {
-                    captureRepeat(
-                        graph = graph,
-                        seconds = slot.value.clipWaitSeconds,
-                        action = lastAction,
-                        extra = lastExtra,
-                        menuOpen = { menu != null },
-                        runs = active,
-                    )
+                if (!hasApiKey(graph.secrets)) {
+                    showSettings = true
+                } else {
+                    val active = currentRuns.value
+                    if (active != null) {
+                        captureRepeat(
+                            graph = graph,
+                            seconds = slot.value.clipWaitSeconds,
+                            action = lastAction,
+                            extra = lastExtra,
+                            menuOpen = { menu != null },
+                            runs = active,
+                        )
+                    }
                 }
             },
         )
@@ -1503,10 +1515,79 @@ private fun relaunch(): Boolean =
         false
     }
 
-private fun dataDirectory(): Path {
-    val local = System.getenv("LOCALAPPDATA")
-    if (local.isNullOrBlank()) return Path.of(System.getProperty("user.home"), "AppData", "Local", "TextTools")
-    return Path.of(local, "TextTools")
+private fun dataDirectory(): Path = userDataRoot()
+
+private fun prepareUserData() {
+    val dest = userDataRoot()
+    val local = System.getenv("LOCALAPPDATA") ?: return
+    val source = Path.of(local, "TextTools")
+    if (source == dest) return
+    Files.createDirectories(dest)
+    for (name in listOf(
+        "texttools.db",
+        "texttools.db-wal",
+        "texttools.db-shm",
+        "ui.properties",
+        "windows.properties",
+        "TextTools_last.txt",
+    )) {
+        copyIfMissing(source.resolve(name), dest.resolve(name))
+    }
+    val secrets = source.resolve("secrets")
+    if (!Files.isDirectory(secrets)) return
+    val secretDest = dest.resolve("secrets")
+    Files.createDirectories(secretDest)
+    Files.list(secrets).use { stream ->
+        stream
+            .filter { file -> Files.isRegularFile(file) && file.fileName.toString().endsWith(".dpapi") }
+            .forEach { file ->
+                copyIfMissing(file, secretDest.resolve(file.fileName))
+            }
+    }
+}
+
+private fun copyIfMissing(
+    from: Path,
+    to: Path,
+) {
+    if (!Files.isRegularFile(from) || Files.exists(to)) return
+    Files.copy(from, to)
+}
+
+private fun importScriptSettings(graph: AppGraph) {
+    val marker = dataDirectory().resolve("legacy-imported")
+    if (Files.exists(marker)) return
+    if (hasApiKey(graph.secrets)) {
+        Files.write(marker, byteArrayOf())
+        return
+    }
+    val local = System.getenv("LOCALAPPDATA") ?: return
+    val root = Path.of(local, "Scripts", "TextTools").toFile()
+    if (!root.resolve("TextTools.ini").isFile) return
+    try {
+        val result = LegacyImport(graph.store).importFolder(root, dataDirectory().toFile())
+        if (result.apiKey.isNotBlank()) graph.secrets.put(SecretSlot.ApiKey, result.apiKey)
+        if (result.proxyUrl.isNotBlank()) graph.secrets.put(SecretSlot.ProxyUrl, result.proxyUrl)
+        val factory = Factory.defaultSettings
+        writeUiSettings(
+            factory.copy(
+                baseUrl = result.baseUrl.ifBlank { factory.baseUrl },
+                defaultModel = result.model.ifBlank { factory.defaultModel },
+                proxy = result.proxyUrl,
+                proxyOn = result.proxyOn,
+                hotkey = result.hotkey.ifBlank { factory.hotkey },
+                hotkeyRepeat = result.hotkeyRepeat.ifBlank { factory.hotkeyRepeat },
+                markdown = result.markdown,
+                uiLang = result.uiLang.ifBlank { factory.uiLang },
+                appProfiling = result.profiling,
+                clipWaitSeconds = result.clipWaitSeconds,
+            ),
+            persistAutostart = false,
+        )
+        Files.write(marker, byteArrayOf())
+    } catch (_: Exception) {
+        // The next start tries again. A failed import must not stop the tray.
+    }
 }
 
 private data class LoadedUi(

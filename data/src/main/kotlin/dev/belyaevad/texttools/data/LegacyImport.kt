@@ -15,7 +15,19 @@ import java.time.format.DateTimeFormatter
 /** Reads an AHK state folder. The key and the proxy URL are returned, not written to SQLite. */
 class LegacyImport(private val store: TextToolsStore) {
     /** Result of one import. Secrets are only in this object. */
-    data class Result(val apiKey: String, val proxyUrl: String)
+    data class Result(
+        val apiKey: String,
+        val proxyUrl: String,
+        val baseUrl: String = "",
+        val model: String = "",
+        val proxyOn: Boolean = false,
+        val hotkey: String = "",
+        val hotkeyRepeat: String = "",
+        val markdown: Boolean = true,
+        val uiLang: String = "",
+        val profiling: Boolean = false,
+        val clipWaitSeconds: Double = 0.8,
+    )
 
     /**
      * Imports [root] into the store and copies the last-result file plus user language ini files into [dataDir].
@@ -36,6 +48,15 @@ class LegacyImport(private val store: TextToolsStore) {
         return Result(
             apiKey = settings?.get("api.api_key").orEmpty(),
             proxyUrl = settings?.get("api.proxy").orEmpty(),
+            baseUrl = settings?.get("api.base_url").orEmpty(),
+            model = settings?.get("api.model").orEmpty(),
+            proxyOn = settings?.get("api.proxy_on") == "1",
+            hotkey = settings?.get("ui.hotkey").orEmpty(),
+            hotkeyRepeat = settings?.get("ui.hotkey_repeat").orEmpty(),
+            markdown = settings?.get("ui.markdown") != "0",
+            uiLang = settings?.get("ui.lang").orEmpty(),
+            profiling = settings?.get("apps.profiling") == "1",
+            clipWaitSeconds = settings?.get("ui.clip_wait")?.toDoubleOrNull() ?: 0.8,
         )
     }
 
@@ -68,13 +89,13 @@ class LegacyImport(private val store: TextToolsStore) {
     }
 
     private fun importHistory(root: File) {
-        val text = readUtf8(File(root, "TextTools_history.txt")) ?: return
+        val text = readStoredText(File(root, "TextTools_history.txt")) ?: return
         val rows = parseHistory(text) ?: return
         store.saveHistory(rows)
     }
 
     private fun importUsage(root: File) {
-        val text = readUtf8(File(root, "TextTools_usage.log")) ?: return
+        val text = readStoredText(File(root, "TextTools_usage.log")) ?: return
         val rows = parseUsage(text) ?: return
         store.saveUsage(rows)
     }
@@ -280,7 +301,7 @@ private fun iniLine(raw: String): IniLine {
 }
 
 private fun readIni(file: File): Map<String, String>? {
-    val text = readUtf8(file) ?: return null
+    val text = readStoredText(file) ?: return null
     var section = ""
     return buildMap {
         for (raw in text.split('\n')) {
@@ -293,12 +314,29 @@ private fun readIni(file: File): Map<String, String>? {
     }
 }
 
-private fun readUtf8(file: File): String? {
+/** UTF-16 with a BOM is what the script writes. Anything else must be UTF-8. */
+private fun readStoredText(file: File): String? {
     if (!file.isFile) return null
     val bytes = file.readBytes()
-    if (!isUtf8(bytes)) return null
-    val text = bytes.toString(Charsets.UTF_8)
+    val text =
+        when {
+            bytes.size >= 2 && bytes[0] == 0xFF.toByte() && bytes[1] == 0xFE.toByte() ->
+                utf16(bytes, Charsets.UTF_16LE)
+            bytes.size >= 2 && bytes[0] == 0xFE.toByte() && bytes[1] == 0xFF.toByte() ->
+                utf16(bytes, Charsets.UTF_16BE)
+            isUtf8(bytes) -> bytes.toString(Charsets.UTF_8)
+            else -> null
+        } ?: return null
     return if (text.startsWith("\uFEFF")) text.substring(1) else text
+}
+
+private fun utf16(
+    bytes: ByteArray,
+    charset: java.nio.charset.Charset,
+): String? {
+    val body = bytes.size - 2
+    if (body <= 0 || body % 2 != 0) return null
+    return bytes.copyOfRange(2, bytes.size).toString(charset)
 }
 
 private fun isUtf8(bytes: ByteArray): Boolean {

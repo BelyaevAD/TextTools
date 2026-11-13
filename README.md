@@ -2,7 +2,7 @@
 
 Tray application for the selected text. A hotkey runs an LLM action and pastes the result back, or shows it in a window. Capture and paste into other windows are implemented for Windows. The Linux and macOS builds open the tray.
 
-Kotlin and Compose Desktop, version 1.1.2. The last AutoHotkey release is tag `v0.3.1` on branch `archive/ahk`. What changed is in `CHANGELOG.md`.
+Kotlin and Compose Desktop, version 1.1.3. The last AutoHotkey release is tag `v0.3.1` on branch `archive/ahk`. What changed is in `CHANGELOG.md`.
 
 Ctrl+Alt+Space opens the action grid when text is selected. The grid opens on the window that held the selection. Shift on an action shows the result in a window instead of replacing the selection. Ctrl+Shift+Space repeats the last action. Fifteen factory actions ship with the app, and the instruction field runs a free-form one. While a request runs, the progress window shows an estimated token count and cost, then the figures reported by the provider. Quick refinements are buttons in that result window.
 

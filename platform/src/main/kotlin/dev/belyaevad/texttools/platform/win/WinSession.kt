@@ -889,16 +889,18 @@ internal fun userSecrets(
     protector: SecretProtector,
 ): UserSecrets = UserSecrets(DirectorySecretBytes(root), protector)
 
+fun userDataRoot(): Path {
+    val roaming = System.getenv("APPDATA")
+    if (roaming.isNullOrBlank()) return Path.of(System.getProperty("user.home"), "AppData", "Roaming", "TextTools")
+    return Path.of(roaming, "TextTools")
+}
+
 /**
- * DPAPI store under `%LOCALAPPDATA%\TextTools\secrets`.
+ * DPAPI store under `%APPDATA%\TextTools\secrets`.
  * Ciphertext only. If the directory cannot be created, this throws and writes nothing.
  */
 fun openUserSecretStore(): UserSecrets {
-    val local = System.getenv("LOCALAPPDATA")
-    if (local.isNullOrBlank()) {
-        throw SecretStoreException("The Windows secret store is unavailable")
-    }
-    val root = Path.of(local, "TextTools", "secrets")
+    val root = userDataRoot().resolve("secrets")
     try {
         Files.createDirectories(root)
     } catch (_: IOException) {

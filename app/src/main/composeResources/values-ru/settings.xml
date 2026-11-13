@@ -9,6 +9,7 @@
     <string name="settings_ok">ОК</string>
     <string name="settings_base_url">Base URL (OpenAI-совместимый API; выберите из списка или впишите свой):</string>
     <string name="settings_api_key">API key:</string>
+    <string name="settings_need_key">Нет API-ключа, поэтому действие не запустится. Впишите его здесь и нажмите «Сохранить».</string>
     <string name="settings_proxy">Прокси</string>
     <string name="settings_proxy_hint">http://user:pass@host:port  ·  socks5h://host:port</string>
     <string name="settings_proxy_bad">Некорректный прокси:</string>

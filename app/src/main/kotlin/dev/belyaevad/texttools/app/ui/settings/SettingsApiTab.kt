@@ -51,6 +51,7 @@ import texttools.app.generated.resources.settings_model
 import texttools.app.generated.resources.settings_models
 import texttools.app.generated.resources.settings_models_hint
 import texttools.app.generated.resources.settings_models_side
+import texttools.app.generated.resources.settings_need_key
 import texttools.app.generated.resources.settings_proxy
 import texttools.app.generated.resources.settings_proxy_hint
 import texttools.app.generated.resources.settings_recommend
@@ -81,6 +82,14 @@ fun SettingsApiTab(
     actions: ApiActions,
 ) {
     Column(Modifier.fillMaxSize()) {
+        if (form.apiKey.isBlank()) {
+            Text(
+                stringResource(Res.string.settings_need_key),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 13.sp,
+                modifier = Modifier.padding(bottom = 8.dp),
+            )
+        }
         if (status != null) {
             Text(
                 status,

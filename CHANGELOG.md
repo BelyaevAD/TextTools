@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.1.3 — 2026-11-13
+
+- Settings, the database and the API key are kept when the program is upgraded. They are stored outside the install folder, and the installer copies them before it removes the previous version.
+- The first start reads the old script folder (`%LOCALAPPDATA%\Scripts\TextTools`, including its UTF-16 files) when the API key is still empty.
+- A hotkey with no API key opens Settings on the API tab instead of the action menu.
+
+Downloads for this version are the Windows installer `TextTools-1.1.3.msi`. The Debian package and the macOS disk image are built on their own systems: `./gradlew :app:packageDeb` and `sh packaging/macos/package-dmg.sh`.
+
 ## v1.1.2 — 2026-11-13
 
 - Hotkeys are registered when the app starts. Opening settings and pressing Save is not required.

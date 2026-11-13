@@ -9,6 +9,7 @@
     <string name="settings_ok">OK</string>
     <string name="settings_base_url">Base URL (OpenAI-compatible API; pick one or type your own):</string>
     <string name="settings_api_key">API key:</string>
+    <string name="settings_need_key">The API key is missing, so an action cannot run. Fill it in here and press Save.</string>
     <string name="settings_proxy">Proxy</string>
     <string name="settings_proxy_hint">http://user:pass@host:port  ·  socks5h://host:port</string>
     <string name="settings_proxy_bad">Invalid proxy:</string>
