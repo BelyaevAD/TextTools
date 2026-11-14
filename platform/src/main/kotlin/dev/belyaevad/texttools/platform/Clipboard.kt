@@ -2,7 +2,7 @@ package dev.belyaevad.texttools.platform
 
 /** What the OS clipboard and key injection can do. Tests use a fake. */
 interface ClipIo {
-    /** Current text, or null when the clipboard is locked. */
+    /** Current text, "" when it holds no text, or null when the clipboard is locked. */
     fun readText(): String?
 
     /** Writes text. False when the clipboard is locked. */
@@ -32,6 +32,12 @@ interface ClipIo {
      * or its token cannot be read. Paste must not be sent.
      */
     fun elevatedForeign(): Boolean = false
+
+    /** Drops the window remembered by [sendCopy], so the next paste targets the live window. */
+    fun forgetSource() = Unit
+
+    /** True while the window remembered by [sendCopy] is still held. Fakes without a capture count as holding one. */
+    fun hasCapturedSource(): Boolean = true
 }
 
 /** Shown once per [ClipboardProtocol] when a capture finds an image or files and no text. */
@@ -40,15 +46,8 @@ const val NON_TEXT_CLIPBOARD_WARNING =
 
 /** Result of trying to put text back into the source window. */
 sealed class PasteAttempt {
-    /**
-     * The paste chord was sent.
-     * [saved] is the clipboard from before the paste. [pasted] is the text we put there.
-     * The pasted text stays on the clipboard.
-     */
-    data class Sent(
-        val saved: String,
-        val pasted: String,
-    ) : PasteAttempt()
+    /** The paste chord was sent. The pasted text stays on the clipboard. */
+    data object Sent : PasteAttempt()
 
     /** The source window could not take the text, so the UI must show it. */
     data object ShowInWindow : PasteAttempt()
@@ -67,6 +66,7 @@ class ClipboardProtocol internal constructor(
 
     private var warnedNonText = false
     private var pendingNonText: String? = null
+    private var pendingBusy = false
 
     /**
      * Reads the selection.
@@ -75,22 +75,42 @@ class ClipboardProtocol internal constructor(
      */
     fun captureSeconds(waitSeconds: Double): String = capture(secondsToMillis(waitSeconds))
 
-    /** Reads the selection. [waitMillis] is the caller's wait, in milliseconds. */
+    /**
+     * Reads the selection. [waitMillis] is the caller's wait, in milliseconds.
+     * Serialised with [paste]: a capture between a paste's write and its Ctrl+V would clear the text or its target.
+     * Both are called from Dispatchers.IO only, never from the UI thread.
+     */
+    @Synchronized
     fun capture(waitMillis: Long): String {
+        io.forgetSource()
         val nonText = io.hasImageOrFiles()
         val saved = io.readText()
-        if ((saved == null || saved.isEmpty()) && nonText) {
+        if (saved == null) {
+            pendingBusy = true
+            return ""
+        }
+        if (saved.isEmpty() && nonText) {
             warnNonTextOnce()
             return ""
         }
         if (!io.writeText("")) {
-            if (saved != null) io.writeText(saved)
+            io.writeText(saved)
+            pendingBusy = true
             return ""
         }
         io.sendCopy()
         val text = waitForCopy(waitMillis)
-        io.writeText(saved ?: "")
+        // shortcut: only plain text is restored, upgrade when users report lost formatting
+        io.writeText(saved)
+        if (text.isEmpty()) io.forgetSource()
         return text
+    }
+
+    /** True once after a capture was refused because another program held the clipboard. */
+    fun takeBusyNotice(): Boolean {
+        val busy = pendingBusy
+        pendingBusy = false
+        return busy
     }
 
     /**
@@ -106,34 +126,30 @@ class ClipboardProtocol internal constructor(
     /**
      * Puts the result into the source window, or asks the UI to show it.
      * A locked clipboard is left untouched. An elevated foreign window is not pasted into.
+     * Only the run's own paste passes [captured]: it targets the window of the capture.
+     * Any other paste targets the live window. The captured window is forgotten either way.
+     * The clipboard is written only after the window is known to take the text.
      */
-    fun paste(text: String): PasteAttempt {
-        val saved = io.readText() ?: return PasteAttempt.ShowInWindow
-        if (io.elevatedForeign()) return PasteAttempt.ShowInWindow
-        if (!io.writeText(text)) return PasteAttempt.ShowInWindow
-        if (!io.activateSource()) {
-            io.writeText(saved)
-            return PasteAttempt.ShowInWindow
-        }
-        if (!io.canAcceptText()) {
-            io.writeText(saved)
-            return PasteAttempt.ShowInWindow
-        }
-        io.sendPaste()
-        return PasteAttempt.Sent(saved, text)
-    }
-
-    /**
-     * Restores [saved] only while the clipboard still holds [pasted].
-     * Matches the AHK timer: if the user copied something else, that copy stays.
-     */
-    fun restoreAfterPaste(
-        saved: String,
-        pasted: String,
-    ) {
-        val current = io.readText() ?: return
-        if (current == pasted) {
-            io.writeText(saved)
+    @Synchronized
+    fun paste(
+        text: String,
+        captured: Boolean = false,
+    ): PasteAttempt {
+        if (captured && !io.hasCapturedSource()) return PasteAttempt.ShowInWindow
+        if (!captured) io.forgetSource()
+        try {
+            val saved = io.readText() ?: return PasteAttempt.ShowInWindow
+            if (io.elevatedForeign()) return PasteAttempt.ShowInWindow
+            if (!io.activateSource()) return PasteAttempt.ShowInWindow
+            if (!io.canAcceptText()) return PasteAttempt.ShowInWindow
+            if (!io.writeText(text)) {
+                io.writeText(saved) // AWT keeps answering reads from the text it failed to write
+                return PasteAttempt.ShowInWindow
+            }
+            io.sendPaste()
+            return PasteAttempt.Sent
+        } finally {
+            io.forgetSource()
         }
     }
 
@@ -180,23 +196,4 @@ private fun secondsToMillis(waitSeconds: Double): Long {
     val millis = waitSeconds * 1000.0
     if (millis >= Long.MAX_VALUE) return Long.MAX_VALUE
     return millis.toLong()
-}
-
-/** Which desktop session the process is in. Wayland is not treated as X11. */
-enum class DesktopSession { Windows, Mac, X11, Wayland, Unknown }
-
-/** Reads the session from the OS name and display variables. */
-fun desktopSession(
-    osName: String,
-    waylandDisplay: String?,
-    display: String?,
-): DesktopSession {
-    val os = osName.lowercase()
-    return when {
-        os.contains("win") -> DesktopSession.Windows
-        os.contains("mac") -> DesktopSession.Mac
-        !waylandDisplay.isNullOrEmpty() -> DesktopSession.Wayland
-        !display.isNullOrEmpty() -> DesktopSession.X11
-        else -> DesktopSession.Unknown
-    }
 }

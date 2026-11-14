@@ -25,7 +25,8 @@ import dev.belyaevad.texttools.domain.matchApp
 import dev.belyaevad.texttools.platform.ClipboardProtocol
 import dev.belyaevad.texttools.platform.PasteAttempt
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import java.io.IOException
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
@@ -37,10 +38,10 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 
-private const val LAST_FILE: String = "TextTools_last.txt"
-private const val LOG_FILE: String = "TextTools.log"
+internal const val LAST_FILE: String = "TextTools_last.txt"
+internal const val LOG_FILE: String = "TextTools.log"
 
-private val logTime: DateTimeFormatter =
+internal val logTime: DateTimeFormatter =
     DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault())
 
 /** Text UW can paint. Seconds use a point and one decimal. */
@@ -100,13 +101,10 @@ fun bannerMoney(value: Double): String {
 }
 
 /**
- * Clock and timer seams. A null [schedule] waits on this process.
- * [pause] is the delay inside that wait. [onStatus] fires when the banner text changes.
+ * Clock seam. [onStatus] fires when the banner text changes.
  */
 class RunHooks(
     val clock: () -> Long = { System.currentTimeMillis() },
-    val schedule: ((suspend () -> Unit) -> Unit)? = null,
-    val pause: suspend (Long) -> Unit = { delay(it) },
     val onStatus: (RunStatus?) -> Unit = { _ -> },
 )
 
@@ -217,7 +215,6 @@ class RunAction(
                     settings = current,
                     languages = store.languages().ifEmpty { Factory.languages },
                     sourceHint = hint,
-                    hasKey = true,
                     forceWindow = shift,
                 )
 
@@ -276,30 +273,12 @@ class RunAction(
             return outcome
         } catch (error: Exception) {
             hide()
+            if (error is CancellationException) appendLog(now(), "cancelled")
             throw error
         } finally {
             gate.set(false)
         }
     }
-
-    /**
-     * Enter in the instruction field.
-     * Blank text returns null and does not call the model.
-     * Any other text runs [Factory.custom]. [shift] still asks for a window.
-     */
-    suspend fun enter(
-        instruction: String,
-        selection: String,
-        shift: Boolean,
-        proc: String,
-        title: String,
-    ): RunOutcome? {
-        if (instruction.trim().isEmpty()) return null
-        return run(Factory.custom, selection, instruction, shift, proc, title)
-    }
-
-    /** Releases the runner. There is no deferred clipboard restore. */
-    fun close() = Unit
 
     /** Measures only the provider call, not clipboard delivery. */
     private fun measureCall(
@@ -349,9 +328,11 @@ class RunAction(
         text: String,
         delivery: Delivery,
     ): Boolean {
+        // An answer that arrived after cancel is dropped; a paste already past this line finishes.
+        currentCoroutineContext().ensureActive()
         showDone(now())
         if (delivery == Delivery.Window) return true
-        return when (clipboard.paste(text)) {
+        return when (clipboard.paste(text, captured = true)) {
             is PasteAttempt.Sent -> true
             PasteAttempt.ShowInWindow -> false
         }
@@ -495,7 +476,7 @@ private fun isIdKey(
     return body.regionMatches(index - 3, "\"id\"", 0, 4)
 }
 
-private fun numberAfter(
+internal fun numberAfter(
     slice: String,
     key: String,
 ): Double? {

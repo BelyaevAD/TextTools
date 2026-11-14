@@ -1,7 +1,9 @@
 package dev.belyaevad.texttools.app.ui.history
 
+import dev.belyaevad.texttools.app.ui.settings.catalogRow
 import dev.belyaevad.texttools.data.UsageEvent
 import dev.belyaevad.texttools.data.UsageRecord
+import dev.belyaevad.texttools.domain.CatalogEntry
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.LocalDate
@@ -9,6 +11,8 @@ import java.time.ZoneId
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /** History cells, the usage report, and the two clear operations. */
@@ -51,6 +55,32 @@ class HistoryLogicTest {
         assertEquals("$0.00000", historyMoney(0.0))
         assertEquals("—", historyModel(""))
         assertEquals("m", historyModel("m"))
+    }
+
+    @Test
+    fun actionRunsKeepACommaInTheName() {
+        val log =
+            listOf(
+                "action: Translate, formal, selected 3 characters, model m",
+                "action: Translate, casual (quick), model m",
+                "action: Rewrite, model style, selected 3 characters, model m",
+            ).joinToString("\n")
+        assertEquals(
+            listOf(
+                ActionRun("Translate, formal", 1),
+                ActionRun("Translate, casual (quick)", 1),
+                ActionRun("Rewrite, model style", 1),
+            ),
+            actionRuns(log),
+        )
+    }
+
+    @Test
+    fun aPriceIsFoundAfterTheProviderChanges() {
+        val catalog = listOf(CatalogEntry("openai/gpt-4.1-mini", 0.001, 0.002, 1000))
+        assertNotNull(catalogRow(catalog, "gpt-4.1-mini", "https://openrouter.ai/api/v1"))
+        assertNull(catalogRow(catalog, "gpt-5", "https://openrouter.ai/api/v1"))
+        assertNull(catalogRow(catalog, "gpt-4.1-mini", "http://localhost:1234/v1"))
     }
 
     @Test

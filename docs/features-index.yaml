@@ -16,7 +16,8 @@ features:
       - CHANGELOG.md
       - app/build.gradle.kts
     notes:
-      - "current: A release number has three parts and is the same in the changelog heading, the README version line, packageVersion, the installer name, and the tag. v1.1.3 is published. There is no open draft. Each user-visible change increments the last part. Published tags v1.0 and v1.1 stay two-part."
+      - "current: A release number has three parts and is the same in the changelog heading, packageVersion, the installer name, and the tag. v1.1.3 is published. The open draft is v1.1.4. Each user-visible change increments the last part. Published tags v1.0 and v1.1 stay two-part."
+      - "2026-11-14 change: The open draft is v1.1.4. Why: main carried code that v1.1.3 does not, under the same number. Now: the changelog heading, packageVersion and the version Settings shows say 1.1.4 until that tag is cut; the README and the package description no longer repeat the number."
       - "2026-11-13 change: v1.1.3 is published. Why: an upgrade was deleting settings, and a missing key still opened the action menu. Now: the tag, the Windows installer, and the changelog heading are 1.1.3, and there is no open draft."
       - "2026-11-13 change: The open draft is v1.1.3. Why: an upgrade was deleting settings that lived in the install folder, and a missing API key still opened the action menu. Now: the heading, the README line, and packageVersion say 1.1.3 until that tag is cut."
       - "2026-11-13 change: v1.1.2 is published. Why: Settings now shows the version, and the hotkey and settings fixes ship with that number. Now: the tag, the Windows installer, and the changelog heading are 1.1.2, and there is no open draft."

@@ -11,7 +11,7 @@ dependencies {
     implementation(project(":data"))
     implementation(project(":platform"))
     implementation(compose.desktop.currentOs)
-    implementation("org.jetbrains.compose.material3:material3:1.12.0-alpha03")
+    implementation(libs.material3)
     implementation(compose.components.resources)
     implementation(libs.coroutines)
     implementation(libs.sqldelight.driver)
@@ -19,7 +19,6 @@ dependencies {
     implementation(libs.ktor.client.okhttp)
     implementation(libs.sentry)
     testImplementation(libs.kotlin.test)
-    testImplementation(libs.coroutines)
 }
 
 kotlin {
@@ -32,8 +31,8 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Msi, TargetFormat.Dmg, TargetFormat.Deb)
             packageName = "TextTools"
-            packageVersion = "1.1.3"
-            description = "TextTools 1.1.3"
+            packageVersion = "1.1.4"
+            description = "TextTools"
             vendor = "BelyaevAD"
             modules("java.sql", "java.net.http", "java.management", "jdk.unsupported")
             windows {
@@ -94,7 +93,12 @@ tasks.withType<org.jetbrains.compose.desktop.application.tasks.AbstractJPackageT
     val stop =
         object {
             @Volatile var value: Boolean = false
+
+            @Volatile var placed: Boolean = false
+
+            @Volatile var firstFailure: Throwable? = null
         }
+    val jpackageTask = this
     doFirst {
         val wixDir = wixToolsetDir.get().asFile
         val realLight = wixDir.resolve("light-wix.exe")
@@ -120,6 +124,7 @@ tasks.withType<org.jetbrains.compose.desktop.application.tasks.AbstractJPackageT
         val sourceDir = windowsPackaging.asFile
         val destDir = resourcesDir.get().asFile
 
+        // shortcut: patches app.runtime into the cfg by scanning %TEMP%, may be redundant; drop after a launch test of the installed MSI.
         fun patchRuntimeCfg() {
             val candidates = mutableListOf<File>()
             File(System.getProperty("java.io.tmpdir"))
@@ -150,7 +155,8 @@ tasks.withType<org.jetbrains.compose.desktop.application.tasks.AbstractJPackageT
             } catch (_: InterruptedException) {
                 return@Thread
             }
-            while (!stop.value && System.currentTimeMillis() < deadline) {
+            // state.executed is true once the task has finished, also when it failed (doLast is skipped then).
+            while (!stop.value && !jpackageTask.state.executed && System.currentTimeMillis() < deadline) {
                 try {
                     patchRuntimeCfg()
                     if (destDir.isDirectory) {
@@ -160,9 +166,11 @@ tasks.withType<org.jetbrains.compose.desktop.application.tasks.AbstractJPackageT
                             ?.forEach { file ->
                                 val target = destDir.resolve(file.name)
                                 if (!target.isFile) file.copyTo(target, overwrite = true)
+                                if (file.name == "main.wxs" && target.isFile) stop.placed = true
                             }
                     }
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    if (stop.firstFailure == null) stop.firstFailure = e
                 }
                 try {
                     Thread.sleep(20)
@@ -176,5 +184,30 @@ tasks.withType<org.jetbrains.compose.desktop.application.tasks.AbstractJPackageT
             start()
         }
     }
-    doLast { stop.value = true }
+    doLast {
+        stop.value = true
+        val cause = stop.firstFailure?.let { " First copy failure: ${it.javaClass.name}: ${it.message}" }.orEmpty()
+        check(stop.placed) { "main.wxs was never placed in the jpackage resource dir: this MSI uses the stock template.$cause" }
+        // placed only proves the copy; the script proves the MSI really has the JpKeepUser* actions.
+        val msi =
+            destinationDir
+                .get()
+                .asFile
+                .walkTopDown()
+                .filter { it.isFile && it.extension.equals("msi", true) }
+                .maxByOrNull { it.lastModified() }
+        checkNotNull(msi) { "packageMsi produced no .msi under ${destinationDir.get().asFile}" }
+        project.exec {
+            commandLine(
+                "powershell.exe",
+                "-NoLogo",
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                windowsPackaging.file("check-msi.ps1").asFile.absolutePath,
+                msi.absolutePath,
+            )
+        }
+    }
 }

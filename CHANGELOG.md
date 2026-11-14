@@ -1,5 +1,40 @@
 # Changelog
 
+## v1.1.4 — 2026-11-14
+
+- Window positions are kept when the program is upgraded. They are stored in `%APPDATA%\TextTools`, and a newer file left in the install folder is moved there once.
+- The answer is pasted into the window the text was taken from, not into whichever window is in front. The "Paste into window" buttons go to the window you were last in.
+- Quick refinements in the result window work. Before, they never started.
+- The result window shows the new result instead of the previous text.
+- Provider errors say what happened: wrong key, no funds, rate limit, not found, or provider unavailable. Before, most of them said "request failed". Replies that are valid but unusual are accepted.
+- Failures and warnings appear as Windows notifications, not only in the tray tooltip. Settings stays open when saving fails.
+- The program starts when a saved key or proxy cannot be read, for example after moving the profile to another computer, and says so. It sends no requests without the proxy in that case.
+- "Test API" and "Load models" in Settings use the proxy from the form. They used to ignore a SOCKS proxy. An invalid proxy now stops the request instead of connecting directly, and server and proxy addresses are checked.
+- Import from the AutoHotkey version keeps the proxy on when the old file had a proxy address but no switch. If you already upgraded from that version, turn the proxy switch on again in Settings.
+- An empty "repeat" hotkey means no repeat hotkey. Holding the hotkey no longer queues captures, and the copy waits until Alt, Shift and Win are released.
+- A clipboard held by another program is no longer treated as empty, and the program says so. A paste that cannot happen leaves the clipboard alone.
+- "Retarget actions" in Settings takes effect on Save, and Cancel discards it. The action card lists the ticked models, and recommended models are stored for the provider in the field.
+- The tray "Restart" item works in the installed program.
+- App profiling retries with the plain model when the web-search variant is refused.
+- An action no longer waits for the price catalogue download.
+- Clicking the "preparing request" banner cancels the request: nothing is pasted, no window opens, and the next hotkey press works right away.
+- In browsers and Electron apps the action menu opens beside the text field that holds the selection, instead of at the mouse pointer.
+- On a display scaled above 100% the action menu and the result window open beside the caret instead of at an offset.
+- "Paste into window" no longer freezes the result window while it pastes.
+- Result window: numbered lists keep their real numbers; `#42` and `#include` are no longer headings; nested and `*` bullets render as lists; lone `*` and `__` in text are no longer swallowed. `__bold__` is no longer bold; use `**bold**`.
+- Result window: a failed or empty refine request shows the reason under the refine row.
+- Table rows and drop-down lists can be used from the keyboard (Tab, Enter, Space, Arrow Down).
+- Enter in Settings no longer saves while the focus is on Cancel or another button.
+- The "Profiling model" list shows the saved model even when the provider did not return it.
+- Statistics: the cost stays after the provider changes; actions with a comma in the name are counted separately. The statistics window opens faster with a long history.
+- The "Send hourly request statistics" setting is removed: it never sent anything. Statistics in the program are unchanged.
+- Error reports no longer carry the computer name; the connection-test error text hides the proxy login and password.
+- An existing `sentry.properties` from the old install folder is copied to `%APPDATA%\TextTools` on first start; the documentation now gives the right path.
+- Autostart is written to the registry with the path in quotes.
+- A second launch exits quietly instead of looking for a window by its title.
+
+Downloads for this version are the Windows installer `TextTools-1.1.4.msi`. The Debian package and the macOS disk image are built on their own systems: `./gradlew :app:packageDeb` and `sh packaging/macos/package-dmg.sh`.
+
 ## v1.1.3 — 2026-11-13
 
 - Settings, the database and the API key are kept when the program is upgraded. They are stored outside the install folder, and the installer copies them before it removes the previous version.

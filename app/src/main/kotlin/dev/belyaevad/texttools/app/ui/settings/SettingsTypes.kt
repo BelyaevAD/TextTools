@@ -1,13 +1,14 @@
 package dev.belyaevad.texttools.app.ui.settings
 
+import dev.belyaevad.texttools.app.ui.run.bannerMoney
 import dev.belyaevad.texttools.domain.CatalogEntry
 import dev.belyaevad.texttools.domain.ErrorReason
 import dev.belyaevad.texttools.domain.KnownModel
 import dev.belyaevad.texttools.domain.OutputLanguage
 import dev.belyaevad.texttools.domain.Settings
+import dev.belyaevad.texttools.domain.isLoopback
 import dev.belyaevad.texttools.domain.providerOf
 import dev.belyaevad.texttools.domain.roleModel
-import java.util.Locale
 
 /** One interface language in the dropdown. [name] is the language's own name. */
 data class UiLanguageChoice(
@@ -46,6 +47,7 @@ data class SettingsDraft(
     val models: List<KnownModel>,
     val modelsUrl: String,
     val languages: List<OutputLanguage>,
+    val retargetUrl: String? = null,
 ) {
     override fun toString(): String =
         "SettingsDraft(baseUrl=${settings.baseUrl}, model=${settings.defaultModel}, modelsUrl=$modelsUrl, " +
@@ -55,17 +57,19 @@ data class SettingsDraft(
 /**
  * Work the window cannot do by itself.
  * [onLoadModels] returns provider model ids. [onTestApi] returns the reply or throws.
- * [onRetarget] returns model ids that factory actions now use. [onSave] is called only after validation.
+ * [onRetarget] returns model ids that factory actions would use and writes nothing; Save retargets them.
+ * [storedModels] reads the saved list of an address. [onSave] is called only after validation.
  * The window does not close itself: the caller hides it from [onSave] or [onCancel].
  */
 data class SettingsCallbacks(
     val onLoadModels: suspend (SettingsProbe) -> List<String>,
     val onTestApi: suspend (SettingsProbe) -> String,
     val onRetarget: suspend (String) -> List<String>,
-    val onSave: (SettingsDraft) -> Unit,
+    val onSave: (SettingsDraft) -> Boolean,
     val onCancel: () -> Unit,
     val catalog: List<CatalogEntry> = emptyList(),
     val uiLanguages: List<UiLanguageChoice> = bundledUiLanguages(),
+    val storedModels: (String) -> List<KnownModel> = { emptyList() },
 )
 
 /** One recommended model. [role] is mech, main, deep, or alt. */
@@ -189,12 +193,14 @@ internal fun catalogRow(
     val slug = priceSlug(modelId, baseUrl)
     return catalog.firstOrNull { it.id.equals(slug, ignoreCase = true) }
         ?: catalog.firstOrNull { it.id.equals(modelId, ignoreCase = true) }
+        // A local model that shares a hosted model's name is not that vendor's model and has no price.
+        ?: catalog.takeUnless { isLoopback(baseUrl) }?.firstOrNull { it.id.substringAfter('/').equals(modelId, ignoreCase = true) }
 }
 
 internal fun contextText(entry: CatalogEntry?): String {
     val length = entry?.contextLength ?: return MISSING
     if (length <= 0) return MISSING
-    return groupDigits(length)
+    return groupDigits(length.toLong())
 }
 
 internal fun priceText(perToken: Double?): String {
@@ -204,16 +210,10 @@ internal fun priceText(perToken: Double?): String {
 
 internal fun moneyPerMillion(value: Double): String {
     if (value < 0.0 || value.isNaN()) return MISSING
-    val pattern =
-        when {
-            value >= 1.0 -> "%.2f"
-            value >= 0.01 -> "%.3f"
-            else -> "%.5f"
-        }
-    return "$" + String.format(Locale.US, pattern, value)
+    return bannerMoney(value)
 }
 
-internal fun groupDigits(value: Int): String {
+internal fun groupDigits(value: Long): String {
     val digits = value.toString()
     val out = StringBuilder()
     var count = 0

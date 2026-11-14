@@ -1,6 +1,5 @@
-# Copy to config/sentry.properties or to %LOCALAPPDATA%\TextTools\sentry.properties.
+# Copy to config/sentry.properties or to %APPDATA%\TextTools\sentry.properties.
 # :app:run uses the app module as the working directory and still reads this parent file.
-# The application does not ship a DSN. Both settings switches start off.
+# The application does not ship a DSN. The settings switch starts off.
 dsn=
 environment=
-traces-sample-rate=0

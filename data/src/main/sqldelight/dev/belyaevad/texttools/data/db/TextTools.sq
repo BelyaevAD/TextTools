@@ -158,6 +158,10 @@ insertUsage:
 INSERT INTO usage_log(position, at_epoch_ms, label, model, prompt_tokens, completion_tokens)
 VALUES (?, ?, ?, ?, ?, ?);
 
+appendUsage:
+INSERT INTO usage_log(position, at_epoch_ms, label, model, prompt_tokens, completion_tokens)
+VALUES ((SELECT COALESCE(MAX(position), -1) + 1 FROM usage_log), ?, ?, ?, ?, ?);
+
 selectPriceCache:
 SELECT body, fetched_at FROM price_cache WHERE id = 0;
 
@@ -190,9 +194,3 @@ selectUsageEvents:
 SELECT id, at_epoch_ms, kind, model, outcome, input_chars, extra_chars, output_chars, duration_ms, prompt_tokens, completion_tokens, sentry_bucket
 FROM usage_event ORDER BY id;
 
-selectPendingUsageEvents:
-SELECT id, at_epoch_ms, kind, model, outcome, input_chars, extra_chars, output_chars, duration_ms, prompt_tokens, completion_tokens, sentry_bucket
-FROM usage_event WHERE sentry_bucket IS NULL ORDER BY id;
-
-markUsageEventsSent:
-UPDATE usage_event SET sentry_bucket = ? WHERE id IN ?;

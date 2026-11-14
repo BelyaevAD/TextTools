@@ -2,9 +2,9 @@
 
 Linked from docs/README.md. Supersedes the AHK INI layout for the new line. Secrets stay out of SQLite: [S5-secrets-outside-db.md](../adr/S5-secrets-outside-db.md). User language packs stay INI for import, and this version's interface uses bundled XML: [S5-user-lang-ini.md](../adr/S5-user-lang-ini.md).
 
-The database is `%LOCALAPPDATA%\TextTools\texttools.db`. `user_version` 0 creates the SQLDelight schema. A lower version is migrated to the current schema version. There is no hand-written migration file.
+The database is `%APPDATA%\TextTools\texttools.db`. `user_version` 0 creates the SQLDelight schema. A database at version 1 is migrated by `1.sqm`, which adds `usage_event`.
 
-Lists are replaced as a whole. `position` is the write order, starting at 0. A missing `LOCALAPPDATA` throws before the database is created.
+Lists are replaced as a whole. `position` is the write order, starting at 0. When `APPDATA` is not set, the folder is `<user.home>\AppData\Roaming\TextTools`.
 
 ## action
 
@@ -85,7 +85,7 @@ The store keeps the tail of the list it is given, at most 20 rows, then cuts `so
 | label, model | Required text. |
 | prompt_tokens, completion_tokens | Required. One row is one request. |
 
-`appendUsage` reads and replaces under one lock. Clearing the log file does not delete these rows.
+`appendUsage` inserts one row with the next position under one lock. Clearing the log file does not delete these rows.
 
 ## price_cache
 
@@ -99,7 +99,7 @@ No row means the cache has not been stored.
 
 ## usage_event
 
-One row per actual model call: `action`, `refine` or `profile`, with `success`, `failure` or `cancelled`. Model-list and test calls are excluded. `input_chars`, `extra_chars` and `output_chars` are lengths, never text. `duration_ms` uses monotonic time around the provider call only. Nullable token columns mean that usage was not reported. `sentry_bucket` is NULL while a completed hour remains eligible for retry. Local rows remain when telemetry is off.
+One row per actual model call: `action`, `refine` or `profile`, with `success`, `failure` or `cancelled`. Model-list and test calls are excluded. `input_chars`, `extra_chars` and `output_chars` are lengths, never text. `duration_ms` uses monotonic time around the provider call only. Nullable token columns mean that usage was not reported. `sentry_bucket` is unused and always NULL.
 
 ## ui.properties
 
@@ -116,7 +116,7 @@ One row per actual model call: `action`, `refine` or `profile`, with `success`, 
 | uiLang | Interface language code. |
 | appProfiling | `true` looks up an unknown executable. |
 | clipWaitSeconds | Number, then clamped to 0.2–5. |
-| sentryErrors, sentryTraces | Both default off. |
+| sentryErrors | Defaults off. |
 | autostart | `true` or `false`. A missing key is not a stored choice. An installed exe then follows whether the Run value matches. |
 | profileModel | Profiling model. Blank uses the default model. |
 
@@ -124,12 +124,12 @@ One row per actual model call: `action`, `refine` or `profile`, with `success`, 
 
 | Path | Contents |
 | --- | --- |
-| `%LOCALAPPDATA%\TextTools\TextTools_last.txt` | Last result text. Clearing history does not delete it. |
-| `%LOCALAPPDATA%\TextTools\TextTools.log` | Append-only run log. `TextTools.log.old` may sit beside it. |
-| `%LOCALAPPDATA%\TextTools\secrets\api-key.dpapi` | DPAPI blob for the current user. |
-| `%LOCALAPPDATA%\TextTools\secrets\proxy-url.dpapi` | DPAPI blob for the current user. |
-| `%LOCALAPPDATA%\TextTools\lang\user\<code>.ini` | User language pack. |
-| `%LOCALAPPDATA%\TextTools\sentry.properties` | Last place the error-report file is looked up. |
+| `%APPDATA%\TextTools\TextTools_last.txt` | Last result text. Clearing history does not delete it. |
+| `%APPDATA%\TextTools\TextTools.log` | Append-only run log. `TextTools.log.old` may sit beside it. |
+| `%APPDATA%\TextTools\secrets\api-key.dpapi` | DPAPI blob for the current user. |
+| `%APPDATA%\TextTools\secrets\proxy-url.dpapi` | DPAPI blob for the current user. |
+| `%APPDATA%\TextTools\lang\user\<code>.ini` | User language pack. |
+| `%APPDATA%\TextTools\sentry.properties` | Last place the error-report file is looked up. |
 | `%APPDATA%\TextTools\windows.properties` | Outer x, y, width and height of each window id. A missing id uses the first platform position. A newer file left in the install folder is moved here once. |
 
 An AHK folder imported by `LegacyImport` is read, not modified. A missing file or a file that is not valid UTF-8 leaves the table it owns as it was.

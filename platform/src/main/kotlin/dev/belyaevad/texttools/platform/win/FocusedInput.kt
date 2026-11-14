@@ -78,7 +78,7 @@ internal fun focusedInputBounds(hwnd: HWND): WindowBounds? {
     if (!acceptsTypedText(read.field.controlType, read.field.enabled, read.field.focusable, read.field.readOnly)) {
         return null
     }
-    return read.bounds
+    return read.bounds?.let(::userSpace)
 }
 
 private data class FocusedRead(
@@ -177,21 +177,12 @@ private class UiaCall(
         if (!COMUtils.SUCCEEDED(hr)) return null
         return try {
             variant.read()
-            val type = variant.getVarType().toInt()
-            if (type and VT_ARRAY == 0) return null
-            val arrayPointer = variant.value as? Pointer ?: return null
-            val array = OaIdl.SAFEARRAY(arrayPointer)
-            val count = array.getUBound(0) - array.getLBound(0) + 1
-            if (count < 4) return null
-            val left = (array.getElement(array.getLBound(0)) as Number).toDouble()
-            val top = (array.getElement(array.getLBound(0) + 1) as Number).toDouble()
-            val wide = (array.getElement(array.getLBound(0) + 2) as Number).toDouble()
-            val high = (array.getElement(array.getLBound(0) + 3) as Number).toDouble()
-            if (wide < 2.0 || high < 2.0) return null
-            WindowBounds(left.toInt(), top.toInt(), (left + wide).toInt(), (top + high).toInt())
+            boundsOf(variant)
         } catch (_: Throwable) {
             null
         } finally {
+            // VariantClear frees the array; JNA's auto-read afterwards would follow the stale parray pointer.
+            variant.autoRead = false
             OleAuto.INSTANCE.VariantClear(variant)
         }
     }
@@ -219,4 +210,16 @@ private class UiaCall(
             OleAuto.INSTANCE.VariantClear(variant)
         }
     }
+}
+
+/** Reads left, top, width, height from a UIA bounds VARIANT. The VARIANT keeps ownership of the array. */
+internal fun boundsOf(variant: Variant.VARIANT): WindowBounds? {
+    if (variant.getVarType().toInt() and VT_ARRAY == 0) return null
+    val array = variant.value as? OaIdl.SAFEARRAY ?: return null
+    val first = array.getLBound(0)
+    if (array.getUBound(0) - first + 1 < 4) return null
+    val values = (0..3).map { (array.getElement(first + it) as Number).toDouble() }
+    if (!values.all { it.isFinite() }) return null
+    if (values[2] < 2.0 || values[3] < 2.0) return null
+    return WindowBounds(values[0].toInt(), values[1].toInt(), (values[0] + values[2]).toInt(), (values[1] + values[3]).toInt())
 }

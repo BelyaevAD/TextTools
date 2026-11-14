@@ -1,5 +1,6 @@
 package dev.belyaevad.texttools.app
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -30,10 +31,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.ApplicationScope
+import androidx.compose.ui.window.Notification
 import androidx.compose.ui.window.Tray
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.application
+import androidx.compose.ui.window.rememberTrayState
 import androidx.compose.ui.window.rememberWindowState
 import dev.belyaevad.texttools.app.ui.AppIcon
 import dev.belyaevad.texttools.app.ui.AppLocale
@@ -59,26 +62,33 @@ import dev.belyaevad.texttools.app.ui.installApplicationIcon
 import dev.belyaevad.texttools.app.ui.menu.actionMenu
 import dev.belyaevad.texttools.app.ui.menuOuterHeight
 import dev.belyaevad.texttools.app.ui.resolve
+import dev.belyaevad.texttools.app.ui.resource
 import dev.belyaevad.texttools.app.ui.result.RefineDelivery
 import dev.belyaevad.texttools.app.ui.result.ResultWindow
 import dev.belyaevad.texttools.app.ui.resultOuterHeight
 import dev.belyaevad.texttools.app.ui.run.AppProfiler
+import dev.belyaevad.texttools.app.ui.run.LAST_FILE
+import dev.belyaevad.texttools.app.ui.run.LOG_FILE
 import dev.belyaevad.texttools.app.ui.run.RunAction
 import dev.belyaevad.texttools.app.ui.run.RunPhase
 import dev.belyaevad.texttools.app.ui.run.RunStatus
 import dev.belyaevad.texttools.app.ui.run.RunUsage
 import dev.belyaevad.texttools.app.ui.run.bannerMoney
 import dev.belyaevad.texttools.app.ui.run.groupedCount
+import dev.belyaevad.texttools.app.ui.run.logTime
+import dev.belyaevad.texttools.app.ui.run.numberAfter
 import dev.belyaevad.texttools.app.ui.run.requestCost
 import dev.belyaevad.texttools.app.ui.run.statusSeconds
 import dev.belyaevad.texttools.app.ui.settings.SettingsCallbacks
 import dev.belyaevad.texttools.app.ui.settings.SettingsDraft
 import dev.belyaevad.texttools.app.ui.settings.SettingsProbe
 import dev.belyaevad.texttools.app.ui.settings.SettingsWindow
+import dev.belyaevad.texttools.app.ui.settings.fill
 import dev.belyaevad.texttools.app.ui.systemFormatLocale
 import dev.belyaevad.texttools.app.ui.uiText
 import dev.belyaevad.texttools.data.HistoryRecord
 import dev.belyaevad.texttools.data.LegacyImport
+import dev.belyaevad.texttools.data.LlmClient
 import dev.belyaevad.texttools.data.TextToolsStore
 import dev.belyaevad.texttools.data.UsageEvent
 import dev.belyaevad.texttools.data.UsageRecord
@@ -95,18 +105,15 @@ import dev.belyaevad.texttools.domain.RunOutcome
 import dev.belyaevad.texttools.domain.Settings
 import dev.belyaevad.texttools.domain.Usage
 import dev.belyaevad.texttools.domain.clipWaitSeconds
-import dev.belyaevad.texttools.domain.effectiveProxy
-import dev.belyaevad.texttools.domain.isLoopback
-import dev.belyaevad.texttools.domain.normalizeProxy
 import dev.belyaevad.texttools.domain.profilingModel
 import dev.belyaevad.texttools.domain.retarget
 import dev.belyaevad.texttools.domain.searchModel
 import dev.belyaevad.texttools.platform.ClipboardProtocol
 import dev.belyaevad.texttools.platform.PasteAttempt
 import dev.belyaevad.texttools.platform.win.GlobalChord
-import dev.belyaevad.texttools.platform.win.InstanceAction
 import dev.belyaevad.texttools.platform.win.ScreenPoint
 import dev.belyaevad.texttools.platform.win.SecretSlot
+import dev.belyaevad.texttools.platform.win.SecretStoreException
 import dev.belyaevad.texttools.platform.win.SourceSnapshot
 import dev.belyaevad.texttools.platform.win.UserSecrets
 import dev.belyaevad.texttools.platform.win.WindowBounds
@@ -115,7 +122,6 @@ import dev.belyaevad.texttools.platform.win.autostartEnabled
 import dev.belyaevad.texttools.platform.win.claimFirstInstance
 import dev.belyaevad.texttools.platform.win.currentInstalledExe
 import dev.belyaevad.texttools.platform.win.currentWorkAreas
-import dev.belyaevad.texttools.platform.win.enterSingleInstance
 import dev.belyaevad.texttools.platform.win.hasUserSource
 import dev.belyaevad.texttools.platform.win.installedAutostart
 import dev.belyaevad.texttools.platform.win.popupBeside
@@ -124,14 +130,17 @@ import dev.belyaevad.texttools.platform.win.sourceSnapshot
 import dev.belyaevad.texttools.platform.win.userDataRoot
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.jetbrains.compose.resources.StringResource
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.yield
 import org.jetbrains.compose.resources.stringResource
 import texttools.app.generated.resources.Res
+import texttools.app.generated.resources.app_clipboard_busy
 import texttools.app.generated.resources.app_copied
 import texttools.app.generated.resources.app_copy_failed
 import texttools.app.generated.resources.app_editor_saved
@@ -147,6 +156,7 @@ import texttools.app.generated.resources.app_profile_unknown
 import texttools.app.generated.resources.app_request_failed
 import texttools.app.generated.resources.app_request_running
 import texttools.app.generated.resources.app_restart_failed
+import texttools.app.generated.resources.app_run_cancel_hint
 import texttools.app.generated.resources.app_run_done
 import texttools.app.generated.resources.app_run_done_for
 import texttools.app.generated.resources.app_run_estimate
@@ -157,6 +167,7 @@ import texttools.app.generated.resources.app_run_usage
 import texttools.app.generated.resources.app_run_usage_cost
 import texttools.app.generated.resources.app_save_failed
 import texttools.app.generated.resources.app_seconds
+import texttools.app.generated.resources.app_secret_unreadable
 import texttools.app.generated.resources.app_settings_saved
 import texttools.app.generated.resources.app_tray_clear_history
 import texttools.app.generated.resources.app_tray_clear_log
@@ -170,18 +181,6 @@ import texttools.app.generated.resources.app_tray_restart
 import texttools.app.generated.resources.app_tray_settings
 import texttools.app.generated.resources.app_tray_stats
 import texttools.app.generated.resources.app_tray_tip
-import texttools.app.generated.resources.error_empty_response
-import texttools.app.generated.resources.error_empty_url
-import texttools.app.generated.resources.error_http
-import texttools.app.generated.resources.error_insufficient_funds
-import texttools.app.generated.resources.error_invalid_proxy
-import texttools.app.generated.resources.error_invalid_url
-import texttools.app.generated.resources.error_not_found
-import texttools.app.generated.resources.error_provider_unavailable
-import texttools.app.generated.resources.error_rate_limited
-import texttools.app.generated.resources.error_secret_store
-import texttools.app.generated.resources.error_unauthorized
-import texttools.app.generated.resources.error_unknown
 import texttools.app.generated.resources.settings_profile_added
 import texttools.app.generated.resources.settings_profile_window
 import java.awt.Desktop
@@ -191,29 +190,17 @@ import java.awt.datatransfer.StringSelection
 import java.awt.event.WindowEvent
 import java.awt.event.WindowFocusListener
 import java.io.IOException
-import java.net.Authenticator
-import java.net.InetSocketAddress
-import java.net.PasswordAuthentication
-import java.net.Proxy
-import java.net.ProxySelector
-import java.net.SocketAddress
-import java.net.URI
-import java.net.URLDecoder
-import java.net.http.HttpClient
-import java.net.http.HttpRequest
-import java.net.http.HttpResponse
+import java.io.UncheckedIOException
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.nio.file.StandardOpenOption
-import java.time.Duration
 import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 import java.util.Locale
 import java.util.Properties
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.system.exitProcess
 
 private const val TOOLTIP_MILLIS = 1_600L
@@ -223,12 +210,7 @@ private const val MENU_WIDTH = MENU_OUTER_WIDTH
 private const val BANNER_WIDTH = BANNER_OUTER_WIDTH
 private const val BANNER_HEIGHT = BANNER_OUTER_HEIGHT
 private const val UI_FILE = "ui.properties"
-private const val LAST_FILE = "TextTools_last.txt"
-private const val LOG_FILE = "TextTools.log"
 private const val RESTART_ENV = "TEXTTOOLS_RESTART"
-
-private val logTime: DateTimeFormatter =
-    DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault())
 
 private class SettingsSlot(
     initial: Settings,
@@ -243,9 +225,15 @@ private val NOTHING_TO_REPEAT = uiText(Res.string.app_nothing_to_repeat)
 private val REQUEST_RUNNING = uiText(Res.string.app_request_running)
 private val NEED_KEY = uiText(Res.string.app_need_key)
 private val HOTKEY_FAIL = uiText(Res.string.app_hotkey_fail)
+private val SECRET_UNREADABLE = uiText(Res.string.app_secret_unreadable)
+
+/** Routine successes stay in the tray tooltip; everything else also becomes a Windows notification. */
+private val TOOLTIP_ONLY = setOf(Res.string.app_settings_saved, Res.string.app_copied, Res.string.app_editor_saved)
 private val SAVE_FAILED = uiText(Res.string.app_save_failed)
 private val REQUEST_FAILED = uiText(Res.string.app_request_failed)
-private const val PROXY_UNPARSED = "invalid proxy"
+
+// Settings probes gave up after 60 s before they moved to the chat clients, whose reads wait 180 s.
+private const val PROBE_TIMEOUT_MILLIS = 60_000L
 
 private data class MenuRequest(
     val selection: String,
@@ -257,7 +245,8 @@ private data class MenuRequest(
     val cursor: ScreenPoint,
 )
 
-private data class ShownResult(
+// Not a data class: two runs with the same answer are still two results, so the window state resets.
+private class ShownResult(
     val title: String,
     val text: String,
     val model: String,
@@ -272,7 +261,13 @@ fun main() {
     installApplicationIcon()
     Locale.setDefault(Locale.Category.FORMAT, systemFormatLocale)
     ownTheInstance()
-    prepareUserData()
+    try {
+        prepareUserData()
+    } catch (error: IOException) {
+        logLine("data copy failed: ${error.javaClass.simpleName}")
+    } catch (error: UncheckedIOException) {
+        logLine("data copy failed: ${error.javaClass.simpleName}")
+    }
     val commands = Channel<GlobalChord>(Channel.UNLIMITED)
     val graph = AppGraph { commands.trySend(it) }
     val closed = AtomicBoolean(false)
@@ -285,10 +280,8 @@ fun main() {
     val sentryFile = loadSentryFile(sentryConfigFile(Path.of(System.getProperty("user.dir")), dataDirectory()))
     applySentry(sentryFile, slot.value)
     val startupNote = startupNote(graph, hotkeysOk)
-    noteStartup(slot.value.hotkey, slot.value.hotkeyRepeat, hotkeysOk, startupNote === HOTKEY_FAIL)
+    noteStartup(slot.value.hotkey, slot.value.hotkeyRepeat, hotkeysOk, !hotkeysOk)
     application {
-        val telemetry =
-            remember { UsageTelemetry(graph.store, { TelemetrySettings(slot.value.sentryTraces, sentryFile.dsn) }, SentryUsageMetricSink) }
         val runner =
             remember {
                 RunAction(
@@ -303,12 +296,10 @@ fun main() {
             }
         DisposableEffect(Unit) {
             onDispose {
-                runner.close()
-                telemetry.close()
                 closeGraph(graph, closed)
             }
         }
-        TextToolsApp(graph, commands, slot, runner, startupNote, sentryFile, telemetry)
+        TextToolsApp(graph, commands, slot, runner, startupNote, sentryFile)
     }
 }
 
@@ -320,11 +311,10 @@ private fun ApplicationScope.TextToolsApp(
     runner: RunAction,
     startupNote: UiText?,
     sentryFile: SentryFile,
-    telemetry: UsageTelemetry,
 ) {
     val uiLanguage = remember { mutableStateOf(slot.value.uiLang) }
     AppLocale(uiLanguage.value) {
-        textToolsContent(graph, commands, slot, runner, startupNote, sentryFile, telemetry, uiLanguage)
+        textToolsContent(graph, commands, slot, runner, startupNote, sentryFile, uiLanguage)
     }
 }
 
@@ -336,7 +326,6 @@ private fun ApplicationScope.textToolsContent(
     runner: RunAction,
     startupNote: UiText?,
     sentryFile: SentryFile,
-    telemetry: UsageTelemetry,
     uiLanguage: MutableState<String>,
 ) {
     val language = uiLanguage.value
@@ -360,6 +349,8 @@ private fun ApplicationScope.textToolsContent(
     var runToken by remember { mutableIntStateOf(0) }
     var flashed by remember { mutableStateOf<UiText?>(startupNote) }
     var flashToken by remember { mutableIntStateOf(if (startupNote == null) 0 else 1) }
+    val trayState = rememberTrayState()
+    val flashedText = flashed?.let { resolve(it) }
     val profileAdded = stringResource(Res.string.settings_profile_added)
     val profileWindow = stringResource(Res.string.settings_profile_window)
     val profileUnknown = stringResource(Res.string.app_profile_unknown)
@@ -376,8 +367,11 @@ private fun ApplicationScope.textToolsContent(
         uiLanguage.value = next.uiLang
     }
 
+    // ActionRun is rebuilt on every recomposition, so the running job lives outside it.
+    val runJob = remember { AtomicReference<Job?>() }
     val runs =
         ActionRun(
+            job = runJob,
             graph = graph,
             runner = runner,
             scope = scope,
@@ -408,13 +402,6 @@ private fun ApplicationScope.textToolsContent(
     val currentRuns = remember { mutableStateOf<ActionRun?>(null) }
     currentRuns.value = runs
 
-    LaunchedEffect(flashToken) { clearFlash(flashToken) { flashed = null } }
-    LaunchedEffect(telemetry) {
-        while (true) {
-            telemetry.flushCompleted()
-            delay(TELEMETRY_HOUR_MS)
-        }
-    }
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
             graph.catalogue.refresh(graph.store, slot.value.proxy, slot.value.proxyOn)
@@ -430,7 +417,9 @@ private fun ApplicationScope.textToolsContent(
             busy = { runner.busy },
             flash = ::flash,
             onMenu = {
-                if (!hasApiKey(graph.secrets)) {
+                val secretNote = secretNote(graph.secrets)
+                if (secretNote != null || !hasApiKey(graph.secrets)) {
+                    secretNote?.let(::flash)
                     showSettings = true
                 } else {
                     captureMenu(
@@ -444,7 +433,9 @@ private fun ApplicationScope.textToolsContent(
                 }
             },
             onRepeat = {
-                if (!hasApiKey(graph.secrets)) {
+                val secretNote = secretNote(graph.secrets)
+                if (secretNote != null || !hasApiKey(graph.secrets)) {
+                    secretNote?.let(::flash)
                     showSettings = true
                 } else {
                     val active = currentRuns.value
@@ -467,7 +458,8 @@ private fun ApplicationScope.textToolsContent(
         val idleTip = uiText(Res.string.app_tray_tip, settings.hotkey)
         Tray(
             icon = AppIcon,
-            tooltip = flashed?.let { resolve(it).replace('\n', ' ').take(240) } ?: resolve(idleTip),
+            state = trayState,
+            tooltip = flashedText?.replace('\n', ' ')?.take(240) ?: resolve(idleTip),
             onAction = { showSettings = true },
             menu = {
                 Item(stringResource(Res.string.app_tray_last)) { showLast = true }
@@ -498,6 +490,13 @@ private fun ApplicationScope.textToolsContent(
                 Item(stringResource(Res.string.app_tray_exit)) { exitApplication() }
             },
         )
+    }
+    val notice = flashedText?.takeUnless { flashed?.resource in TOOLTIP_ONLY }
+    LaunchedEffect(flashToken) {
+        // TrayState drops a notification nobody is collecting; the Tray above launches its collector in this frame.
+        yield()
+        notice?.let { trayState.sendNotification(Notification("TextTools", it)) }
+        clearFlash(flashToken) { flashed = null }
     }
 
     menu?.let { request ->
@@ -534,8 +533,9 @@ private fun ApplicationScope.textToolsContent(
     val windowActions =
         WindowActions(
             onSave = { draft ->
-                applySavedSettings(graph, draft, sentryFile, ::publish, ::flash)
-                showSettings = false
+                val saved = applySavedSettings(graph, draft, sentryFile, ::publish, ::flash)
+                if (saved) showSettings = false
+                saved
             },
             onCancelSettings = { showSettings = false },
             onCloseEditor = { showEditor = false },
@@ -547,7 +547,8 @@ private fun ApplicationScope.textToolsContent(
             dismissHistoryCleared = { showHistoryCleared = false },
             dismissLogCleared = { showLogCleared = false },
             copy = { text -> copyText(text, ::flash) },
-            paste = { text -> pasteText(graph.clipboard, text, ::flash) },
+            paste = { text -> scope.launch { pasteText(graph.clipboard, text, ::flash) } },
+            cancelRun = runs::cancel,
             dismissAll = {
                 showHistory = false
                 showLast = false
@@ -586,6 +587,7 @@ private data class RunTarget(
 )
 
 private class ActionRun(
+    private val job: AtomicReference<Job?>,
     private val graph: AppGraph,
     private val runner: RunAction,
     private val scope: kotlinx.coroutines.CoroutineScope,
@@ -607,17 +609,25 @@ private class ActionRun(
             hooks.flash(REQUEST_RUNNING)
             return
         }
-        if (!hasApiKey(graph.secrets)) {
-            hooks.flash(NEED_KEY)
+        val secretNote = secretNote(graph.secrets)
+        if (secretNote != null || !hasApiKey(graph.secrets)) {
+            hooks.flash(secretNote ?: NEED_KEY)
             hooks.openSettings()
             return
         }
         val token = hooks.nextToken()
         hooks.rememberRun(action, instruction)
         hooks.placeBanner(target.at)
-        scope.launch {
-            runBody(action, selection, instruction, shift, target, token)
-        }
+        job.set(
+            scope.launch {
+                runBody(action, selection, instruction, shift, target, token)
+            },
+        )
+    }
+
+    /** Stops the running request. The busy gate and the banner clear in their finally blocks. */
+    fun cancel() {
+        job.get()?.cancel()
     }
 
     fun flash(message: UiText) = hooks.flash(message)
@@ -652,7 +662,7 @@ private class ActionRun(
                         kind = "profile",
                         inputChars = { proc.length + title.length },
                         store = graph.store,
-                        complete = { _, messages -> completeCall(graph, current, model, messages) },
+                        complete = { name, messages -> completeCall(graph, current, name, messages) },
                     ),
                 background = { block -> scope.launch(Dispatchers.IO) { block() } },
                 profilingModel = model,
@@ -678,7 +688,7 @@ private class ActionRun(
                 unknownDescription = profileUnknown,
             )
             hooks.showBanner(true)
-            withContext(Dispatchers.IO) {
+            scope.launch(Dispatchers.IO) {
                 graph.catalogue.refresh(graph.store, current.proxy, current.proxyOn)
             }
             val outcome = actionOutcome(action, selection, instruction, shift, proc, title)
@@ -736,7 +746,7 @@ private class ActionRun(
             is RunOutcome.Failed -> hooks.flash(uiText(outcome.reason.resource, outcome.httpStatus?.toString().orEmpty()))
             RunOutcome.Busy -> hooks.flash(REQUEST_RUNNING)
             RunOutcome.NeedsKey -> {
-                hooks.flash(NEED_KEY)
+                hooks.flash(secretNote(graph.secrets) ?: NEED_KEY)
                 hooks.openSettings()
             }
         }
@@ -748,7 +758,7 @@ private fun profileDescription(
     shortTitle: String,
     added: String,
     window: String,
-): String = if (shortTitle.isEmpty()) added else "$added ${fillTemplate(window, shortTitle)}"
+): String = if (shortTitle.isEmpty()) added else "$added ${fill(window, shortTitle)}"
 
 private suspend fun clearFlash(
     token: Int,
@@ -800,7 +810,15 @@ private suspend fun takeSelection(
     seconds: Double,
 ): Pair<String, UiText?> =
     withContext(Dispatchers.IO) {
-        graph.clipboard.captureSeconds(seconds) to graph.clipboard.takeNonTextWarning()?.let { uiText(Res.string.app_no_selection) }
+        val text = graph.clipboard.captureSeconds(seconds)
+        val busy = graph.clipboard.takeBusyNotice()
+        val nonText = graph.clipboard.takeNonTextWarning()
+        text to
+            when {
+                busy -> uiText(Res.string.app_clipboard_busy)
+                nonText != null -> uiText(Res.string.app_no_selection)
+                else -> null
+            }
     }
 
 private suspend fun captureMenu(
@@ -865,16 +883,13 @@ private fun applySavedSettings(
     sentryFile: SentryFile,
     publish: (Settings) -> Unit,
     flash: (UiText) -> Unit,
-) {
-    if (saveSettings(graph, draft, sentryFile, publish)) {
-        if (graph.hotkeys.swap(draft.settings.hotkey, draft.settings.hotkeyRepeat)) {
-            flash(uiText(Res.string.app_settings_saved, draft.settings.hotkey))
-        } else {
-            flash(HOTKEY_FAIL)
-        }
-    } else {
-        flash(SAVE_FAILED)
-    }
+): Boolean {
+    val saved = saveSettings(graph, draft, sentryFile, publish)
+    val hotkeysOk = saved && graph.hotkeys.swap(draft.settings.hotkey, draft.settings.hotkeyRepeat)
+    val done = if (hotkeysOk) uiText(Res.string.app_settings_saved, draft.settings.hotkey) else HOTKEY_FAIL
+    // A save that leaves a secret unreadable does not report plain success.
+    flash(if (saved) secretNote(graph.secrets) ?: done else SAVE_FAILED)
+    return saved
 }
 
 private data class OpenWindows(
@@ -892,7 +907,7 @@ private data class OpenWindows(
 )
 
 private data class WindowActions(
-    val onSave: (SettingsDraft) -> Unit,
+    val onSave: (SettingsDraft) -> Boolean,
     val onCancelSettings: () -> Unit,
     val onCloseEditor: () -> Unit,
     val onSaved: (UiText) -> Unit,
@@ -904,6 +919,7 @@ private data class WindowActions(
     val dismissLogCleared: () -> Unit,
     val copy: (String) -> Unit,
     val paste: (String) -> Unit,
+    val cancelRun: () -> Unit,
     val dismissAll: () -> Unit,
 )
 
@@ -919,34 +935,36 @@ private fun toolWindows(
 ) {
     if (open.showBanner) {
         key(language, open.bannerAt) {
-            BusyBanner(open.banner ?: RunStatus(RunPhase.Preparing, 0), open.bannerAt)
+            BusyBanner(open.banner ?: RunStatus(RunPhase.Preparing, 0), open.bannerAt, actions.cancelRun)
         }
     }
     open.shown?.let { result ->
-        ResultWindow(
-            title = result.title,
-            text = result.text,
-            onCopy = actions.copy,
-            onPaste = actions.paste,
-            onClose = actions.dismissShown,
-            model = result.model,
-            conversation = result.conversation,
-            chips = result.chips,
-            markdown = result.markdown,
-            complete =
-                measureProviderCall(
-                    kind = "refine",
-                    inputChars = { refineChars[0] },
-                    store = graph.store,
-                ) { model, messages ->
-                    withContext(Dispatchers.IO) { completeCall(graph, slot.value, model, messages) }
-                },
-            onRequest = { refineChars[0] = it },
-            onDelivered = { delivery -> rememberDelivery(graph, slot.value, result, delivery) },
-            language = language,
-            placementId = "result",
-            anchor = result.at,
-        )
+        key(result) {
+            ResultWindow(
+                title = result.title,
+                text = result.text,
+                onCopy = actions.copy,
+                onPaste = actions.paste,
+                onClose = actions.dismissShown,
+                model = result.model,
+                conversation = result.conversation,
+                chips = result.chips,
+                markdown = result.markdown,
+                complete =
+                    measureProviderCall(
+                        kind = "refine",
+                        inputChars = { refineChars[0] },
+                        store = graph.store,
+                    ) { model, messages ->
+                        withContext(Dispatchers.IO) { completeCall(graph, slot.value, model, messages) }
+                    },
+                onRequest = { refineChars[0] = it },
+                onDelivered = { delivery -> rememberDelivery(graph, slot.value, result, delivery) },
+                language = language,
+                placementId = "result",
+                anchor = result.at,
+            )
+        }
     }
     if (open.showSettings) {
         SettingsScreen(
@@ -1006,7 +1024,7 @@ private fun localizedWindows(
             log = log,
             usage = usage,
             events = events,
-            catalog = catalogEntries(prices?.body),
+            catalog = remember(prices) { catalogEntries(prices?.body) },
             baseUrl = settings.baseUrl,
             catalogueAtEpochMs = prices?.fetchedAtEpochMs,
             hooks = hooks.copy(onClose = actions.dismissStats),
@@ -1018,17 +1036,6 @@ private fun localizedWindows(
     if (open.showLogCleared) {
         LogClearedWindow(hooks.copy(onClose = actions.dismissLogCleared))
     }
-}
-
-private fun fillTemplate(
-    template: String,
-    vararg values: String,
-): String {
-    var text = template
-    values.forEachIndexed { index, value ->
-        text = text.replace("%${index + 1}\$s", value)
-    }
-    return text
 }
 
 @Composable
@@ -1095,6 +1102,7 @@ private fun ActionMenuWindow(
 private fun BusyBanner(
     status: RunStatus,
     anchor: ScreenPoint,
+    onCancel: () -> Unit,
 ) {
     val corner = bannerCorner(anchor, currentWorkAreas())
     val width = BANNER_WIDTH.dp
@@ -1112,7 +1120,7 @@ private fun BusyBanner(
         focusable = false,
     ) {
         AppTheme {
-            Surface {
+            Surface(Modifier.clickable(enabled = status.phase == RunPhase.Preparing, onClick = onCancel)) {
                 Column(
                     Modifier
                         .fillMaxSize()
@@ -1141,8 +1149,9 @@ private fun BusyBanner(
                         }
                     Text(heading, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    val seconds = stringResource(Res.string.app_seconds, statusSeconds(status.elapsedMillis))
                     Text(
-                        stringResource(Res.string.app_seconds, statusSeconds(status.elapsedMillis)),
+                        if (status.phase == RunPhase.Preparing) "$seconds · ${stringResource(Res.string.app_run_cancel_hint)}" else seconds,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp,
                     )
@@ -1164,10 +1173,10 @@ private fun BusyBanner(
 private fun SettingsScreen(
     graph: AppGraph,
     settings: Settings,
-    onSave: (SettingsDraft) -> Unit,
+    onSave: (SettingsDraft) -> Boolean,
     onCancel: () -> Unit,
 ) {
-    val apiKey = remember(settings) { graph.secrets.get(SecretSlot.ApiKey).orEmpty() }
+    val apiKey = remember(settings) { secretOrNull(graph.secrets, SecretSlot.ApiKey).orEmpty() }
     val models = remember(settings.baseUrl) { graph.store.models(settings.baseUrl) }
     val languages = remember { graph.store.languages().ifEmpty { Factory.languages } }
     var catalog by remember { mutableStateOf(catalogEntries(graph.store.prices()?.body)) }
@@ -1184,16 +1193,18 @@ private fun SettingsScreen(
         languages = languages,
         callbacks =
             SettingsCallbacks(
-                onLoadModels = { probe -> withContext(Dispatchers.IO) { loadModelIds(probe) } },
-                onTestApi = { probe -> withContext(Dispatchers.IO) { testApi(probe) } },
-                onRetarget = { url ->
-                    val next = retarget(graph.store.actions(), url)
-                    graph.store.saveActions(next)
-                    next.mapNotNull { it.model }.filter { it.isNotBlank() }.distinct()
+                onLoadModels = { probe -> probeApi(graph, probe) { it.modelIds(probe.baseUrl, probe.apiKey, probe.proxy, probe.proxyOn) } },
+                onTestApi = { probe ->
+                    probeApi(graph, probe) {
+                        val ask = listOf(ChatMessage("user", "Reply with ok"))
+                        it.complete(probe.baseUrl, probe.apiKey, probe.model, ask, probe.proxy, probe.proxyOn).first
+                    }
                 },
+                onRetarget = { url -> retarget(graph.store.actions(), url).mapNotNull { it.model }.filter { it.isNotBlank() }.distinct() },
                 onSave = onSave,
                 onCancel = onCancel,
                 catalog = catalog,
+                storedModels = graph.store::models,
             ),
     )
 }
@@ -1210,7 +1221,14 @@ private fun EditorScreen(
     val quick = remember { graph.store.quick() }
     val apps = remember { graph.store.apps().ifEmpty { Factory.apps } }
     val languages = remember { graph.store.languages().ifEmpty { Factory.languages } }
-    val models = remember(settings.baseUrl) { graph.store.models(settings.baseUrl).map { it.id } }
+    // The action's own model and the default are added back by modelChoices. No ticks at all shows every model.
+    val models =
+        remember(settings.baseUrl) {
+            graph.store
+                .models(settings.baseUrl)
+                .let { all -> all.filter { it.selected }.ifEmpty { all } }
+                .map { it.id }
+        }
     editorWindow(
         actions = actions,
         quick = quick,
@@ -1241,14 +1259,14 @@ private fun ownTheInstance() {
     if (System.getenv(RESTART_ENV) == "1") {
         if (!waitToOwnInstance()) exitProcess(0)
     } else {
-        enterSingleInstance { exitProcess(0) }
+        if (!claimFirstInstance()) exitProcess(0)
     }
 }
 
 private fun waitToOwnInstance(): Boolean {
     val deadline = System.currentTimeMillis() + 15_000
     while (true) {
-        if (claimFirstInstance() == InstanceAction.Continue) return true
+        if (claimFirstInstance()) return true
         if (System.currentTimeMillis() >= deadline) return false
         Thread.sleep(200)
     }
@@ -1266,6 +1284,10 @@ private fun noteStartup(
         } else {
             "hotkey active: $hotkey / $repeat"
         }
+    logLine(line)
+}
+
+private fun logLine(line: String) {
     try {
         val dir = dataDirectory()
         Files.createDirectories(dir)
@@ -1285,13 +1307,39 @@ private fun startupNote(
     graph: AppGraph,
     hotkeysOk: Boolean,
 ): UiText? =
-    when {
+    secretNote(graph.secrets) ?: when {
         !hotkeysOk -> HOTKEY_FAIL
         !hasApiKey(graph.secrets) -> NEED_KEY
         else -> null
     }
 
-private fun hasApiKey(secrets: UserSecrets): Boolean = !secrets.get(SecretSlot.ApiKey).isNullOrBlank()
+/** The reason to show when a saved key or proxy exists but cannot be decrypted here. */
+private fun secretNote(secrets: UserSecrets): UiText? =
+    SECRET_UNREADABLE.takeIf { secretUnreadable(secrets, SecretSlot.ApiKey) || secretUnreadable(secrets, SecretSlot.ProxyUrl) }
+
+private fun hasApiKey(secrets: UserSecrets): Boolean = !secretOrNull(secrets, SecretSlot.ApiKey).isNullOrBlank()
+
+/** An unreadable secret (a blob from another account) reads as absent here; startup tells the user why. */
+private fun secretOrNull(
+    secrets: UserSecrets,
+    slot: SecretSlot,
+): String? =
+    try {
+        secrets.get(slot)
+    } catch (_: SecretStoreException) {
+        null
+    }
+
+private fun secretUnreadable(
+    secrets: UserSecrets,
+    slot: SecretSlot,
+): Boolean =
+    try {
+        secrets.get(slot)
+        false
+    } catch (_: SecretStoreException) {
+        true
+    }
 
 private fun closeGraph(
     graph: AppGraph,
@@ -1313,7 +1361,6 @@ private fun RequestMetric.toStored(): UsageEvent =
 private fun measureProviderCall(
     kind: String,
     inputChars: () -> Int,
-    extraChars: Int = 0,
     store: TextToolsStore,
     complete: suspend (String, List<ChatMessage>) -> Pair<String, Usage?>,
 ): suspend (String, List<ChatMessage>) -> Pair<String, Usage?> =
@@ -1340,7 +1387,7 @@ private fun measureProviderCall(
                     model,
                     outcome,
                     inputChars(),
-                    extraChars,
+                    0,
                     output,
                     ((System.nanoTime() - started) / 1_000_000).coerceAtLeast(0),
                     usage?.promptTokens,
@@ -1350,6 +1397,13 @@ private fun measureProviderCall(
         }
     }
 
+private fun readApiKey(secrets: UserSecrets): String =
+    try {
+        secrets.get(SecretSlot.ApiKey).orEmpty()
+    } catch (e: SecretStoreException) {
+        throw AppException(ErrorReason.SECRET_STORE_UNAVAILABLE, cause = e)
+    }
+
 private suspend fun completeCall(
     graph: AppGraph,
     settings: Settings,
@@ -1357,7 +1411,7 @@ private suspend fun completeCall(
     messages: List<ChatMessage>,
 ): Pair<String, Usage?> {
     try {
-        val key = graph.secrets.get(SecretSlot.ApiKey).orEmpty()
+        val key = readApiKey(graph.secrets)
         return graph.llm.complete(
             baseUrl = settings.baseUrl,
             apiKey = key,
@@ -1382,10 +1436,13 @@ private fun saveSettings(
     publish: (Settings) -> Unit,
 ): Boolean =
     try {
-        graph.secrets.put(SecretSlot.ApiKey, draft.apiKey)
-        graph.secrets.put(SecretSlot.ProxyUrl, draft.settings.proxy)
+        putUnlessUnreadable(graph.secrets, SecretSlot.ApiKey, draft.apiKey)
+        // Saving with the proxy switched off is the way to drop a proxy file that cannot be read.
+        putUnlessUnreadable(graph.secrets, SecretSlot.ProxyUrl, draft.settings.proxy, cleared = draft.settings.proxyOn == false)
         graph.store.saveLanguages(draft.languages)
         if (draft.modelsUrl.isNotBlank()) graph.store.saveModels(draft.modelsUrl, draft.models)
+        // The table is read now, so edits saved in the action editor meanwhile are kept.
+        draft.retargetUrl?.let { graph.store.saveActions(retarget(graph.store.actions(), it)) }
         writeUiSettings(draft.settings, persistAutostart = true)
         publish(draft.settings)
         applySentry(sentryFile, draft.settings)
@@ -1396,6 +1453,15 @@ private fun saveSettings(
         false
     }
 
+private fun putUnlessUnreadable(
+    secrets: UserSecrets,
+    slot: SecretSlot,
+    value: String,
+    cleared: Boolean = false,
+) {
+    if (secretWritable(value, secretUnreadable(secrets, slot), cleared)) secrets.put(slot, value)
+}
+
 private suspend fun rememberDelivery(
     graph: AppGraph,
     settings: Settings,
@@ -1403,29 +1469,31 @@ private suspend fun rememberDelivery(
     delivery: RefineDelivery,
 ) {
     try {
-        graph.catalogue.refresh(graph.store, settings.proxy, settings.proxyOn)
-        val at = System.currentTimeMillis()
-        val name = if (delivery.label.isBlank()) shown.title else "${shown.title} (${delivery.label})"
-        val row =
-            HistoryRecord(
-                atEpochMs = at,
-                actionName = name,
-                model = delivery.model,
-                promptTokens = delivery.usage?.promptTokens,
-                completionTokens = delivery.usage?.completionTokens,
-                cost = requestCost(graph.store.prices()?.body, delivery.model, settings.baseUrl, delivery.usage),
-                source = delivery.instruction,
-                result = delivery.text,
-            )
-        graph.store.saveHistory((listOf(row) + graph.store.history()).take(HISTORY_LIMIT))
-        delivery.usage?.let { usage ->
-            graph.store.appendUsage(
-                UsageRecord(at, name, delivery.model, usage.promptTokens, usage.completionTokens),
-            )
+        withContext(Dispatchers.IO) {
+            graph.catalogue.refresh(graph.store, settings.proxy, settings.proxyOn)
+            val at = System.currentTimeMillis()
+            val name = if (delivery.label.isBlank()) shown.title else "${shown.title} (${delivery.label})"
+            val row =
+                HistoryRecord(
+                    atEpochMs = at,
+                    actionName = name,
+                    model = delivery.model,
+                    promptTokens = delivery.usage?.promptTokens,
+                    completionTokens = delivery.usage?.completionTokens,
+                    cost = requestCost(graph.store.prices()?.body, delivery.model, settings.baseUrl, delivery.usage),
+                    source = delivery.instruction,
+                    result = delivery.text,
+                )
+            graph.store.saveHistory((listOf(row) + graph.store.history()).take(HISTORY_LIMIT))
+            delivery.usage?.let { usage ->
+                graph.store.appendUsage(
+                    UsageRecord(at, name, delivery.model, usage.promptTokens, usage.completionTokens),
+                )
+            }
+            writeLast(delivery.text)
+            appendLog(at, "$ACTION_MARK$name, model ${delivery.model}")
+            appendLog(at, "ok, response ${delivery.text.length} characters")
         }
-        writeLast(delivery.text)
-        appendLog(at, "$ACTION_MARK$name, model ${delivery.model}")
-        appendLog(at, "ok, response ${delivery.text.length} characters")
     } catch (cancelled: CancellationException) {
         throw cancelled
     } catch (error: Exception) {
@@ -1433,23 +1501,6 @@ private suspend fun rememberDelivery(
         return
     }
 }
-
-private val ErrorReason.resource: StringResource
-    get() =
-        when (this) {
-            ErrorReason.EMPTY_RESPONSE -> Res.string.error_empty_response
-            ErrorReason.EMPTY_URL -> Res.string.error_empty_url
-            ErrorReason.INVALID_URL -> Res.string.error_invalid_url
-            ErrorReason.INVALID_PROXY -> Res.string.error_invalid_proxy
-            ErrorReason.PROVIDER_UNAVAILABLE -> Res.string.error_provider_unavailable
-            ErrorReason.UNAUTHORIZED -> Res.string.error_unauthorized
-            ErrorReason.INSUFFICIENT_FUNDS -> Res.string.error_insufficient_funds
-            ErrorReason.NOT_FOUND -> Res.string.error_not_found
-            ErrorReason.RATE_LIMITED -> Res.string.error_rate_limited
-            ErrorReason.HTTP_ERROR -> Res.string.error_http
-            ErrorReason.SECRET_STORE_UNAVAILABLE -> Res.string.error_secret_store
-            ErrorReason.UNKNOWN -> Res.string.error_unknown
-        }
 
 private fun copyText(
     text: String,
@@ -1463,12 +1514,13 @@ private fun copyText(
     }
 }
 
-private fun pasteText(
+private suspend fun pasteText(
     clipboard: ClipboardProtocol,
     text: String,
     flash: (UiText) -> Unit,
 ) {
-    when (clipboard.paste(text)) {
+    // Activation polling and the settle pauses stay off the UI thread; flash runs back on the caller's thread.
+    when (withContext(Dispatchers.IO) { clipboard.paste(text) }) {
         is PasteAttempt.Sent -> Unit
         PasteAttempt.ShowInWindow -> flash(NO_SOURCE)
     }
@@ -1497,13 +1549,8 @@ private fun openDataFolder(): UiText? =
 
 private fun relaunch(): Boolean =
     try {
-        val info = ProcessHandle.current().info()
-        val command = info.command().orElse("")
-        val args = info.arguments().orElse(emptyArray())
         val builder =
-            if (command.isNotEmpty() && args.isNotEmpty()) {
-                ProcessBuilder(listOf(command) + args.toList())
-            } else {
+            currentInstalledExe()?.let { ProcessBuilder(it.toString()) } ?: run {
                 val javaBin = Path.of(System.getProperty("java.home"), "bin", "java.exe").toString()
                 val classpath = System.getProperty("java.class.path")
                 ProcessBuilder(javaBin, "-cp", classpath, "dev.belyaevad.texttools.app.MainKt")
@@ -1530,6 +1577,7 @@ private fun prepareUserData() {
         "texttools.db-shm",
         "ui.properties",
         "TextTools_last.txt",
+        "sentry.properties",
     )) {
         copyIfMissing(source.resolve(name), dest.resolve(name))
     }
@@ -1572,6 +1620,7 @@ private fun moveNewerWindowPositions(
 private fun importScriptSettings(graph: AppGraph) {
     val marker = dataDirectory().resolve("legacy-imported")
     if (Files.exists(marker)) return
+    if (secretUnreadable(graph.secrets, SecretSlot.ApiKey)) return
     if (hasApiKey(graph.secrets)) {
         Files.write(marker, byteArrayOf())
         return
@@ -1631,7 +1680,8 @@ private fun loadSettings(secrets: UserSecrets): Settings {
 
 private fun readUi(secrets: UserSecrets): LoadedUi {
     val factory = Factory.defaultSettings
-    val proxy = secrets.get(SecretSlot.ProxyUrl).orEmpty()
+    val proxy = secretOrNull(secrets, SecretSlot.ProxyUrl).orEmpty()
+    val proxyUnreadable = secretUnreadable(secrets, SecretSlot.ProxyUrl)
     val file = dataDirectory().resolve(UI_FILE)
     val props = Properties()
     val missing = !Files.isRegularFile(file)
@@ -1645,7 +1695,7 @@ private fun readUi(secrets: UserSecrets): LoadedUi {
     }
     val stored = if (props.containsKey("autostart")) props.getProperty("autostart") else null
     return LoadedUi(
-        settingsFromProperties(props, proxy, factory),
+        settingsFromProperties(props, proxy, factory, proxyUnreadable),
         stored?.equals("true", ignoreCase = true),
         rewrite = !failed && (missing || uiSettingsStale(props)),
     )
@@ -1747,177 +1797,16 @@ private fun pointerNow(): ScreenPoint {
     return ScreenPoint(pointer?.x ?: 0, pointer?.y ?: 0)
 }
 
-private fun loadModelIds(probe: SettingsProbe): List<String> = modelIds(apiRequest(probe, "models", null))
-
-private fun testApi(probe: SettingsProbe): String {
-    val body =
-        buildString {
-            append("{\"model\":")
-            append(jsonQuote(probe.model))
-            append(",\"stream\":false,\"messages\":[{\"role\":\"user\",\"content\":\"Reply with ok\"}]}")
-        }
-    val reply = apiRequest(probe, "chat/completions", body)
-    val messageAt = reply.indexOf("\"message\"")
-    val slice = if (messageAt < 0) reply else reply.substring(messageAt)
-    val content = jsonStringField(slice, "content")?.trim().orEmpty()
-    require(content.isNotEmpty()) { ErrorReason.EMPTY_RESPONSE.name }
-    return content
-}
-
-private fun apiRequest(
+/** "Load models" and "Test API": the chat clients and route rules, with the unsaved key, address and proxy. */
+private suspend fun <T : Any> probeApi(
+    graph: AppGraph,
     probe: SettingsProbe,
-    path: String,
-    json: String?,
-): String {
-    val base = probe.baseUrl.trim().trimEnd('/')
-    require(base.isNotEmpty()) { AppException(ErrorReason.EMPTY_URL) }
-    val uri =
-        try {
-            URI("$base/$path")
-        } catch (_: IllegalArgumentException) {
-            throw AppException(ErrorReason.INVALID_URL)
-        }
-    val previous = Authenticator.getDefault()
-    var client: HttpClient? = null
-    return try {
-        installProxyAuth(probe)
-        client = openClient(probe)
-        val builder =
-            HttpRequest
-                .newBuilder(uri)
-                .timeout(Duration.ofSeconds(60))
-                .header("Authorization", "Bearer ${probe.apiKey}")
-        val request =
-            if (json == null) {
-                builder.GET().build()
-            } else {
-                builder
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8))
-                    .build()
-            }
-        val response = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))
-        val code = response.statusCode()
-        require(code in 200..299) { httpError(code) }
-        response.body()
-    } catch (_: IOException) {
-        throw AppException(ErrorReason.PROVIDER_UNAVAILABLE)
-    } finally {
-        Authenticator.setDefault(previous)
-        client?.close()
+    block: suspend (LlmClient) -> T,
+): T =
+    withContext(Dispatchers.IO) {
+        withTimeoutOrNull(PROBE_TIMEOUT_MILLIS) { graph.probe(probe.proxy, block) }
+            ?: throw AppException(ErrorReason.PROVIDER_UNAVAILABLE)
     }
-}
-
-private fun openClient(probe: SettingsProbe): HttpClient {
-    val builder = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(20))
-    val proxy = proxyFor(probe) ?: return builder.build()
-    builder.proxy(FixedProxy(proxy))
-    return builder.build()
-}
-
-private fun proxyFor(probe: SettingsProbe): Proxy? {
-    val raw = effectiveProxy(probe.proxy, probe.proxyOn)
-    if (raw.isEmpty() || isLoopback(probe.baseUrl)) return null
-    val value =
-        try {
-            normalizeProxy(raw)
-        } catch (_: IllegalArgumentException) {
-            error(PROXY_UNPARSED)
-        }
-    val uri =
-        try {
-            URI(value)
-        } catch (_: IllegalArgumentException) {
-            error(PROXY_UNPARSED)
-        }
-    val host = uri.host ?: error(PROXY_UNPARSED)
-    val scheme = uri.scheme?.lowercase().orEmpty()
-    val port =
-        when {
-            uri.port != -1 -> uri.port
-            scheme == "http" -> 80
-            scheme == "https" -> 443
-            scheme.startsWith("socks") -> 1080
-            else -> error(PROXY_UNPARSED)
-        }
-    val type = if (scheme.startsWith("socks")) Proxy.Type.SOCKS else Proxy.Type.HTTP
-    return Proxy(type, InetSocketAddress(host, port))
-}
-
-private fun installProxyAuth(probe: SettingsProbe) {
-    val raw = effectiveProxy(probe.proxy, probe.proxyOn)
-    if (raw.isEmpty()) return
-    val value =
-        try {
-            normalizeProxy(raw)
-        } catch (_: IllegalArgumentException) {
-            return
-        }
-    val info =
-        try {
-            URI(value).rawUserInfo
-        } catch (_: IllegalArgumentException) {
-            return
-        }
-    if (info.isNullOrEmpty()) return
-    val colon = info.indexOf(':')
-    val user = if (colon < 0) info else info.substring(0, colon)
-    val password = if (colon < 0) "" else info.substring(colon + 1)
-    val decoded =
-        try {
-            URLDecoder.decode(user, StandardCharsets.UTF_8) to URLDecoder.decode(password, StandardCharsets.UTF_8)
-        } catch (_: IllegalArgumentException) {
-            return
-        }
-    Authenticator.setDefault(
-        object : Authenticator() {
-            override fun getPasswordAuthentication(): PasswordAuthentication? {
-                if (requestorType != RequestorType.PROXY) return null
-                return PasswordAuthentication(decoded.first, decoded.second.toCharArray())
-            }
-        },
-    )
-}
-
-private class FixedProxy(
-    private val proxy: Proxy,
-) : ProxySelector() {
-    override fun select(uri: URI?): List<Proxy> = listOf(proxy)
-
-    override fun connectFailed(
-        uri: URI?,
-        address: SocketAddress?,
-        error: IOException?,
-    ) = Unit
-}
-
-private fun httpError(code: Int): AppException {
-    val reason =
-        when (code) {
-            401 -> ErrorReason.UNAUTHORIZED
-            402 -> ErrorReason.INSUFFICIENT_FUNDS
-            404 -> ErrorReason.NOT_FOUND
-            429 -> ErrorReason.RATE_LIMITED
-            in 500..599 -> ErrorReason.PROVIDER_UNAVAILABLE
-            else -> ErrorReason.HTTP_ERROR
-        }
-    return AppException(reason, code, "HTTP $code")
-}
-
-private fun modelIds(body: String): List<String> {
-    var from = 0
-    val ids =
-        buildList {
-            while (from < body.length) {
-                val at = body.indexOf("\"id\"", from)
-                if (at < 0) break
-                val value = jsonStringFieldAt(body, at + 4)
-                if (!value.isNullOrEmpty()) add(value)
-                from = at + 4
-            }
-        }
-    return ids.distinct()
-}
 
 private fun catalogEntries(body: String?): List<CatalogEntry> {
     if (body.isNullOrBlank()) return emptyList()
@@ -1937,20 +1826,11 @@ private fun catalogEntries(body: String?): List<CatalogEntry> {
         val slice = body.substring(at, end)
         CatalogEntry(
             id = id,
-            promptPerToken = numberIn(slice, "prompt"),
-            completionPerToken = numberIn(slice, "completion"),
-            contextLength = numberIn(slice, "context_length")?.toInt(),
+            promptPerToken = numberAfter(slice, "prompt"),
+            completionPerToken = numberAfter(slice, "completion"),
+            contextLength = numberAfter(slice, "context_length")?.toInt(),
         )
     }
-}
-
-private fun jsonStringField(
-    body: String,
-    field: String,
-): String? {
-    val at = body.indexOf("\"$field\"")
-    if (at < 0) return null
-    return jsonStringFieldAt(body, at + field.length + 2)
 }
 
 private fun skipJsonSpace(
@@ -1994,40 +1874,4 @@ private fun jsonStringFieldAt(
         index++
     }
     return null
-}
-
-private fun jsonQuote(text: String): String =
-    buildString {
-        append('"')
-        text.forEach { char ->
-            when (char) {
-                '\\' -> append("\\\\")
-                '"' -> append("\\\"")
-                '\n' -> append("\\n")
-                '\r' -> append("\\r")
-                else -> append(char)
-            }
-        }
-        append('"')
-    }
-
-private fun numberIn(
-    slice: String,
-    key: String,
-): Double? {
-    val keyAt = slice.indexOf("\"$key\"")
-    if (keyAt < 0) return null
-    var index = keyAt + key.length + 2
-    while (index < slice.length && (slice[index].isWhitespace() || slice[index] == ':')) index++
-    if (index >= slice.length || slice.startsWith("null", index)) return null
-    if (slice[index] == '"') {
-        val end = slice.indexOf('"', index + 1)
-        if (end < 0) return null
-        return slice.substring(index + 1, end).toDoubleOrNull()
-    }
-    val end =
-        slice.indexOfAny(charArrayOf(',', '}', ' ', '\n', '\r', '\t'), index).let { found ->
-            if (found < 0) slice.length else found
-        }
-    return slice.substring(index, end).toDoubleOrNull()
 }

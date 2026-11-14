@@ -13,11 +13,13 @@
     <string name="app_tray_restart">Restart</string>
     <string name="app_tray_exit">Exit</string>
     <string name="app_no_selection">No text is selected</string>
+    <string name="app_clipboard_busy">The clipboard is busy; try again</string>
     <string name="app_no_source">No source text window was found</string>
     <string name="app_nothing_to_repeat">Nothing to repeat yet</string>
     <string name="app_request_running">A request is already running</string>
     <string name="app_copied">Copied</string>
     <string name="app_need_key">Set the API key in settings (tray icon)</string>
+    <string name="app_secret_unreadable">The saved API key or proxy cannot be read on this computer. Enter it again in Settings.</string>
     <string name="app_hotkey_fail">Hotkeys could not be registered. Another TextTools or AutoHotkey instance may own them.</string>
     <string name="app_no_log">There is no log yet</string>
     <string name="app_save_failed">Settings could not be saved</string>
@@ -25,11 +27,11 @@
     <string name="app_copy_failed">Could not copy</string>
     <string name="app_folder_failed">Could not open the folder</string>
     <string name="app_restart_failed">Could not restart</string>
-    <string name="app_proxy_unparsed">Invalid proxy</string>
     <string name="app_settings_saved">Saved. Menu hotkey: %1$s</string>
     <string name="app_editor_saved">Saved: %1$s actions, %2$s refinements, %3$s applications</string>
     <string name="app_run_preparing">preparing request</string>
     <string name="app_run_preparing_for">preparing request for %1$s</string>
+    <string name="app_run_cancel_hint">click to cancel</string>
     <string name="app_run_done">done</string>
     <string name="app_run_done_for">done for %1$s</string>
     <string name="app_run_estimate">sent %1$s chars ≈ %2$s tokens</string>

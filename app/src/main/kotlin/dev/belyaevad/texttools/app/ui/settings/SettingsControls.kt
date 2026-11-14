@@ -13,7 +13,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import dev.belyaevad.texttools.app.ui.AppField
 
 @Composable
 internal fun FieldLabel(
@@ -29,23 +28,6 @@ internal fun Hint(
     modifier: Modifier = Modifier,
 ) {
     Text(text, modifier, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-}
-
-@Composable
-internal fun LineField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    password: Boolean = false,
-) {
-    AppField(
-        value = value,
-        onValueChange = onValueChange,
-        modifier = modifier,
-        enabled = enabled,
-        password = password,
-    )
 }
 
 @Composable

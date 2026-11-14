@@ -8,14 +8,13 @@ The module has no Compose, Ktor or SQLDelight dependency. Money is not part of `
 
 ## Run
 
-`ActionRunner.run` refuses a second call while `busy` is set, and refuses a call with no API key. Otherwise:
+`ActionRunner.run` does not guard against a second call or a missing API key; `RunAction` does both. It:
 
 1. The model is `action.model`, or `settings.defaultModel` when that is null.
 2. The call is one system message from `buildInstruction` and one user message from `buildUserContent`.
 3. A thrown request becomes `Failed`. Trimmed empty text becomes `Failed` and is not delivered.
 4. Delivery is `Window` when `openInWindow` or `forceWindow` is set, otherwise `Paste`.
 5. A window delivery, or a paste that does not land, is `InWindow` and keeps the system, user and assistant turns. A landed paste is `Pasted` and does not keep them.
-6. `busy` clears before the function returns, including after a failure.
 
 ## Prompt
 
@@ -39,8 +38,8 @@ The module has no Compose, Ktor or SQLDelight dependency. Money is not part of `
 
 `matchApp` returns null for an empty process. Among rows of that process, a non-empty title that is contained in the window title wins. Otherwise the first row with an empty title wins. Comparison is case-insensitive.
 
-`estimateTokens` is the rough count shown before the provider answers: about 4 characters per token for ASCII and 2 otherwise, from the first 4000 characters. `costOf` is null when the catalogue row or either per-token price is missing. Otherwise it is prompt tokens times the prompt price plus completion tokens times the completion price. `contextLength` is only the entry's own field.
+`estimateTokens` is the rough count shown before the provider answers: about 4 characters per token for ASCII and 2 otherwise, from the first 4000 characters. `costOf` is null when the catalogue row or either per-token price is missing. Otherwise it is prompt tokens times the prompt price plus completion tokens times the completion price.
 
-`appendHistory` trims source and result to 8000 characters and keeps the newest 20. `trimConversation` returns nine or fewer messages unchanged. A longer list keeps the first message and a tail of seven, moved one message later when that start is not a user turn.
+`trimStored` cuts stored text to 8000 characters; the history limit is 20 rows. `trimConversation` returns nine or fewer messages unchanged. A longer list keeps the first message and a tail of seven, moved one message later when that start is not a user turn.
 
 `parseMarkdown` splits on lines. At each line it tries, in order, a fence, a table, a bullet list, a numbered list, then a heading. A fence starts with three backticks and runs until the next such line, or to the end. A table needs a `|` row and a following line that contains `---`. Bullets are lines starting with `- `. Numbers match `digits. text`. A heading is one or more `#`. A blank line is skipped. Anything else is one paragraph. Code is literal. The window paints inline markers; this parser does not turn them into HTML.

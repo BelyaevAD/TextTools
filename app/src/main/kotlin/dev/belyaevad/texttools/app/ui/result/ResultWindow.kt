@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -56,20 +57,25 @@ import dev.belyaevad.texttools.app.ui.ResultWidth
 import dev.belyaevad.texttools.app.ui.fitVisibleFrame
 import dev.belyaevad.texttools.app.ui.keepWindowFrame
 import dev.belyaevad.texttools.app.ui.rememberPlacement
+import dev.belyaevad.texttools.app.ui.resolveError
 import dev.belyaevad.texttools.app.ui.resultOuterHeight
+import dev.belyaevad.texttools.domain.AppException
 import dev.belyaevad.texttools.domain.ChatMessage
+import dev.belyaevad.texttools.domain.ErrorReason
 import dev.belyaevad.texttools.domain.MdBlock
 import dev.belyaevad.texttools.domain.QuickRefine
 import dev.belyaevad.texttools.domain.Usage
+import dev.belyaevad.texttools.domain.errorHttpStatus
+import dev.belyaevad.texttools.domain.errorReason
 import dev.belyaevad.texttools.domain.parseMarkdown
 import dev.belyaevad.texttools.domain.trimConversation
 import dev.belyaevad.texttools.platform.win.ScreenPoint
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
+import org.jetbrains.skiko.MainUIDispatcher
 import texttools.app.generated.resources.Res
 import texttools.app.generated.resources.result_close
 import texttools.app.generated.resources.result_copy
@@ -137,10 +143,10 @@ fun ResultWindow(
     placementId: String = "result",
     anchor: ScreenPoint? = null,
 ) {
-    val live = remember { ResultLive(text, conversation, raw = !markdown) }
+    val live = remember(text, conversation) { ResultLive(text, conversation, raw = !markdown) }
     // Left running on close so a refine in flight can still call onDelivered.
-    val jobs = remember { CoroutineScope(SupervisorJob() + Dispatchers.Main) }
-    DisposableEffect(Unit) {
+    val jobs = remember { CoroutineScope(SupervisorJob() + MainUIDispatcher) }
+    DisposableEffect(live) {
         onDispose { live.alive = false }
     }
     val sourceLabel = stringResource(Res.string.result_source)
@@ -206,6 +212,13 @@ fun ResultWindow(
                                 },
                             )
                         }
+                        live.failure?.let { error ->
+                            Text(
+                                resolveError(error.errorReason(), error.errorHttpStatus()),
+                                color = MaterialTheme.colorScheme.error,
+                                fontSize = 13.sp,
+                            )
+                        }
                         ActionRow(
                             toggle = if (live.raw) markupLabel else sourceLabel,
                             onCopy = { onCopy(live.text) },
@@ -224,7 +237,7 @@ fun ResultWindow(
     }
 }
 
-private class RefineCall(
+internal class RefineCall(
     val complete: suspend (model: String, messages: List<ChatMessage>) -> Pair<String, Usage?>,
     val onDelivered: suspend (RefineDelivery) -> Unit,
     val onRequest: (Int) -> Unit,
@@ -234,8 +247,7 @@ private class RefineCall(
  * Sends [question] on [model]. An empty question does nothing.
  * [messages] passed to [call] are the trimmed dialogue, including the new user turn.
  */
-@Suppress("SwallowedException")
-private fun launchRefine(
+internal fun launchRefine(
     jobs: CoroutineScope,
     live: ResultLive,
     model: String,
@@ -249,6 +261,7 @@ private fun launchRefine(
     if (live.busy) return
     call.onRequest(instruction.length)
     val messages = trimConversation(previous + ChatMessage(role = "user", content = instruction))
+    live.failure = null
     live.busy = true
     jobs.launch {
         val reply =
@@ -256,14 +269,18 @@ private fun launchRefine(
                 call.complete(model, messages)
             } catch (cancelled: CancellationException) {
                 throw cancelled
-            } catch (_: Exception) {
+            } catch (error: Exception) {
+                if (live.alive) live.failure = error
                 null
             } finally {
                 if (live.alive) live.busy = false
             }
         if (reply == null) return@launch
         val answer = reply.first.trim()
-        if (answer.isEmpty()) return@launch
+        if (answer.isEmpty()) {
+            if (live.alive) live.failure = AppException(ErrorReason.EMPTY_RESPONSE)
+            return@launch
+        }
         call.onDelivered(
             RefineDelivery(
                 model = model,
@@ -361,10 +378,10 @@ private fun MarkdownList(block: MdBlock.ListBlock) {
         block.items.forEachIndexed { index, item ->
             Row(Modifier.fillMaxWidth().padding(vertical = 1.dp)) {
                 Text(
-                    if (block.ordered) "${index + 1}." else "•",
+                    if (block.ordered) "${block.start + index}." else "•",
                     color = Ink,
                     fontSize = 14.sp,
-                    modifier = Modifier.width(24.dp),
+                    modifier = Modifier.widthIn(min = 24.dp),
                 )
                 Text(inlineText(item), color = Ink, fontSize = 14.sp, modifier = Modifier.weight(1f))
             }
@@ -544,18 +561,18 @@ private fun AnnotatedString.Builder.appendInline(source: String) {
     }
 }
 
-private fun markAt(
+internal fun markAt(
     source: String,
     index: Int,
 ): InlineMark? {
     val code = delimited(source, index, "`", "`")
     if (code != null) return InlineMark(InlineKind.Code, code.first, code.second)
-    val bold = delimited(source, index, "**", "**") ?: delimited(source, index, "__", "__")
+    val bold = emphasis(source, index, "**")
     if (bold != null) return InlineMark(InlineKind.Bold, bold.first, bold.second)
     val link = linkAt(source, index)
     if (link != null) return link
     if (source.startsWith("*", index)) {
-        val italic = delimited(source, index, "*", "*")
+        val italic = emphasis(source, index, "*")
         if (italic != null && !source.startsWith("*", italic.second)) {
             return InlineMark(InlineKind.Italic, italic.first, italic.second)
         }
@@ -576,6 +593,16 @@ private fun delimited(
     return source.substring(start, end) to (end + close.length)
 }
 
+/** A pair of marks counts only when the text inside touches both marks, so `2 * 3 * 4` stays text. */
+private fun emphasis(
+    source: String,
+    index: Int,
+    mark: String,
+): Pair<String, Int>? =
+    delimited(source, index, mark, mark)?.takeIf { (body, _) ->
+        !body.first().isWhitespace() && !body.last().isWhitespace()
+    }
+
 private fun linkAt(
     source: String,
     index: Int,
@@ -588,7 +615,7 @@ private fun linkAt(
     return InlineMark(InlineKind.Link, source.substring(index + 1, labelEnd), urlEnd + 1)
 }
 
-private class ResultLive(
+internal class ResultLive(
     text: String,
     conversation: List<ChatMessage>?,
     raw: Boolean,
@@ -598,18 +625,19 @@ private class ResultLive(
     var raw by mutableStateOf(raw)
     var draft by mutableStateOf("")
     var busy by mutableStateOf(false)
+    var failure by mutableStateOf<Throwable?>(null)
 
     @Volatile
     var alive: Boolean = true
 }
 
-private class InlineMark(
+internal class InlineMark(
     val kind: InlineKind,
     val body: String,
     val next: Int,
 )
 
-private enum class InlineKind {
+internal enum class InlineKind {
     Code,
     Bold,
     Italic,

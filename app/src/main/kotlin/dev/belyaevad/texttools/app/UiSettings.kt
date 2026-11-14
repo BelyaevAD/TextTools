@@ -15,18 +15,22 @@ internal fun uiSettingsVersion(props: Properties): Int = props.getProperty("vers
 
 internal fun uiSettingsStale(props: Properties): Boolean = uiSettingsVersion(props) < UI_SETTINGS_VERSION
 
-/** Values already stored stay. A missing key, and a blank menu hotkey, take the factory value. */
+/**
+ * Values already stored stay. A missing key, and a blank menu hotkey, take the factory value.
+ * [proxyUnreadable] keeps the proxy switched on, so an undecryptable proxy file is never read as "no proxy".
+ */
 internal fun settingsFromProperties(
     props: Properties,
     proxy: String,
     factory: Settings = Factory.defaultSettings,
+    proxyUnreadable: Boolean = false,
 ): Settings {
     val clip = props.getProperty("clipWaitSeconds")?.toDoubleOrNull() ?: factory.clipWaitSeconds
     return factory.copy(
         baseUrl = textOr(props, "baseUrl", factory.baseUrl).ifBlank { factory.baseUrl },
         defaultModel = textOr(props, "defaultModel", factory.defaultModel).ifBlank { factory.defaultModel },
         proxy = proxy,
-        proxyOn = proxyFlag(props, proxy.isNotEmpty()),
+        proxyOn = if (proxyUnreadable) proxyFlag(props, true) ?: true else proxyFlag(props, proxy.isNotEmpty()),
         hotkey = textOr(props, "hotkey", factory.hotkey).ifBlank { factory.hotkey },
         hotkeyRepeat = textOr(props, "hotkeyRepeat", factory.hotkeyRepeat),
         markdown = boolOr(props, "markdown", factory.markdown),
@@ -34,7 +38,6 @@ internal fun settingsFromProperties(
         appProfiling = boolOr(props, "appProfiling", factory.appProfiling),
         clipWaitSeconds = clipWaitSeconds(clip),
         sentryErrors = boolOr(props, "sentryErrors", factory.sentryErrors),
-        sentryTraces = boolOr(props, "sentryTraces", factory.sentryTraces),
         autostart = props.getProperty("autostart")?.equals("true", ignoreCase = true) ?: factory.autostart,
         profileModel = textOr(props, "profileModel", factory.profileModel),
     )
@@ -61,7 +64,6 @@ internal fun currentUiProperties(
     props.setProperty("appProfiling", settings.appProfiling.toString())
     props.setProperty("clipWaitSeconds", settings.clipWaitSeconds.toString())
     props.setProperty("sentryErrors", settings.sentryErrors.toString())
-    props.setProperty("sentryTraces", settings.sentryTraces.toString())
     props.setProperty("profileModel", settings.profileModel)
     if (persistAutostart || previous.containsKey("autostart")) {
         props.setProperty("autostart", settings.autostart.toString())
@@ -100,6 +102,13 @@ internal fun writeUiFile(
         throw error
     }
 }
+
+/** A blank value must not replace a stored secret that cannot be read here, unless [cleared] says the user turned it off. */
+internal fun secretWritable(
+    value: String,
+    storedUnreadable: Boolean,
+    cleared: Boolean = false,
+): Boolean = value.isNotBlank() || !storedUnreadable || cleared
 
 private fun textOr(
     props: Properties,

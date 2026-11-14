@@ -51,7 +51,6 @@ data class Settings(
     val appProfiling: Boolean,
     val clipWaitSeconds: Double,
     val sentryErrors: Boolean = false,
-    val sentryTraces: Boolean = false,
     val autostart: Boolean = true,
     val profileModel: String = "",
 )
@@ -104,8 +103,6 @@ sealed class RunOutcome {
         val detail: String,
         val httpStatus: Int? = null,
     ) : RunOutcome() {
-        constructor(message: String) : this(ErrorReason.UNKNOWN, message)
-
         val message: String get() = detail
     }
 
@@ -128,15 +125,4 @@ data class CatalogEntry(
     val promptPerToken: Double?,
     val completionPerToken: Double?,
     val contextLength: Int?,
-)
-
-/** A stored history row. Text is already trimmed. */
-data class HistoryEntry(
-    val atEpochMs: Long,
-    val actionName: String,
-    val model: String,
-    val promptTokens: Int?,
-    val completionTokens: Int?,
-    val source: String,
-    val result: String,
 )

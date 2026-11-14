@@ -1,10 +1,8 @@
 plugins {
     alias(libs.plugins.kotlin.jvm) apply false
     alias(libs.plugins.compose.compiler) apply false
-    alias(libs.plugins.serialization) apply false
     alias(libs.plugins.compose) apply false
     alias(libs.plugins.sqldelight) apply false
-    alias(libs.plugins.dokka)
     alias(libs.plugins.detekt)
     alias(libs.plugins.ktlint) apply false
 }

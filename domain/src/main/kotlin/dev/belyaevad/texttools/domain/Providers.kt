@@ -29,11 +29,18 @@ fun normalizeProxy(raw: String): String {
     return "http://$value"
 }
 
-/** Loopback targets skip the proxy, including IPv6 localhost. */
+/** Loopback targets skip the proxy, including IPv6 localhost. Only the exact host counts; an unparsable URL is not loopback. */
 fun isLoopback(url: String): Boolean {
-    val low = url.lowercase()
-    return low.contains("://127.0.0.1") || low.contains("://localhost") || low.contains("://[::1]")
+    val host =
+        try {
+            java.net.URI(url.trim()).host
+        } catch (_: java.net.URISyntaxException) {
+            null
+        }
+    return host?.lowercase() in LOOPBACK_HOSTS
 }
+
+private val LOOPBACK_HOSTS = setOf("localhost", "127.0.0.1", "::1", "[::1]")
 
 /** Clipboard wait clamped to the AHK range of 0.2–5 seconds. */
 fun clipWaitSeconds(value: Double): Double = value.coerceIn(0.2, 5.0)
@@ -202,6 +209,3 @@ fun costOf(
     val completion = entry.completionPerToken ?: return null
     return promptTokens * prompt + completionTokens * completion
 }
-
-/** Context length is only the entry's own field. */
-fun contextLength(entry: CatalogEntry?): Int? = entry?.contextLength

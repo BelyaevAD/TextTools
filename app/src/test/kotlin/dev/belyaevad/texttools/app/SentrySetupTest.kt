@@ -12,19 +12,17 @@ class SentrySetupTest {
     fun blankFileHasNoDsn() {
         val file = parseSentryConfig(Properties())
         assertEquals("", file.dsn)
-        assertEquals(0.0, file.tracesSampleRate)
     }
 
     @Test
-    fun rateStaysInsideZeroAndOne() {
+    fun anOldTracesSampleRateKeyIsIgnored() {
         val props = Properties()
         props.setProperty("dsn", "https://public@example/1")
         props.setProperty("environment", "local")
-        props.setProperty("traces-sample-rate", "4")
+        props.setProperty("traces-sample-rate", "1")
         val file = parseSentryConfig(props)
         assertTrue(file.dsn.startsWith("https://"))
         assertEquals("local", file.environment)
-        assertEquals(1.0, file.tracesSampleRate)
     }
 
     @Test
@@ -38,10 +36,18 @@ class SentrySetupTest {
     }
 
     @Test
+    fun reportsDoNotCarryTheMachineName() {
+        val options = io.sentry.SentryOptions()
+        configureSentryOptions(options, parseSentryConfig(Properties()))
+        assertTrue(!options.isAttachServerName)
+    }
+
+    @Test
     fun scrubHidesBearerProxyPasswordAndKey() {
         val text = scrubSentryText("Bearer sk-or-v1-abcdefgh1234 https://user:secret@proxy.example:8080/x sk-live-abcdef1234")
         assertEquals("Bearer •••• https://••••@proxy.example:8080/x sk-••••", text)
         assertTrue(!text.contains("secret"))
         assertTrue(!text.contains("abcdefgh"))
+        assertEquals("model risk-assessment-v1", scrubSentryText("model risk-assessment-v1"))
     }
 }

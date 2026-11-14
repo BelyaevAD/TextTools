@@ -8,11 +8,13 @@ import dev.belyaevad.texttools.data.TextToolsStore
 import dev.belyaevad.texttools.data.db.TextToolsDatabase
 import dev.belyaevad.texttools.domain.AppException
 import dev.belyaevad.texttools.domain.ErrorReason
+import dev.belyaevad.texttools.domain.isLoopback
 import dev.belyaevad.texttools.domain.normalizeProxy
 import dev.belyaevad.texttools.platform.ClipboardProtocol
 import dev.belyaevad.texttools.platform.win.ForegroundWatch
 import dev.belyaevad.texttools.platform.win.GlobalChord
 import dev.belyaevad.texttools.platform.win.SecretSlot
+import dev.belyaevad.texttools.platform.win.SecretStoreException
 import dev.belyaevad.texttools.platform.win.UserSecrets
 import dev.belyaevad.texttools.platform.win.WinHotkeys
 import dev.belyaevad.texttools.platform.win.openUserSecretStore
@@ -22,6 +24,9 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import okhttp3.Authenticator
 import okhttp3.Credentials
+import okhttp3.Dns
+import okhttp3.Interceptor
+import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.Route
@@ -50,9 +55,9 @@ class AppGraph(
 
     val store: TextToolsStore = TextToolsStore(driver)
 
-    private val direct: HttpClient = directClient()
+    private val direct: HttpClient = directClient(secrets)
 
-    private val proxied: HttpClient = proxiedClient(secrets)
+    private val proxied: HttpClient = proxiedClient({ readProxy(secrets) })
 
     val llm: LlmClient = LlmClient(http = direct, proxied = proxied)
 
@@ -65,6 +70,15 @@ class AppGraph(
     val clipboard: ClipboardProtocol = ClipboardProtocol(windowsClipboard(watch))
 
     val hotkeys: WinHotkeys = WinHotkeys(onChord)
+
+    /**
+     * Settings probes: the real clients and route rules, with the unsaved [proxy] from the form.
+     * A blank proxy goes through [direct], which still refuses while the saved proxy cannot be read.
+     */
+    suspend fun <T> probe(
+        proxy: String,
+        block: suspend (LlmClient) -> T,
+    ): T = proxiedClient({ proxy }).use { block(LlmClient(http = direct, proxied = it)) }
 
     /** Closes the clients and the database. Stops the hotkey loop only when [WinHotkeys.start] was called later. */
     override fun close() {
@@ -118,32 +132,77 @@ private fun setUserVersion(
 // shortcut: 180s with no response bytes, raise when a slow model still times out.
 private val CHAT_READ_TIMEOUT: Duration = Duration.ofSeconds(180)
 
-private fun directClient(): HttpClient =
+private fun directClient(secrets: UserSecrets): HttpClient =
     HttpClient(OkHttp) {
         engine {
             config {
-                proxy(Proxy.NO_PROXY)
+                guardRoutes(this, { readProxy(secrets) }, direct = true)
                 readTimeout(CHAT_READ_TIMEOUT)
             }
         }
     }
 
-/** The proxy slot is read when a call is made. The value is not logged. */
-private fun proxiedClient(secrets: UserSecrets): HttpClient =
+/** [proxyText] is read when a call is made. The value is not logged. [dns] is replaced only by tests. */
+internal fun proxiedClient(
+    proxyText: () -> String,
+    dns: Dns = Dns.SYSTEM,
+): HttpClient =
     HttpClient(OkHttp) {
         engine {
             config {
-                proxySelector(SecretProxySelector(secrets))
-                proxyAuthenticator(SecretProxyAuthenticator(secrets))
+                dns(dns)
+                guardRoutes(this, proxyText, direct = false)
+                proxyAuthenticator(SecretProxyAuthenticator(proxyText))
                 readTimeout(CHAT_READ_TIMEOUT)
             }
         }
     }
 
-private class SecretProxySelector(
-    private val secrets: UserSecrets,
+/**
+ * Both clients choose their route here, so no caller can reach the network around an unreadable or bad proxy.
+ * [proxyText] returns the stored proxy text and throws [AppException] when it cannot be read.
+ */
+internal fun guardRoutes(
+    builder: OkHttpClient.Builder,
+    proxyText: () -> String,
+    direct: Boolean,
+) {
+    builder.addInterceptor(RouteGuard(proxyText, direct))
+    builder.proxySelector(GuardedProxySelector(proxyText, direct))
+}
+
+/** Fails the call at once with the reason in the cause chain, before OkHttp plans any route. */
+private class RouteGuard(
+    private val proxyText: () -> String,
+    private val direct: Boolean,
+) : Interceptor {
+    override fun intercept(chain: Interceptor.Chain): Response {
+        val uri = chain.request().url.toUri()
+        // OkHttp skips the ProxySelector and connects directly when java.net.URI cannot read the host (e.g. "my_host").
+        if (!direct && uri.host == null) throw IOException("proxy route refused", AppException(ErrorReason.INVALID_URL))
+        try {
+            route(proxyText, direct, uri)
+        } catch (e: IllegalArgumentException) {
+            throw IOException("proxy route refused", e as? AppException ?: AppException(ErrorReason.INVALID_PROXY, cause = e))
+        }
+        return chain.proceed(chain.request())
+    }
+}
+
+/**
+ * Backstop behind [RouteGuard]. select() must not throw: OkHttp reads an IllegalArgumentException as "no proxy",
+ * and any other throw makes it retry route planning forever. A refused route is a proxy that cannot connect.
+ */
+private class GuardedProxySelector(
+    private val proxyText: () -> String,
+    private val direct: Boolean,
 ) : ProxySelector() {
-    override fun select(uri: URI?): List<Proxy> = listOf(proxyEndpoint(secrets).proxy)
+    override fun select(uri: URI?): List<Proxy> =
+        try {
+            listOf(route(proxyText, direct, uri))
+        } catch (_: IllegalArgumentException) {
+            listOf(DEAD_ROUTE)
+        }
 
     override fun connectFailed(
         uri: URI?,
@@ -153,14 +212,14 @@ private class SecretProxySelector(
 }
 
 private class SecretProxyAuthenticator(
-    private val secrets: UserSecrets,
+    private val proxyText: () -> String,
 ) : Authenticator {
     override fun authenticate(
         route: Route?,
         response: Response,
     ): Request? {
         if (response.request.header("Proxy-Authorization") != null) return null
-        val endpoint = proxyEndpoint(secrets)
+        val endpoint = proxyEndpoint(proxyText())
         val username = endpoint.username ?: return null
         val password = endpoint.password ?: return null
         val credential = Credentials.basic(username, password, StandardCharsets.UTF_8)
@@ -177,8 +236,34 @@ private class ProxyEndpoint(
     val password: String?,
 )
 
-private fun proxyEndpoint(secrets: UserSecrets): ProxyEndpoint {
-    val raw = secrets.get(SecretSlot.ProxyUrl)?.trim().orEmpty()
+/** The stored proxy text. A proxy file that cannot be decrypted is an error, never "no proxy". */
+internal fun readProxy(secrets: UserSecrets): String =
+    try {
+        secrets.get(SecretSlot.ProxyUrl)?.trim().orEmpty()
+    } catch (e: SecretStoreException) {
+        throw AppException(ErrorReason.SECRET_STORE_UNAVAILABLE, cause = e)
+    }
+
+// Port 0 is refused by OkHttp before any DNS lookup or connect.
+private val DEAD_ROUTE = Proxy(Proxy.Type.HTTP, InetSocketAddress.createUnresolved("localhost", 0))
+
+/** A direct route is refused while a saved proxy cannot be read. Loopback never leaves the machine. */
+private fun route(
+    proxyText: () -> String,
+    direct: Boolean,
+    uri: URI?,
+): Proxy {
+    if (!direct) {
+        val proxy = proxyEndpoint(proxyText()).proxy
+        // Callers pick this client only while a proxy is in force, so an empty one must not mean "direct".
+        if (proxy == Proxy.NO_PROXY) badProxy()
+        return proxy
+    }
+    if (uri == null || !isLoopback(uri.toString())) proxyText()
+    return Proxy.NO_PROXY
+}
+
+private fun proxyEndpoint(raw: String): ProxyEndpoint {
     if (raw.isEmpty()) return ProxyEndpoint(Proxy.NO_PROXY, null, null)
     val value =
         try {
@@ -189,7 +274,7 @@ private fun proxyEndpoint(secrets: UserSecrets): ProxyEndpoint {
     if (value.isEmpty()) return ProxyEndpoint(Proxy.NO_PROXY, null, null)
     val uri =
         try {
-            URI(value)
+            URI.create(value)
         } catch (_: IllegalArgumentException) {
             return badProxy()
         }

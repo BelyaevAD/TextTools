@@ -4,6 +4,7 @@ import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -48,6 +49,10 @@ class BehaviorTest {
         val error = assertFailsWith<IllegalArgumentException> { normalizeProxy("ftp://h") }
         assertTrue(error.message.orEmpty().contains("socks5h://"))
         assertTrue(isLoopback("http://127.0.0.1:11434/v1"))
+        assertTrue(isLoopback("http://LOCALHOST:8080/v1"))
+        assertTrue(isLoopback("http://[::1]:11434/v1"))
+        assertFalse(isLoopback("https://localhost.example.com/v1"))
+        assertFalse(isLoopback("https://127.0.0.1.nip.io/v1"))
         assertEquals(0.2, clipWaitSeconds(0.01))
         assertEquals(5.0, clipWaitSeconds(9.0))
     }
@@ -71,7 +76,7 @@ class BehaviorTest {
     }
 
     @Test
-    fun pricesDoNotBorrowANeighbourAndHistoryKeepsThePipe() {
+    fun pricesDoNotBorrowANeighbourAndStoredTextIsTrimmed() {
         val priced = CatalogEntry("m", 0.001, 0.002, 1000)
         val bare = CatalogEntry("m", null, 0.002, null)
         assertEquals(1, estimateTokens("abcd"))
@@ -79,9 +84,6 @@ class BehaviorTest {
         assertEquals(0, estimateTokens(""))
         assertEquals(0.001 * 10 + 0.002 * 5, costOf(priced, 10, 5))
         assertNull(costOf(bare, 10, 5))
-        assertNull(contextLength(bare))
-        val row = HistoryEntry(0, "A|B", "model", 1, 2, "s", "r")
-        assertEquals("A|B", appendHistory(emptyList(), row).single().actionName)
         assertEquals(TEXT_LIMIT, trimStored("x".repeat(9000)).length)
     }
 
@@ -108,10 +110,16 @@ class BehaviorTest {
         assertTrue(block.text.contains("**не жирный**"))
         assertIs<MdBlock.Code>(parseMarkdown("```\nabc").single())
         assertEquals(2, parseMarkdown("- раз\n- два\n\n1. один\n2. два").size)
+        val numbered = parseMarkdown("1. a\n\n2. b")
+        assertEquals(2, assertIs<MdBlock.ListBlock>(numbered[1]).start)
+        assertIs<MdBlock.Paragraph>(parseMarkdown("#42 closed").single())
+        assertIs<MdBlock.Heading>(parseMarkdown("## Итог").single())
+        val nested = assertIs<MdBlock.ListBlock>(parseMarkdown("- a\n  - b\n* c").single())
+        assertEquals(listOf("a", "b", "c"), nested.items)
     }
 
     @Test
-    fun runnerHoldsBusyAndRejectsEmpty() =
+    fun runnerRejectsEmptyAndRoutesDelivery() =
         runBlocking {
             val empty =
                 ActionRunner(
@@ -120,9 +128,8 @@ class BehaviorTest {
                 )
             val action = Factory.actions.first()
             assertIs<RunOutcome.Failed>(
-                empty.run(action, "hi", "", Factory.defaultSettings, Factory.languages, "", true, false),
+                empty.run(action, "hi", "", Factory.defaultSettings, Factory.languages, "", false),
             )
-            assertEquals(false, empty.busy)
             var calls = 0
             val ok =
                 ActionRunner(
@@ -133,13 +140,10 @@ class BehaviorTest {
                     deliver = { _, delivery -> delivery == Delivery.Paste },
                 )
             assertIs<RunOutcome.Pasted>(
-                ok.run(action, "hi", "", Factory.defaultSettings, Factory.languages, "", true, false),
+                ok.run(action, "hi", "", Factory.defaultSettings, Factory.languages, "", false),
             )
-            val window = ok.run(action, "hi", "", Factory.defaultSettings, Factory.languages, "", true, true)
+            val window = ok.run(action, "hi", "", Factory.defaultSettings, Factory.languages, "", true)
             assertIs<RunOutcome.InWindow>(window)
-            assertIs<RunOutcome.NeedsKey>(
-                ok.run(action, "hi", "", Factory.defaultSettings, Factory.languages, "", false, false),
-            )
             assertEquals(2, calls)
         }
 

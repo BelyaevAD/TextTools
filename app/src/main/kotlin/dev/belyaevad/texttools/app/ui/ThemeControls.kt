@@ -4,10 +4,8 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.input.OutputTransformation
 import androidx.compose.foundation.text.input.TextFieldLineLimits
@@ -42,6 +40,11 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
@@ -163,17 +166,6 @@ fun AppTabs(
     }
 }
 
-/** A bounded row fraction leaves enough width for every tab label. */
-@Composable
-fun RowScope.AppTabs(
-    labels: List<String>,
-    selected: Int,
-    onSelect: (Int) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    AppTabs(labels, selected, onSelect, modifier.weight(1f).widthIn(max = 560.dp))
-}
-
 /** Material 3 select. Editable mode also reports manual text changes. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -206,7 +198,15 @@ fun AppSelect(
                     onValueChange?.invoke(changed)
                 }
             },
-            modifier = Modifier.fillMaxWidth(),
+            modifier =
+                Modifier.fillMaxWidth().onPreviewKeyEvent { event ->
+                    val open = canOpen && event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown
+                    if (open) {
+                        openedAt.longValue = System.nanoTime()
+                        expanded = true
+                    }
+                    open
+                },
             enabled = editable || canOpen,
             password = false,
             singleLine = true,

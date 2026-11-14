@@ -50,7 +50,10 @@ class LegacyImport(private val store: TextToolsStore) {
             proxyUrl = settings?.get("api.proxy").orEmpty(),
             baseUrl = settings?.get("api.base_url").orEmpty(),
             model = settings?.get("api.model").orEmpty(),
-            proxyOn = settings?.get("api.proxy_on") == "1",
+            proxyOn =
+                settings?.get("api.proxy_on").let { raw ->
+                    if (raw.isNullOrBlank()) !settings?.get("api.proxy").isNullOrBlank() else raw == "1"
+                },
             hotkey = settings?.get("ui.hotkey").orEmpty(),
             hotkeyRepeat = settings?.get("ui.hotkey_repeat").orEmpty(),
             markdown = settings?.get("ui.markdown") != "0",

@@ -34,22 +34,30 @@ fun uiText(
 @Composable
 fun resolve(value: UiText): String = stringResource(value.resource, *value.args.toTypedArray())
 
+internal val ErrorReason.resource: StringResource
+    get() =
+        when (this) {
+            ErrorReason.EMPTY_RESPONSE -> Res.string.error_empty_response
+            ErrorReason.EMPTY_URL -> Res.string.error_empty_url
+            ErrorReason.INVALID_URL -> Res.string.error_invalid_url
+            ErrorReason.INVALID_PROXY -> Res.string.error_invalid_proxy
+            ErrorReason.PROVIDER_UNAVAILABLE -> Res.string.error_provider_unavailable
+            ErrorReason.UNAUTHORIZED -> Res.string.error_unauthorized
+            ErrorReason.INSUFFICIENT_FUNDS -> Res.string.error_insufficient_funds
+            ErrorReason.NOT_FOUND -> Res.string.error_not_found
+            ErrorReason.RATE_LIMITED -> Res.string.error_rate_limited
+            ErrorReason.HTTP_ERROR -> Res.string.error_http
+            ErrorReason.SECRET_STORE_UNAVAILABLE -> Res.string.error_secret_store
+            ErrorReason.UNKNOWN -> Res.string.error_unknown
+        }
+
 @Composable
 fun resolveError(
     reason: ErrorReason,
     status: Int? = null,
 ): String =
-    when (reason) {
-        ErrorReason.EMPTY_RESPONSE -> stringResource(Res.string.error_empty_response)
-        ErrorReason.EMPTY_URL -> stringResource(Res.string.error_empty_url)
-        ErrorReason.INVALID_URL -> stringResource(Res.string.error_invalid_url)
-        ErrorReason.INVALID_PROXY -> stringResource(Res.string.error_invalid_proxy)
-        ErrorReason.PROVIDER_UNAVAILABLE -> stringResource(Res.string.error_provider_unavailable)
-        ErrorReason.UNAUTHORIZED -> stringResource(Res.string.error_unauthorized)
-        ErrorReason.INSUFFICIENT_FUNDS -> stringResource(Res.string.error_insufficient_funds)
-        ErrorReason.NOT_FOUND -> stringResource(Res.string.error_not_found)
-        ErrorReason.RATE_LIMITED -> stringResource(Res.string.error_rate_limited)
-        ErrorReason.HTTP_ERROR -> stringResource(Res.string.error_http, status?.toString().orEmpty())
-        ErrorReason.SECRET_STORE_UNAVAILABLE -> stringResource(Res.string.error_secret_store)
-        ErrorReason.UNKNOWN -> stringResource(Res.string.error_unknown)
+    if (reason == ErrorReason.HTTP_ERROR) {
+        stringResource(reason.resource, status?.toString().orEmpty())
+    } else {
+        stringResource(reason.resource)
     }

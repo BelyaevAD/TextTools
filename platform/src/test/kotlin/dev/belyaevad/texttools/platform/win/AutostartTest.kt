@@ -17,8 +17,6 @@ class AutostartTest {
         assertEquals("HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", command.key)
         assertEquals("TextTools", command.valueName)
         assertEquals("\"${exe.toAbsolutePath().normalize()}\"", command.command)
-        assertTrue(autostartMatchesInstall(command, exe))
-        assertFalse(autostartMatchesInstall(command.copy(command = "\"C:\\Windows\\notepad.exe\""), exe))
         if (before != null) {
             val after = runSnapshot()
             assertEquals(before, after, "autostart registry value changed")
@@ -31,9 +29,6 @@ class AutostartTest {
         assertFalse(autostartEnabled(null, false))
         assertTrue(autostartEnabled(true, false))
         assertFalse(autostartEnabled(false, true))
-        val output = "    TextTools    REG_SZ    \"C:\\TextTools\\TextTools.exe\"\r\n"
-        assertEquals("\"C:\\TextTools\\TextTools.exe\"", parseRunValue(output))
-        assertEquals(null, parseRunValue("ERROR: The system was unable to find the specified registry key or value."))
     }
 
     @Test

@@ -3,7 +3,7 @@ package dev.belyaevad.texttools.app.ui.history
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,7 +35,9 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -216,12 +218,11 @@ private fun HistoryTable(
                         Modifier
                             .fillMaxWidth()
                             .background(if (marked) MaterialTheme.colorScheme.secondaryContainer else Color.White)
-                            .pointerInput(row) {
-                                detectTapGestures(
-                                    onTap = { onSelect(row) },
-                                    onDoubleTap = { onOpen(row) },
-                                )
-                            },
+                            .combinedClickable(
+                                role = Role.Button,
+                                onClick = { onSelect(row) },
+                                onDoubleClick = { onOpen(row) },
+                            ).semantics { this.selected = marked },
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         val color = if (marked) MaterialTheme.colorScheme.onSecondaryContainer else Ink

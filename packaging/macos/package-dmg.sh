@@ -1,5 +1,5 @@
 #!/bin/sh
-# Builds the unsigned TextTools 1.0 DMG on macOS (Apple silicon or Intel, whichever JDK 21 is installed).
+# Builds the unsigned TextTools DMG on macOS (Apple silicon or Intel, whichever JDK 21 is installed).
 # Capture and paste into other windows stay Windows-only; the Mac build opens the tray.
 # Usage, from the repository root: sh packaging/macos/package-dmg.sh
 set -eu

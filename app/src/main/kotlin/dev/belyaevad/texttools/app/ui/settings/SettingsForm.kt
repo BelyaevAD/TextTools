@@ -62,6 +62,7 @@ class SettingsForm(
     initialKey: String,
     initialModels: List<KnownModel>,
     initialLanguages: List<OutputLanguage>,
+    private val storedModels: (String) -> List<KnownModel> = { emptyList() },
 ) {
     var baseUrl by mutableStateOf(settings.baseUrl.trim())
     var apiKey by mutableStateOf(initialKey)
@@ -81,9 +82,11 @@ class SettingsForm(
     var profileModel by mutableStateOf(settings.profileModel.trim())
     var autostart by mutableStateOf(settings.autostart)
     var sentryErrors by mutableStateOf(settings.sentryErrors)
-    var sentryTraces by mutableStateOf(settings.sentryTraces)
     var clipWait by mutableStateOf(formatClip(settings.clipWaitSeconds))
     var busy by mutableStateOf(false)
+
+    /** Address "Retarget" was pressed for. Save retargets the actions then, and only if the address is unchanged. */
+    var retargetedUrl: String? = null
 
     /** A cleared checkbox keeps the text and does not have to be a valid proxy. */
     internal fun readProxy(): ProxyRead {
@@ -155,6 +158,7 @@ class SettingsForm(
 
     /** Ticks recommended ids in place and appends any the list did not have. */
     internal fun applyRecommended(picks: List<RecommendedModel>): List<String> {
+        adoptAddress()
         var next = models
         val missing =
             buildList {
@@ -182,6 +186,7 @@ class SettingsForm(
 
     /** Ticks retargeted ids in place and appends any the list did not have. */
     fun tickModels(ids: List<String>) {
+        adoptAddress()
         var next = models
         for (raw in ids) {
             val id = raw.trim()
@@ -196,6 +201,15 @@ class SettingsForm(
             }
         }
         models = next
+    }
+
+    /** Recommended and retargeted ids belong to the address in the field, not to the loaded list. */
+    private fun adoptAddress() {
+        val url = baseUrl.trim()
+        if (modelsUrl == url) return
+        models = storedModels(url)
+        modelsUrl = url
+        selectedModel = null
     }
 
     fun setLanguageEnabled(
@@ -263,7 +277,6 @@ class SettingsForm(
                         appProfiling = profiling,
                         clipWaitSeconds = clipWaitSeconds(clip),
                         sentryErrors = sentryErrors,
-                        sentryTraces = sentryTraces,
                         autostart = autostart,
                         profileModel = profileModel.trim(),
                     ),
@@ -271,6 +284,7 @@ class SettingsForm(
                 models = models.toList(),
                 modelsUrl = modelsUrl,
                 languages = languages.toList(),
+                retargetUrl = retargetedUrl?.takeIf { it == baseUrl.trim() },
             ),
         )
     }

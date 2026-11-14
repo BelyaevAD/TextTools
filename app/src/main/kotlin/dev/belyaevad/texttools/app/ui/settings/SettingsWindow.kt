@@ -39,6 +39,8 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.rememberWindowState
 import dev.belyaevad.texttools.app.APP_VERSION
 import dev.belyaevad.texttools.app.reportFailure
+import dev.belyaevad.texttools.app.scrubSentryText
+import dev.belyaevad.texttools.app.ui.AppField
 import dev.belyaevad.texttools.app.ui.AppIcon
 import dev.belyaevad.texttools.app.ui.AppPrimaryButton
 import dev.belyaevad.texttools.app.ui.AppSecondaryButton
@@ -123,7 +125,7 @@ fun SettingsWindow(
     languages: List<OutputLanguage>,
     callbacks: SettingsCallbacks,
 ) {
-    val form = remember { SettingsForm(settings, apiKey, models, languages) }
+    val form = remember { SettingsForm(settings, apiKey, models, languages, callbacks.storedModels) }
     val scope = rememberCoroutineScope()
     val accepting = remember { mutableStateOf(true) }
     val tab = remember { mutableIntStateOf(0) }
@@ -181,7 +183,7 @@ private fun settingsContent(
     AppTheme {
         Surface(Modifier.fillMaxSize()) {
             Column(Modifier.fillMaxSize().padding(10.dp)) {
-                settingsTabs(selected = ops.bindings.tab.intValue, labels = labels, onSelect = { ops.bindings.tab.intValue = it })
+                AppTabs(selected = ops.bindings.tab.intValue, labels = labels, onSelect = { ops.bindings.tab.intValue = it })
                 Box(Modifier.weight(1f).padding(top = 8.dp).fillMaxWidth()) {
                     settingsPage(ops, actions)
                 }
@@ -230,7 +232,6 @@ private fun settingsPage(
         1 ->
             SettingsLanguagesTab(
                 form = ops.form,
-                status = null,
                 onAdd = { ops.bindings.ask.value = LangDraft(step = 0, code = "", name = "", value = "") },
                 onDelete = { ops.deleteLanguage() },
             )
@@ -238,7 +239,6 @@ private fun settingsPage(
             SettingsInterfaceTab(
                 form = ops.form,
                 uiLanguages = ops.callbacks.uiLanguages,
-                status = null,
             )
     }
 }
@@ -302,7 +302,7 @@ private class SettingsOps(
     fun hidden(
         text: String?,
         sentKey: String,
-    ): String = redactSecret(redactSecret(text.orEmpty(), sentKey), form.apiKey)
+    ): String = scrubSentryText(redactSecret(redactSecret(text.orEmpty(), sentKey), form.apiKey))
 
     private fun hidden(
         error: Throwable,
@@ -339,7 +339,7 @@ private class SettingsOps(
         when (val result = form.trySave()) {
             is SaveResult.Ready -> {
                 bindings.accepting.value = false
-                callbacks.onSave(result.draft)
+                if (!callbacks.onSave(result.draft)) bindings.accepting.value = true
             }
             is SaveResult.Blocked -> route(result.notice)
         }
@@ -452,6 +452,7 @@ private class SettingsOps(
         try {
             val ids = callbacks.onRetarget(url)
             if (!bindings.accepting.value) return
+            form.retargetedUrl = url
             form.tickModels(ids)
             bindings.dialog.value = SettingsNotice.RetargetDone
         } catch (cancelled: CancellationException) {
@@ -551,7 +552,7 @@ private class SettingsOps(
             when {
                 question != null -> confirmAsk(question.copy(value = bindings.ask.value?.value ?: question.value))
                 bindings.dialog.value != null -> bindings.dialog.value = null
-                else -> save()
+                else -> return false
             }
             return true
         }
@@ -681,7 +682,7 @@ private fun LanguageQuestion(
         text = {
             Column {
                 Text(question)
-                LineField(
+                AppField(
                     value = draft.value,
                     onValueChange = onValue,
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
@@ -695,15 +696,6 @@ private fun LanguageQuestion(
             OutlinedButton(onClick = onDismiss) { Text(stringResource(Res.string.settings_cancel)) }
         },
     )
-}
-
-@Composable
-private fun settingsTabs(
-    selected: Int,
-    labels: List<String>,
-    onSelect: (Int) -> Unit,
-) {
-    AppTabs(labels = labels, selected = selected, onSelect = onSelect)
 }
 
 private data class Status(

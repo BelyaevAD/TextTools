@@ -232,10 +232,16 @@ class TextToolsStore(
         }
     }
 
-    /** Adds one row. The read and the replace stay together, so a second writer cannot drop the first. */
+    /** Adds one row with the next position. The lock keeps two writers from taking the same position. */
     fun appendUsage(event: UsageRecord) {
         synchronized(usageGate) {
-            saveUsage(usage() + event)
+            db.textToolsQueries.appendUsage(
+                event.atEpochMs,
+                event.label,
+                event.model,
+                event.promptTokens.toLong(),
+                event.completionTokens.toLong(),
+            )
         }
     }
 
@@ -273,13 +279,6 @@ class TextToolsStore(
 
     fun usageEvents(): List<UsageEvent> = db.textToolsQueries.selectUsageEvents().executeAsList().map(::usageEvent)
 
-    fun pendingUsageEvents(): List<UsageEvent> = db.textToolsQueries.selectPendingUsageEvents().executeAsList().map(::usageEvent)
-
-    fun markUsageEventsSent(ids: List<Long>, bucketStartMs: Long) {
-        if (ids.isEmpty()) return
-        db.textToolsQueries.markUsageEventsSent(bucketStartMs, ids)
-    }
-
     private fun usageEvent(row: dev.belyaevad.texttools.data.db.Usage_event): UsageEvent =
         UsageEvent(
             id = row.id,
@@ -293,7 +292,6 @@ class TextToolsStore(
             durationMs = row.duration_ms,
             promptTokens = row.prompt_tokens?.toInt(),
             completionTokens = row.completion_tokens?.toInt(),
-            sentryBucket = row.sentry_bucket,
         )
 }
 
@@ -310,7 +308,6 @@ data class UsageEvent(
     val promptTokens: Int?,
     val completionTokens: Int?,
     val id: Long = 0,
-    val sentryBucket: Long? = null,
 )
 
 /** One history row. [cost] is null when the price was unknown. Text is trimmed on write. */

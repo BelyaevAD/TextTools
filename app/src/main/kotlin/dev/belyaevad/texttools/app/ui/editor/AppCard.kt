@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.belyaevad.texttools.app.ui.AppCardHeight
 import dev.belyaevad.texttools.app.ui.AppCardWidth
+import dev.belyaevad.texttools.app.ui.AppField
 import dev.belyaevad.texttools.app.ui.AppPrimaryButton
 import dev.belyaevad.texttools.app.ui.AppSecondaryButton
 import dev.belyaevad.texttools.domain.AppProfile
@@ -53,9 +54,9 @@ fun appCard(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(tr(Ed.APP_PROC), modifier = Modifier.width(150.dp))
-                lineField(proc, { proc = it }, Modifier.width(200.dp))
+                AppField(proc, { proc = it }, Modifier.width(200.dp))
                 Text(tr(Ed.APP_TITLE), modifier = Modifier.padding(start = 16.dp).width(150.dp))
-                lineField(titleText, { titleText = it }, Modifier.width(200.dp))
+                AppField(titleText, { titleText = it }, Modifier.width(200.dp))
             }
             Text(
                 tr(Ed.APP_TITLE_HINT),
@@ -65,14 +66,14 @@ fun appCard(
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(tr(Ed.FIELD_NAME), modifier = Modifier.width(150.dp))
-                lineField(name, { name = it }, Modifier.weight(1f))
+                AppField(name, { name = it }, Modifier.weight(1f))
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(tr(Ed.APP_DESC), modifier = Modifier.width(150.dp))
-                lineField(description, { description = it }, Modifier.weight(1f))
+                AppField(description, { description = it }, Modifier.weight(1f))
             }
             Text(tr(Ed.APP_HINT))
-            lineField(hint, { hint = it }, Modifier.fillMaxWidth().height(88.dp), singleLine = false)
+            AppField(hint, { hint = it }, Modifier.fillMaxWidth().height(88.dp), singleLine = false)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 AppPrimaryButton(
                     text = tr(Ed.SAVE),

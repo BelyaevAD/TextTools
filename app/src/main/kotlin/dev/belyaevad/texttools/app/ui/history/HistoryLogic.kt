@@ -1,5 +1,8 @@
 package dev.belyaevad.texttools.app.ui.history
 
+import dev.belyaevad.texttools.app.ui.run.LOG_FILE
+import dev.belyaevad.texttools.app.ui.run.bannerMoney
+import dev.belyaevad.texttools.app.ui.settings.groupDigits
 import dev.belyaevad.texttools.data.UsageEvent
 import dev.belyaevad.texttools.data.UsageRecord
 import java.io.IOException
@@ -33,7 +36,6 @@ internal const val ACTION_MARK = "action: "
 private const val CUSTOM_MARK = " (custom)"
 internal const val INSTRUCTION_MARK = " (+instruction)"
 private const val HISTORY_FILE = "TextTools_history.txt"
-private const val LOG_FILE = "TextTools.log"
 private const val LOG_OLD_FILE = "TextTools.log.old"
 
 private val hourClock: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
@@ -68,20 +70,20 @@ internal fun historyTokens(
     if (prompt == null && completion == null) return DASH
     val sum = (prompt ?: 0).toLong() + (completion ?: 0).toLong()
     if (sum == 0L) return DASH
-    return grouped(sum)
+    return groupDigits(sum)
 }
 
 /** Cost cell. A missing or negative price is a dash. Zero is a money amount. */
 internal fun historyMoney(cost: Double?): String {
     if (cost == null || !cost.isFinite() || cost < 0.0) return DASH
-    return moneyText(cost)
+    return bannerMoney(cost)
 }
 
 /** Model cell. An empty id is a dash. */
 internal fun historyModel(model: String): String = if (model.isEmpty()) DASH else model
 
 /**
- * Counts `action: ` lines in [log]. The name ends at the first comma.
+ * Counts `action: ` lines in [log]. The name ends at `, selected ` or `, model `.
  * ` (custom)` and ` (+instruction)` are removed. ` (Shift: into window)` stays.
  * The highest count comes first. Equal counts keep the order they first appeared.
  */
@@ -91,7 +93,7 @@ internal fun actionRuns(log: String): List<ActionRun> {
             for (line in log.split('\n')) {
                 val at = line.indexOf(ACTION_MARK)
                 if (at < 0) continue
-                val raw = line.substring(at + ACTION_MARK.length).substringBefore(',')
+                val raw = line.substring(at + ACTION_MARK.length).substringBeforeLast(", model ").substringBeforeLast(", selected ")
                 val name = raw.trim().replace(CUSTOM_MARK, "").replace(INSTRUCTION_MARK, "")
                 put(name, (this[name] ?: 0) + 1)
             }
@@ -224,8 +226,8 @@ internal fun usageDocument(
         append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|\n")
         for (row in totals) {
             append("| ${row.model} | ${row.count} | ${row.failed} | ${row.cancelled} | ")
-            append("${grouped(row.inputChars)} | ${grouped(row.outputChars)} | ")
-            append("${milliseconds(row.totalMs)} | ${grouped(row.totalMs / row.count)} | ${grouped(row.maxMs)} | ")
+            append("${groupDigits(row.inputChars)} | ${groupDigits(row.outputChars)} | ")
+            append("${milliseconds(row.totalMs)} | ${groupDigits(row.totalMs / row.count)} | ${groupDigits(row.maxMs)} | ")
             append("${row.tokens} | ")
             append(String.format(Locale.US, "%.1f/s", row.outputChars * 1000.0 / row.totalMs.coerceAtLeast(1)))
             append(" |\n")
@@ -235,12 +237,12 @@ internal fun usageDocument(
             val output = events.sumOf { it.outputChars.toLong() }
             append("| **${phrases.totalLabel}** | **${events.size}** | **${events.count { it.outcome == "failure" }}** | ")
             append(
-                "**${events.count { it.outcome == "cancelled" }}** | **${grouped(
+                "**${events.count { it.outcome == "cancelled" }}** | **${groupDigits(
                     events.sumOf { it.inputChars.toLong() + it.extraChars },
                 )}** | ",
             )
-            append("**${grouped(output)}** | **${milliseconds(totalMs)}** | **${grouped(totalMs / events.size)}** | ")
-            append("**${grouped(events.maxOf { it.durationMs })}** | ")
+            append("**${groupDigits(output)}** | **${milliseconds(totalMs)}** | **${groupDigits(totalMs / events.size)}** | ")
+            append("**${groupDigits(events.maxOf { it.durationMs })}** | ")
             append("**${tokenText(events)}** | ")
             append("**${String.format(Locale.US, "%.1f/s", output * 1000.0 / totalMs.coerceAtLeast(1))}** |\n")
         }
@@ -264,7 +266,7 @@ private data class ModelUsage(
 
 private fun tokenText(rows: List<UsageEvent>): String {
     if (rows.none { it.promptTokens != null || it.completionTokens != null }) return DASH
-    return grouped(rows.sumOf { (it.promptTokens ?: 0).toLong() + (it.completionTokens ?: 0).toLong() })
+    return groupDigits(rows.sumOf { (it.promptTokens ?: 0).toLong() + (it.completionTokens ?: 0).toLong() })
 }
 
 private fun milliseconds(value: Long): String = String.format(Locale.US, "%.1f s", value / 1000.0)
@@ -376,26 +378,26 @@ private fun StringBuilder.appendModelTable(
         append(" | ")
         append(row.requests)
         append(" | ")
-        append(grouped(row.promptTokens))
+        append(groupDigits(row.promptTokens))
         append(" | ")
-        append(grouped(row.completionTokens))
+        append(groupDigits(row.completionTokens))
         append(" | ")
-        append(grouped(row.promptTokens + row.completionTokens))
+        append(groupDigits(row.promptTokens + row.completionTokens))
         append(" | ")
-        append(if (cost == null) phrases.priceUnknown else moneyText(cost))
+        append(if (cost == null) phrases.priceUnknown else bannerMoney(cost))
         append(" |\n")
     }
-    val totalMoney = moneyText(grand) + if (unknown) " +" else ""
+    val totalMoney = bannerMoney(grand) + if (unknown) " +" else ""
     append("| **")
     append(phrases.totalLabel)
     append(BOLD_JOIN)
     append(requests)
     append(BOLD_JOIN)
-    append(grouped(prompt))
+    append(groupDigits(prompt))
     append(BOLD_JOIN)
-    append(grouped(completion))
+    append(groupDigits(completion))
     append(BOLD_JOIN)
-    append(grouped(prompt + completion))
+    append(groupDigits(prompt + completion))
     append(BOLD_JOIN)
     append(totalMoney)
     append("** |\n\n> ")
@@ -414,31 +416,6 @@ private fun StringBuilder.appendModelTable(
         append(phrases.unknownNote)
         append("\n")
     }
-}
-
-private fun moneyText(value: Double): String {
-    val pattern =
-        when {
-            value >= 1.0 -> "%.2f"
-            value >= 0.01 -> "%.3f"
-            else -> "%.5f"
-        }
-    return "$" + String.format(Locale.US, pattern, value)
-}
-
-private fun grouped(value: Long): String {
-    val digits = value.toString()
-    val out = StringBuilder()
-    var count = 0
-    for (index in digits.indices.reversed()) {
-        if (count == 3) {
-            out.insert(0, ' ')
-            count = 0
-        }
-        out.insert(0, digits[index])
-        count++
-    }
-    return out.toString()
 }
 
 private fun deleteQuiet(path: Path) {

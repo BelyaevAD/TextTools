@@ -106,7 +106,7 @@ fun editorWindow(
             AppTheme {
                 Surface(Modifier.fillMaxSize()) {
                     Column(Modifier.fillMaxSize().padding(10.dp)) {
-                        editorTabs(
+                        AppTabs(
                             selected = tab.value,
                             labels = listOf(tr(Ed.TAB_ACTIONS), tr(Ed.TAB_QUICK), tr(Ed.TAB_APPS)),
                             onSelect = { tab.value = it },
@@ -461,19 +461,6 @@ private sealed interface OpenCard {
         val index: Int,
         val profile: AppProfile,
     ) : OpenCard
-}
-
-@Composable
-private fun editorTabs(
-    selected: Int,
-    labels: List<String>,
-    onSelect: (Int) -> Unit,
-) {
-    AppTabs(
-        labels = labels,
-        selected = selected,
-        onSelect = onSelect,
-    )
 }
 
 @Composable

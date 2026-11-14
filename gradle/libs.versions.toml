@@ -1,9 +1,10 @@
 [versions]
 kotlin = "2.2.20"
 compose = "1.12.2"
+# Update together with compose: Material 3 is released as a pair with it.
+material3 = "1.12.0-alpha03"
 sqldelight = "2.4.1"
 ktor = "3.6.1"
-dokka = "2.2.0"
 detekt = "2.0.0-alpha.1"
 ktlint = "12.1.2"
 jna = "5.16.0"
@@ -17,20 +18,17 @@ coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version
 sqldelight-driver = { module = "app.cash.sqldelight:sqlite-driver", version.ref = "sqldelight" }
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
 ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
-ktor-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
-ktor-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
 ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
 serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
 jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
 jna-platform = { module = "net.java.dev.jna:jna-platform", version.ref = "jna" }
+material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "material3" }
 sentry = { module = "io.sentry:sentry", version.ref = "sentry" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 compose = { id = "org.jetbrains.compose", version.ref = "compose" }
 sqldelight = { id = "app.cash.sqldelight", version.ref = "sqldelight" }
-dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
 detekt = { id = "dev.detekt", version.ref = "detekt" }
 ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlint" }

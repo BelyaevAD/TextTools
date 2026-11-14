@@ -3,6 +3,7 @@ package dev.belyaevad.texttools.platform
 import dev.belyaevad.texttools.domain.clipWaitSeconds
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -41,7 +42,7 @@ class ClipboardTest {
 
     @Test
     fun anEmptyClipboardStillCopiesTheSelection() {
-        val io = FakeClip(text = null)
+        val io = FakeClip(text = "")
         io.afterCopy = "from the page"
         assertEquals("from the page", ClipboardProtocol(io).capture(50))
         assertEquals("", io.text)
@@ -49,15 +50,95 @@ class ClipboardTest {
     }
 
     @Test
-    fun restoreAfterPastePutsTheOldTextBackOnlyWhileTheResultIsStillThere() {
+    fun aLockedReadDoesNotStartACapture() {
+        val io = FakeClip(text = null)
+        val protocol = ClipboardProtocol(io)
+        assertEquals("", protocol.capture(50))
+        assertEquals(0, io.copies)
+        assertEquals(0, io.writes)
+        assertTrue(protocol.takeBusyNotice())
+        assertFalse(protocol.takeBusyNotice())
+    }
+
+    @Test
+    fun aRefusedClearingWriteReportsABusyClipboard() {
+        val io = FakeClip(text = "old", writable = false)
+        val protocol = ClipboardProtocol(io)
+        assertEquals("", protocol.capture(20))
+        assertTrue(protocol.takeBusyNotice())
+    }
+
+    @Test
+    fun automaticPasteUsesTheCapturedSourceAndForgetsIt() {
         val io = FakeClip(text = "old")
-        val sent = assertIs<PasteAttempt.Sent>(ClipboardProtocol(io).paste("result"))
+        io.afterCopy = "selected"
+        val protocol = ClipboardProtocol(io)
+        assertEquals("selected", protocol.capture(50))
+        assertFalse(protocol.takeBusyNotice())
+        assertTrue(io.remembersSource)
+        assertIs<PasteAttempt.Sent>(protocol.paste("result", captured = true))
         assertEquals("result", io.text)
-        ClipboardProtocol(io).restoreAfterPaste(sent.saved, sent.pasted)
-        assertEquals("old", io.text)
-        io.text = "user copied this"
-        ClipboardProtocol(io).restoreAfterPaste("old", "result")
-        assertEquals("user copied this", io.text)
+        assertEquals(true, io.activatedCaptured)
+        assertFalse(io.remembersSource)
+    }
+
+    @Test
+    fun aButtonPasteAfterACaptureTargetsTheLiveWindow() {
+        val io = FakeClip(text = "old")
+        io.afterCopy = "selected"
+        val protocol = ClipboardProtocol(io)
+        protocol.capture(50)
+        assertIs<PasteAttempt.Sent>(protocol.paste("result"))
+        assertEquals(false, io.activatedCaptured)
+        assertFalse(io.remembersSource)
+    }
+
+    @Test
+    fun aCapturedPasteWhoseSourceWasForgottenShowsTheWindow() {
+        val io = FakeClip(text = "old")
+        io.afterCopy = "selected"
+        val protocol = ClipboardProtocol(io)
+        protocol.capture(50)
+        assertIs<PasteAttempt.Sent>(protocol.paste("button"))
+        val writes = io.writes
+        assertIs<PasteAttempt.ShowInWindow>(protocol.paste("answer", captured = true))
+        assertEquals(1, io.pastes)
+        assertEquals(writes, io.writes)
+    }
+
+    @Test
+    fun aFallbackPasteAlsoForgetsTheCapturedSource() {
+        val io = FakeClip(text = "old", canActivate = false)
+        io.afterCopy = "selected"
+        val protocol = ClipboardProtocol(io)
+        protocol.capture(50)
+        assertIs<PasteAttempt.ShowInWindow>(protocol.paste("result", captured = true))
+        assertFalse(io.remembersSource)
+    }
+
+    @Test
+    fun anEmptyCaptureLeavesNoSourceBehind() {
+        val io = FakeClip(text = "old")
+        assertEquals("", ClipboardProtocol(io).capture(20))
+        assertFalse(io.remembersSource)
+    }
+
+    @Test
+    fun aPasteThatCannotHappenLeavesAnImageClipboardAlone() {
+        val noWindow = FakeClip(text = "", imageOrFiles = true, canActivate = false)
+        assertIs<PasteAttempt.ShowInWindow>(ClipboardProtocol(noWindow).paste("result"))
+        assertEquals(0, noWindow.writes)
+        val noField = FakeClip(text = "", imageOrFiles = true, inputCaret = false)
+        assertIs<PasteAttempt.ShowInWindow>(ClipboardProtocol(noField).paste("result"))
+        assertEquals(0, noField.writes)
+    }
+
+    @Test
+    fun aFailedPasteWritePutsTheSavedTextBack() {
+        val io = FakeClip(text = "old", writable = false)
+        assertIs<PasteAttempt.ShowInWindow>(ClipboardProtocol(io).paste("result"))
+        assertEquals(listOf("result", "old"), io.written)
+        assertEquals(0, io.pastes)
     }
 
     @Test
@@ -65,12 +146,6 @@ class ClipboardTest {
         val io = FakeClip(text = null)
         assertIs<PasteAttempt.ShowInWindow>(ClipboardProtocol(io).paste("result"))
         assertEquals(null, io.text)
-    }
-
-    @Test
-    fun waylandIsNotX11() {
-        assertEquals(DesktopSession.Wayland, desktopSession("Linux", "wayland-0", ":0"))
-        assertEquals(DesktopSession.X11, desktopSession("Linux", null, ":0"))
     }
 
     @Test
@@ -135,11 +210,15 @@ private class FakeClip(
     var writes: Int = 0
     var copies: Int = 0
     var pastes: Int = 0
+    var remembersSource = false
+    var activatedCaptured: Boolean? = null
+    val written = mutableListOf<String>()
 
     override fun readText(): String? = text
 
     override fun writeText(text: String): Boolean {
         writes++
+        written += text
         if (!writable) return false
         this.text = text
         return true
@@ -148,13 +227,23 @@ private class FakeClip(
     override fun sendCopy() {
         copies++
         text = afterCopy
+        remembersSource = true
     }
 
     override fun sendPaste() {
         pastes++
     }
 
-    override fun activateSource(): Boolean = canActivate
+    override fun activateSource(): Boolean {
+        activatedCaptured = remembersSource
+        return canActivate
+    }
+
+    override fun forgetSource() {
+        remembersSource = false
+    }
+
+    override fun hasCapturedSource(): Boolean = remembersSource
 
     override fun canAcceptText(): Boolean = inputCaret
 

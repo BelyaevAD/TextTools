@@ -3,7 +3,7 @@ package dev.belyaevad.texttools.app.ui.editor
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -28,14 +28,15 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogWindow
 import androidx.compose.ui.window.rememberDialogState
-import dev.belyaevad.texttools.app.ui.AppField
 import dev.belyaevad.texttools.app.ui.AppIcon
 import dev.belyaevad.texttools.app.ui.AppPrimaryButton
 import dev.belyaevad.texttools.app.ui.AppSecondaryButton
@@ -52,7 +53,6 @@ internal fun framedDialog(
     height: Dp,
     onClose: () -> Unit,
     resizable: Boolean = true,
-    fitFrame: Boolean = true,
     placementId: String,
     content: @Composable () -> Unit,
 ) {
@@ -73,7 +73,7 @@ internal fun framedDialog(
             }
         },
     ) {
-        if (fitFrame && !place.restored) fitVisibleFrame(state.size) { state.size = it }
+        if (!place.restored) fitVisibleFrame(state.size) { state.size = it }
         keepWindowFrame(placementId)
         AppTheme {
             Surface(Modifier.fillMaxSize()) {
@@ -154,21 +154,6 @@ internal fun confirmWindow(
 }
 
 @Composable
-internal fun lineField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    modifier: Modifier = Modifier,
-    singleLine: Boolean = true,
-) {
-    AppField(
-        value = value,
-        onValueChange = onValueChange,
-        modifier = modifier,
-        singleLine = singleLine,
-    )
-}
-
-@Composable
 internal fun picker(
     options: List<String>,
     selected: Int,
@@ -226,12 +211,11 @@ internal fun editorTable(
                                     } else {
                                         MaterialTheme.colorScheme.surface
                                     },
-                                ).pointerInput(row) {
-                                    detectTapGestures(
-                                        onTap = { onSelect(row) },
-                                        onDoubleTap = { onOpen(row) },
-                                    )
-                                },
+                                ).combinedClickable(
+                                    role = Role.Button,
+                                    onClick = { onSelect(row) },
+                                    onDoubleClick = { onOpen(row) },
+                                ).semantics { this.selected = row == selected },
                     ) {
                         headers.indices.forEach { column ->
                             Text(

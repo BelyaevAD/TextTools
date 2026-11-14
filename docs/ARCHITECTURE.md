@@ -1,6 +1,6 @@
 # Architecture
 
-TextTools 1.0 is one JVM desktop app. This page replaces the AHK layout notes for the new line. The old tree stays on `archive/ahk`.
+TextTools is one JVM desktop app. This page replaces the AHK layout notes for the new line. The old tree stays on `archive/ahk`.
 
 - `:domain` has the scenarios. It does not depend on Compose, Ktor or SQLDelight.
 - `:data` is SQLite and the OpenAI-compatible client.

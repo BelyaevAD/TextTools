@@ -14,6 +14,10 @@ import dev.belyaevad.texttools.platform.ClipIo
 import dev.belyaevad.texttools.platform.ClipboardProtocol
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.runBlocking
 import java.nio.file.Files
 import java.nio.file.Path
@@ -30,12 +34,10 @@ class RunActionTest {
     fun pasteReturnsBeforeTheClipboardRestore() =
         runBlocking {
             var now = 1_000L
-            var waited = -1L
             lateinit var running: RunAction
             val scene =
                 scenario(
                     clock = { now },
-                    pause = { waited = it },
                     complete = { _, _ ->
                         assertTrue(running.busy)
                         assertEquals(RunPhase.Preparing, running.banner()?.phase)
@@ -63,7 +65,6 @@ class RunActionTest {
                 val outcome = opened.action.run(proof(), "SEL-MARKER", "", false, "", "")
                 assertIs<RunOutcome.Pasted>(outcome)
                 assertFalse(opened.action.busy)
-                assertEquals(-1L, waited)
                 assertEquals("MODEL-OUT", opened.clip.text)
                 now = 9_000L
                 assertEquals(RunPhase.Done, opened.action.banner()?.phase)
@@ -94,7 +95,6 @@ class RunActionTest {
                 assertTrue("spend: prompt 2, completion 3" in log)
                 assertFalse("SEL-MARKER" in log)
                 assertFalse("(+instruction)" in log)
-                assertTrue(opened.queued.isEmpty())
                 assertEquals("MODEL-OUT", opened.clip.text)
             }
         }
@@ -152,7 +152,6 @@ class RunActionTest {
                 assertEquals(0, calls)
                 assertEquals(0, opened.store.history().size)
                 assertEquals(0, opened.clip.pastes)
-                assertTrue(opened.queued.isEmpty())
                 assertNull(opened.action.banner())
                 assertFalse(opened.action.busy)
             }
@@ -180,7 +179,6 @@ class RunActionTest {
                 val failedPaste = opened.action.run(proof(), "SECRET-SEL", "", false, "", "")
                 assertIs<RunOutcome.InWindow>(failedPaste)
                 assertEquals(0, opened.clip.pastes)
-                assertTrue(opened.queued.isEmpty())
                 assertEquals("saved", opened.clip.text)
                 assertEquals(listOf("out-3", "out-2", "out-1"), opened.store.history().map { it.result })
                 val log = Files.readString(opened.dir.resolve("TextTools.log"))
@@ -192,7 +190,7 @@ class RunActionTest {
         }
 
     @Test
-    fun enterRunsCustomOnlyWhenTheFieldHasText() =
+    fun theCustomActionRunsWithTheInstructionText() =
         runBlocking {
             var calls = 0
             var user = ""
@@ -207,9 +205,7 @@ class RunActionTest {
                     },
                 )
             scene.use { opened ->
-                assertNull(opened.action.enter(" \t", "Hello", false, "Chrome.exe", "Ticket in Jira"))
-                assertEquals(0, calls)
-                val shown = opened.action.enter(" shorter ", "Hello", true, "Chrome.exe", "Ticket in Jira")
+                val shown = opened.action.run(Factory.custom, "Hello", " shorter ", true, "Chrome.exe", "Ticket in Jira")
                 assertIs<RunOutcome.InWindow>(shown)
                 assertEquals(1, calls)
                 assertEquals(0, opened.clip.pastes)
@@ -286,8 +282,6 @@ class RunActionTest {
                 started.await()
                 assertTrue(running.busy)
                 assertEquals(RunPhase.Preparing, running.banner()?.phase)
-                assertNull(opened.action.enter("  ", "Hi", false, "", ""))
-                assertIs<RunOutcome.Busy>(opened.action.enter("go", "Hi", false, "", ""))
                 assertIs<RunOutcome.Busy>(opened.action.run(proof(), "Hi", "", false, "", ""))
                 assertEquals(1, calls)
                 assertEquals(RunPhase.Preparing, running.banner()?.phase)
@@ -304,6 +298,49 @@ class RunActionTest {
                         .actionName,
                 )
                 assertEquals(1, calls)
+            }
+        }
+
+    @Test
+    fun aCancelledRunDeliversNothingAndFreesTheGate() =
+        runBlocking {
+            val started = CompletableDeferred<Unit>()
+            var answerAfterCancel = false
+            val seen = mutableListOf<RequestMetric>()
+            val scene =
+                scenario(
+                    complete = { _, _ ->
+                        if (answerAfterCancel) {
+                            currentCoroutineContext().cancel()
+                            "late" to Usage(1, 1)
+                        } else {
+                            started.complete(Unit)
+                            awaitCancellation()
+                        }
+                    },
+                    onRequest = { seen += it },
+                )
+            scene.use { opened ->
+                val waiting = async { opened.action.run(proof(), "Hi", "", false, "", "") }
+                started.await()
+                waiting.cancelAndJoin()
+                assertTrue(waiting.isCancelled)
+                assertFalse(opened.action.busy)
+                answerAfterCancel = true
+                val answered = async { opened.action.run(proof(), "Hi", "", false, "", "") }
+                answered.join()
+                assertTrue(answered.isCancelled)
+                assertFalse(opened.action.busy)
+                assertNull(opened.action.banner())
+                assertEquals(0, opened.clip.pastes)
+                assertEquals("saved", opened.clip.text)
+                assertEquals(0, opened.store.history().size)
+                assertEquals(0, opened.store.usage().size)
+                assertFalse(Files.exists(opened.dir.resolve("TextTools_last.txt")))
+                val log = Files.readString(opened.dir.resolve("TextTools.log"))
+                assertFalse("failed:" in log)
+                assertTrue("cancelled" in log)
+                assertEquals(listOf("cancelled", "success"), seen.map { it.outcome })
             }
         }
 
@@ -331,10 +368,8 @@ private class Scene(
     val store: TextToolsStore,
     val driver: JdbcSqliteDriver,
     val dir: Path,
-    val queued: MutableList<suspend () -> Unit>,
 ) : AutoCloseable {
     override fun close() {
-        action.close()
         driver.close()
         if (Files.exists(dir)) {
             Files.walk(dir).use { walk ->
@@ -348,7 +383,6 @@ private fun scenario(
     complete: suspend (String, List<ChatMessage>) -> Pair<String, Usage?>,
     hasKey: () -> Boolean = { true },
     clock: () -> Long = { 0L },
-    pause: suspend (Long) -> Unit = { _ -> },
     onStatus: (RunStatus?) -> Unit = { _ -> },
     onRequest: (RequestMetric) -> Unit = {},
     clip: MemoryClip = MemoryClip(),
@@ -357,7 +391,6 @@ private fun scenario(
     TextToolsDatabase.Schema.create(driver)
     val store = TextToolsStore(driver)
     val dir = Files.createTempDirectory("texttools-r1-")
-    val queued = mutableListOf<suspend () -> Unit>()
     val action =
         RunAction(
             complete = complete,
@@ -369,13 +402,11 @@ private fun scenario(
             hooks =
                 RunHooks(
                     clock = clock,
-                    schedule = { block -> queued += block },
-                    pause = pause,
                     onStatus = onStatus,
                 ),
             onRequest = onRequest,
         )
-    return Scene(action, clip, store, driver, dir, queued)
+    return Scene(action, clip, store, driver, dir)
 }
 
 private class MemoryClip : ClipIo {

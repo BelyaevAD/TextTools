@@ -8,6 +8,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class UiSettingsTest {
     @Test
@@ -28,6 +29,15 @@ class UiSettingsTest {
     }
 
     @Test
+    fun aRemovedSentryTracesKeyIsIgnoredOnReadAndKeptOnWrite() {
+        val previous = Properties()
+        previous.setProperty("sentryTraces", "true")
+        val settings = settingsFromProperties(previous, proxy = "")
+        assertEquals(Factory.defaultSettings, settings)
+        assertEquals("true", currentUiProperties(previous, settings, persistAutostart = false).getProperty("sentryTraces"))
+    }
+
+    @Test
     fun aBlankMenuHotkeyBecomesTheFactoryChord() {
         val previous = Properties()
         previous.setProperty("hotkey", "  ")
@@ -43,6 +53,23 @@ class UiSettingsTest {
         props.setProperty("proxyOn", "")
         assertFalse(uiSettingsStale(props))
         assertNull(settingsFromProperties(props, proxy = "http://proxy").proxyOn)
+    }
+
+    @Test
+    fun anUnreadableProxyKeepsTheProxyOn() {
+        assertEquals(true, settingsFromProperties(Properties(), proxy = "", proxyUnreadable = true).proxyOn)
+        val unset = Properties().apply { setProperty("proxyOn", "") }
+        assertEquals(true, settingsFromProperties(unset, proxy = "", proxyUnreadable = true).proxyOn)
+        val off = Properties().apply { setProperty("proxyOn", "false") }
+        assertEquals(false, settingsFromProperties(off, proxy = "", proxyUnreadable = true).proxyOn)
+    }
+
+    @Test
+    fun aBlankValueDoesNotOverwriteAnUnreadableSecret() {
+        assertFalse(secretWritable("", storedUnreadable = true))
+        assertTrue(secretWritable("new", storedUnreadable = true))
+        assertTrue(secretWritable("", storedUnreadable = true, cleared = true))
+        assertTrue(secretWritable("", storedUnreadable = false))
     }
 
     @Test

@@ -20,7 +20,7 @@ jobs:
           java-version: "21"
       - name: check
         shell: bash
-        run: bash ./gradlew check dokkaGenerate --no-daemon
+        run: bash ./gradlew check --no-daemon
 
   package:
     if: github.event_name == 'workflow_dispatch'

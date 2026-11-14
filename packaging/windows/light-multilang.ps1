@@ -62,6 +62,7 @@ foreach ($file in $loc) {
 
 $work = Join-Path ([IO.Path]::GetTempPath()) ("tt-msi-" + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $work | Out-Null
+try {
 $built = @{}
 foreach ($culture in $ordered) {
     $msi = if ($culture -eq $base) { $out } else { Join-Path $work "$culture.msi" }
@@ -107,4 +108,11 @@ $ids = @($ordered | ForEach-Object { $lcidOf[$_] })
 $summary.Property(7) = "$platform;" + ($ids -join ',')
 $summary.Persist()
 $db.Commit()
-exit 0
+$exitCode = 0
+} finally {
+    # Runs on every exit path (exit inside try included); release COM handles first so nothing locks the folder.
+    $view = $null; $summary = $null; $db = $null; $installer = $null
+    [GC]::Collect(); [GC]::WaitForPendingFinalizers()
+    Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
+}
+exit $exitCode

@@ -3,7 +3,7 @@ package dev.belyaevad.texttools.app.ui.settings
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,12 +27,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.belyaevad.texttools.app.ui.AppField
 import dev.belyaevad.texttools.app.ui.AppSecondaryButton
 import dev.belyaevad.texttools.app.ui.AppSelect
 import dev.belyaevad.texttools.domain.CatalogEntry
@@ -105,7 +108,7 @@ fun SettingsApiTab(
             modifier = Modifier.padding(top = 4.dp),
         )
         FieldLabel(stringResource(Res.string.settings_api_key), Modifier.padding(top = 4.dp))
-        LineField(
+        AppField(
             value = form.apiKey,
             onValueChange = { form.apiKey = it },
             modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
@@ -123,7 +126,7 @@ fun SettingsApiTab(
                 },
             )
             Text(stringResource(Res.string.settings_proxy), fontSize = 13.sp, modifier = Modifier.width(72.dp))
-            LineField(
+            AppField(
                 value = form.proxy,
                 onValueChange = {
                     form.proxy = it
@@ -138,7 +141,7 @@ fun SettingsApiTab(
             Modifier.padding(start = 108.dp, top = 2.dp),
         )
         FieldLabel(stringResource(Res.string.settings_model), Modifier.padding(top = 4.dp))
-        LineField(
+        AppField(
             value = form.defaultModel,
             onValueChange = { form.defaultModel = it },
             modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
@@ -324,9 +327,8 @@ private fun ModelRow(
         Row(
             Modifier
                 .weight(1f)
-                .pointerInput(id) {
-                    detectTapGestures(onTap = { onSelect() }, onDoubleTap = { onDoubleClick() })
-                },
+                .combinedClickable(role = Role.Button, onClick = { onSelect() }, onDoubleClick = { onDoubleClick() })
+                .semantics { this.selected = rowSelected },
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Cell(if (starred) "★ $id" else id, Modifier.weight(3f), TextAlign.Start)

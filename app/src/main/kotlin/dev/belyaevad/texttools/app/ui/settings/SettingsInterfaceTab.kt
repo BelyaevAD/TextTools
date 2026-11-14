@@ -6,13 +6,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.belyaevad.texttools.app.ui.AppField
 import dev.belyaevad.texttools.app.ui.AppSelect
 import org.jetbrains.compose.resources.stringResource
 import texttools.app.generated.resources.Res
@@ -28,7 +28,6 @@ import texttools.app.generated.resources.settings_profile_model_hint
 import texttools.app.generated.resources.settings_profiling
 import texttools.app.generated.resources.settings_sentry_errors
 import texttools.app.generated.resources.settings_sentry_hint
-import texttools.app.generated.resources.settings_sentry_traces
 import texttools.app.generated.resources.settings_ui_lang
 import texttools.app.generated.resources.settings_ui_lang_hint
 
@@ -40,7 +39,6 @@ import texttools.app.generated.resources.settings_ui_lang_hint
 fun SettingsInterfaceTab(
     form: SettingsForm,
     uiLanguages: List<UiLanguageChoice>,
-    status: String?,
 ) {
     val choices = uiChoices(form.uiLang, uiLanguages)
     Column(Modifier.fillMaxSize()) {
@@ -48,13 +46,13 @@ fun SettingsInterfaceTab(
         LanguageBox(form = form, choices = choices, modifier = Modifier.padding(top = 4.dp))
         Hint(stringResource(Res.string.settings_ui_lang_hint), Modifier.fillMaxWidth().padding(top = 4.dp))
         FieldLabel(stringResource(Res.string.settings_hotkey), Modifier.padding(top = 12.dp))
-        LineField(
+        AppField(
             value = form.hotkey,
             onValueChange = { form.hotkey = it },
             modifier = Modifier.width(280.dp).padding(top = 4.dp),
         )
         FieldLabel(stringResource(Res.string.settings_hotkey_repeat), Modifier.padding(top = 12.dp))
-        LineField(
+        AppField(
             value = form.hotkeyRepeat,
             onValueChange = { form.hotkeyRepeat = it },
             modifier = Modifier.width(280.dp).padding(top = 4.dp),
@@ -85,35 +83,26 @@ fun SettingsInterfaceTab(
             onCheckedChange = { form.sentryErrors = it },
             modifier = Modifier.padding(top = 12.dp),
         )
-        CheckLine(
-            checked = form.sentryTraces,
-            label = stringResource(Res.string.settings_sentry_traces),
-            onCheckedChange = { form.sentryTraces = it },
-            modifier = Modifier.padding(top = 4.dp),
-        )
         Hint(stringResource(Res.string.settings_sentry_hint), Modifier.fillMaxWidth().padding(top = 4.dp))
         Row(
             Modifier.fillMaxWidth().padding(top = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(stringResource(Res.string.settings_clip_wait), fontSize = 13.sp, modifier = Modifier.weight(1f))
-            LineField(
+            AppField(
                 value = form.clipWait,
                 onValueChange = { form.clipWait = it },
                 modifier = Modifier.width(80.dp),
             )
         }
         Hint(stringResource(Res.string.settings_endpoints), Modifier.fillMaxWidth().padding(top = 16.dp))
-        if (status != null) {
-            Text(status, color = MaterialTheme.colorScheme.error, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
-        }
     }
 }
 
 @Composable
 private fun ProfileModelBox(form: SettingsForm) {
     val fallback = stringResource(Res.string.settings_profile_model_default)
-    val ids = form.models.map { it.id }.distinct()
+    val ids = (form.models.map { it.id } + form.profileModel.trim()).filter { it.isNotEmpty() }.distinct()
     val options = listOf(fallback) + ids
     val selected = if (form.profileModel.isBlank()) 0 else ids.indexOf(form.profileModel) + 1
     FieldLabel(stringResource(Res.string.settings_profile_model), Modifier.padding(top = 4.dp))

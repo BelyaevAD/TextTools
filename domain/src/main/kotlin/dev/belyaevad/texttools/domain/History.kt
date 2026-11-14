@@ -21,16 +21,3 @@ fun trimConversation(messages: List<ChatMessage>): List<ChatMessage> {
     }
     return listOf(messages.first()) + messages.subList(start, messages.size)
 }
-
-/** Appends a history row and keeps the newest 20. */
-fun appendHistory(
-    current: List<HistoryEntry>,
-    entry: HistoryEntry,
-): List<HistoryEntry> =
-    (
-        current +
-            entry.copy(
-                source = trimStored(entry.source),
-                result = trimStored(entry.result),
-            )
-    ).takeLast(HISTORY_LIMIT)

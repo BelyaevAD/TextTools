@@ -20,7 +20,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 data class SentryFile(
     val dsn: String = "",
     val environment: String = "",
-    val tracesSampleRate: Double = 0.0,
 )
 
 /**
@@ -52,19 +51,16 @@ fun loadSentryFile(path: Path?): SentryFile {
     }
 }
 
-/** Parses keys `dsn`, `environment`, and `traces-sample-rate`. The rate stays inside 0..1. */
-fun parseSentryConfig(props: Properties): SentryFile {
-    val rate = props.getProperty("traces-sample-rate")?.trim()?.toDoubleOrNull() ?: 0.0
-    return SentryFile(
+/** Parses keys `dsn` and `environment`. */
+fun parseSentryConfig(props: Properties): SentryFile =
+    SentryFile(
         dsn = props.getProperty("dsn").orEmpty().trim(),
         environment = props.getProperty("environment").orEmpty().trim(),
-        tracesSampleRate = rate.coerceIn(0.0, 1.0),
     )
-}
 
 /**
- * Turns the SDK on only when the file has a DSN and at least one switch is set.
- * Both switches off, or a blank DSN, closes the client.
+ * Turns the SDK on only when the file has a DSN and the error switch is set.
+ * The switch off, or a blank DSN, closes the client.
  * The error switch also sends failures passed to [reportFailure].
  */
 fun applySentry(
@@ -72,21 +68,23 @@ fun applySentry(
     settings: Settings,
 ) {
     val sendErrors = file.dsn.isNotEmpty() && settings.sentryErrors
-    val sendTraces = file.dsn.isNotEmpty() && settings.sentryTraces
     reportErrors.set(sendErrors)
-    if (!sendErrors && !sendTraces) {
-        sentryConfigured.set(false)
+    if (!sendErrors) {
         if (Sentry.isEnabled()) Sentry.close()
         return
     }
-    Sentry.init { options ->
-        options.dsn = file.dsn
-        options.environment = file.environment.ifBlank { null }
-        options.isEnableUncaughtExceptionHandler = sendErrors
-        options.tracesSampleRate = if (sendTraces) file.tracesSampleRate else 0.0
-        options.beforeSend = SentryOptions.BeforeSendCallback { event, _ -> scrubEvent(event) }
-        sentryConfigured.set(true)
-    }
+    Sentry.init { options -> configureSentryOptions(options, file) }
+}
+
+internal fun configureSentryOptions(
+    options: SentryOptions,
+    file: SentryFile,
+) {
+    options.dsn = file.dsn
+    options.environment = file.environment.ifBlank { null }
+    options.isEnableUncaughtExceptionHandler = true
+    options.isAttachServerName = false // the machine name is not in the documented list of what is sent
+    options.beforeSend = SentryOptions.BeforeSendCallback { event, _ -> scrubEvent(event) }
 }
 
 /** Sends [error] when the error switch is on. Cancellation is ignored. A timeout is sent. */
@@ -117,11 +115,10 @@ private fun scrubEvent(event: SentryEvent): SentryEvent {
 }
 
 private val reportErrors = AtomicBoolean(false)
-internal val sentryConfigured = AtomicBoolean(false)
 
 private val BEARER = Regex("(?i)bearer\\s+\\S+")
 private val PROXY_USER = Regex("://[^\\s/@]+:[^\\s/@]+@")
-private val SK_KEY = Regex("sk-[A-Za-z0-9_\\-]{8,}")
+private val SK_KEY = Regex("\\bsk-[A-Za-z0-9_\\-]{8,}")
 
 private const val SENTRY_FILE = "sentry.properties"
 private const val FLUSH_MILLIS = 2_000L

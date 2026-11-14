@@ -90,6 +90,60 @@ class HotkeySwapTest {
     }
 
     @Test
+    fun anEmptyRepeatRegistersOnlyTheMenuChord() {
+        if (!windowsHost()) return
+        val port = FakeHotkeyPort()
+        val hotkeys = WinHotkeys({}, port)
+        try {
+            assertTrue(hotkeys.start("^!Space", ""))
+            assertNull(port.chord(REPEAT_HOTKEY_ID))
+            assertTrue(hotkeys.swap("^!Enter", ""))
+            assertEquals(chord("^!Enter"), port.chord(MENU_HOTKEY_ID))
+            assertNull(port.chord(REPEAT_HOTKEY_ID))
+        } finally {
+            hotkeys.stop()
+        }
+    }
+
+    @Test
+    fun anEmptyRepeatDropsTheOldRepeatChord() {
+        val port = FakeHotkeyPort()
+        val registration = HotkeyRegistration(port)
+        assertTrue(registration.replace(chord("^!Space"), chord("^+Space")))
+        assertTrue(registration.replace(chord("^!Enter"), null))
+        assertEquals(chord("^!Enter"), port.chord(MENU_HOTKEY_ID))
+        assertNull(port.chord(REPEAT_HOTKEY_ID))
+    }
+
+    @Test
+    fun aRefusedMenuWithoutRepeatRestoresThePreviousPair() {
+        val port = FakeHotkeyPort()
+        val registration = HotkeyRegistration(port)
+        val menu = chord("^!Space")
+        val repeat = chord("^+Space")
+        assertTrue(registration.replace(menu, repeat))
+        port.refuse(setOf(chord("^#Space")))
+        assertFalse(registration.replace(chord("^#Space"), null))
+        assertEquals(menu, port.chord(MENU_HOTKEY_ID))
+        assertEquals(repeat, port.chord(REPEAT_HOTKEY_ID))
+    }
+
+    @Test
+    fun theStartupFallbackKeepsAnEmptyRepeatEmpty() {
+        if (!windowsHost()) return
+        val port = FakeHotkeyPort()
+        val hotkeys = WinHotkeys({}, port)
+        port.refuse(setOf(chord("^Space")))
+        try {
+            assertTrue(hotkeys.start("^Space", ""))
+            assertEquals(chord("^!Space"), port.chord(MENU_HOTKEY_ID))
+            assertNull(port.chord(REPEAT_HOTKEY_ID))
+        } finally {
+            hotkeys.stop()
+        }
+    }
+
+    @Test
     fun swapBeforeTheLoopDoesNotRegister() {
         val port = FakeHotkeyPort()
         val hotkeys = WinHotkeys({}, port)

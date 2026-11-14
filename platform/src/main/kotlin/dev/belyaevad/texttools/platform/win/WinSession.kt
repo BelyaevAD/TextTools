@@ -5,25 +5,30 @@ import com.sun.jna.NativeLibrary
 import com.sun.jna.Pointer
 import com.sun.jna.Structure
 import com.sun.jna.platform.win32.Advapi32
+import com.sun.jna.platform.win32.Advapi32Util
 import com.sun.jna.platform.win32.Crypt32
 import com.sun.jna.platform.win32.Kernel32
 import com.sun.jna.platform.win32.User32
+import com.sun.jna.platform.win32.Win32Exception
 import com.sun.jna.platform.win32.WinCrypt
 import com.sun.jna.platform.win32.WinDef.HWND
 import com.sun.jna.platform.win32.WinDef.POINT
 import com.sun.jna.platform.win32.WinDef.RECT
 import com.sun.jna.platform.win32.WinNT
+import com.sun.jna.platform.win32.WinReg
 import com.sun.jna.platform.win32.WinUser
 import com.sun.jna.platform.win32.WinUser.MSG
 import com.sun.jna.ptr.IntByReference
 import com.sun.jna.win32.StdCallLibrary
 import dev.belyaevad.texttools.platform.ClipIo
+import java.awt.EventQueue
 import java.awt.GraphicsEnvironment
 import java.awt.Robot
 import java.awt.Toolkit
 import java.awt.Window
 import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.StringSelection
+import java.awt.datatransfer.UnsupportedFlavorException
 import java.awt.event.KeyEvent
 import java.io.IOException
 import java.nio.file.Files
@@ -33,11 +38,13 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.math.ceil
 
 private const val MOD_ALT = 0x0001
 private const val MOD_CONTROL = 0x0002
 private const val MOD_SHIFT = 0x0004
 private const val MOD_WIN = 0x0008
+private const val MOD_NOREPEAT = 0x4000
 private const val VK_SPACE = 0x20
 private const val WM_HOTKEY = 0x0312
 private const val WM_QUIT = 0x0012
@@ -46,15 +53,19 @@ private const val SW_RESTORE = 9
 private const val ACTIVATE_WAIT_MILLIS = 2_000L
 private const val ACTIVATE_POLL_MILLIS = 20L
 private const val PASTE_SETTLE_MILLIS = 150L
+private const val PASTE_AFTER_WRITE_MILLIS = 50L
+private const val MODIFIER_WAIT_MILLIS = 1_000L
+private const val MODIFIER_POLL_MILLIS = 10L
+private const val CLIP_LOCK_TRIES = 5
+private const val CLIP_LOCK_PAUSE_MILLIS = 20L
 private const val ERROR_ALREADY_EXISTS = 183
 private const val TOKEN_ELEVATION = 20
 private const val CF_BITMAP = 2
-private const val CARET_DROP_PX = 24
 private const val MENU_MARGIN_PX = 6
 private const val RESULT_GAP_PX = 12
-private const val WINDOW_ANCHOR_X = 32
-private const val WINDOW_ANCHOR_Y = 48
 private const val RUN_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run"
+private const val RUN_PATH = "Software\\Microsoft\\Windows\\CurrentVersion\\Run"
+private const val RUN_VALUE = "TextTools"
 private const val MUTEX_NAME = "Local\\TextTools"
 
 internal const val MENU_HOTKEY_ID = 1
@@ -133,20 +144,18 @@ internal class HotkeyRegistration(
     private var menu: Chord? = null
     private var repeat: Chord? = null
 
-    fun hasAny(): Boolean = menu != null || repeat != null
-
     fun menuReady(): Boolean = menu != null
 
     fun replace(
         nextMenu: Chord,
-        nextRepeat: Chord,
+        nextRepeat: Chord?,
     ): Boolean {
         val previousMenu = menu
         val previousRepeat = repeat
         if (menu != null) port.unregister(MENU_HOTKEY_ID)
         if (repeat != null) port.unregister(REPEAT_HOTKEY_ID)
         val menuOk = port.register(MENU_HOTKEY_ID, nextMenu)
-        val repeatOk = port.register(REPEAT_HOTKEY_ID, nextRepeat)
+        val repeatOk = nextRepeat != null && port.register(REPEAT_HOTKEY_ID, nextRepeat)
         if (!menuOk && !repeatOk) {
             menu = restore(MENU_HOTKEY_ID, previousMenu)
             repeat = restore(REPEAT_HOTKEY_ID, previousRepeat)
@@ -154,7 +163,7 @@ internal class HotkeyRegistration(
         }
         menu = if (menuOk) nextMenu else null
         repeat = if (repeatOk) nextRepeat else null
-        return menuOk && repeatOk
+        return menuOk && (repeatOk || nextRepeat == null)
     }
 
     fun clear() {
@@ -238,7 +247,7 @@ class WinHotkeys internal constructor(
         repeat: String,
     ): Boolean {
         val menuChord = parseChord(menu) ?: return false
-        val repeatChord = parseChord(repeat) ?: return false
+        val repeatChord = if (repeat.isBlank()) null else parseChord(repeat) ?: return false
         if (!running.get()) return false
         val job = SwapJob(menuChord, repeatChord, CompletableFuture())
         jobs.offer(job)
@@ -274,8 +283,8 @@ class WinHotkeys internal constructor(
             User32.INSTANCE.PeekMessage(MSG(), null, 0, 0, 0)
             running.set(true)
             val menuChord = parseChord(initialMenu) ?: parseChord(FACTORY_MENU_HOTKEY)
-            val repeatChord = parseChord(initialRepeat) ?: parseChord(FACTORY_REPEAT_HOTKEY)
-            if (menuChord != null && repeatChord != null) {
+            val repeatChord = if (initialRepeat.isBlank()) null else parseChord(initialRepeat) ?: parseChord(FACTORY_REPEAT_HOTKEY)
+            if (menuChord != null) {
                 jobs.offer(SwapJob(menuChord, repeatChord, CompletableFuture(), initial = true))
                 val posted = User32.INSTANCE.PostThreadMessage(threadId, WM_SWAP, null, null)
                 if (posted == 0) {
@@ -322,8 +331,8 @@ class WinHotkeys internal constructor(
         var accepted = registration.replace(job.menu, job.repeat)
         if (job.initial && !registration.menuReady()) {
             val factoryMenu = parseChord(FACTORY_MENU_HOTKEY)
-            val factoryRepeat = parseChord(FACTORY_REPEAT_HOTKEY)
-            if (factoryMenu != null && factoryRepeat != null) {
+            val factoryRepeat = parseChord(FACTORY_REPEAT_HOTKEY).takeIf { job.repeat != null }
+            if (factoryMenu != null) {
                 accepted = registration.replace(factoryMenu, factoryRepeat)
             }
         }
@@ -334,7 +343,7 @@ class WinHotkeys internal constructor(
 
 private data class SwapJob(
     val menu: Chord,
-    val repeat: Chord,
+    val repeat: Chord?,
     val answer: CompletableFuture<Boolean>,
     val initial: Boolean = false,
 )
@@ -343,65 +352,27 @@ private class User32HotkeyPort : HotkeyPort {
     override fun register(
         id: Int,
         chord: Chord,
-    ): Boolean = User32.INSTANCE.RegisterHotKey(null, id, chord.modifiers, chord.virtualKey)
+    ): Boolean = User32.INSTANCE.RegisterHotKey(null, id, chord.modifiers or MOD_NOREPEAT, chord.virtualKey)
 
     override fun unregister(id: Int) {
         User32.INSTANCE.UnregisterHotKey(null, id)
     }
 }
 
-/** What the second process should do. It never terminates the process that already holds the mutex. */
-enum class InstanceAction { Continue, FocusAndExit }
-
-/** Focus-and-exit when another TextTools already owns the session. */
-internal fun instanceAction(alreadyRunning: Boolean): InstanceAction =
-    if (alreadyRunning) InstanceAction.FocusAndExit else InstanceAction.Continue
-
 /**
- * Runs [focusFirst] and [exitThisProcess] only for [InstanceAction.FocusAndExit].
- * There is no path that stops another process.
+ * Claims `Local\TextTools`. True when this process is the first; the second caller gets false and does not own the mutex.
+ * A failure to create the mutex continues, so this process does not kill anyone else. Nothing here stops another process.
  */
-fun runInstanceAction(
-    action: InstanceAction,
-    focusFirst: () -> Unit,
-    exitThisProcess: () -> Unit,
-) {
-    if (action == InstanceAction.FocusAndExit) {
-        focusFirst()
-        exitThisProcess()
-    }
-}
-
-private object HeldMutex {
-    var handle: WinNT.HANDLE? = null
-}
-
-/**
- * Claims `Local\TextTools`. The second caller gets [InstanceAction.FocusAndExit] and does not own the mutex.
- * A failure to create the mutex continues, so this process does not kill anyone else.
- */
-fun claimFirstInstance(): InstanceAction {
+fun claimFirstInstance(): Boolean {
+    if (!windowsHost()) return true
     val kernel = Kernel32.INSTANCE
     kernel.SetLastError(0)
-    val created = kernel.CreateMutex(null, true, MUTEX_NAME) ?: return InstanceAction.Continue
+    val created = kernel.CreateMutex(null, true, MUTEX_NAME) ?: return true
     if (kernel.GetLastError() == ERROR_ALREADY_EXISTS) {
         kernel.CloseHandle(created)
-        return InstanceAction.FocusAndExit
+        return false
     }
-    HeldMutex.handle = created
-    return InstanceAction.Continue
-}
-
-/** Moves the foreground to an existing TextTools window. Does nothing when that window is absent. */
-fun focusFirstTextToolsWindow() {
-    val hwnd = User32.INSTANCE.FindWindow(null, "TextTools") ?: return
-    User32.INSTANCE.ShowWindow(hwnd, SW_RESTORE)
-    User32.INSTANCE.SetForegroundWindow(hwnd)
-}
-
-/** Second launch focuses the first window and exits through [exitThisProcess]. */
-fun enterSingleInstance(exitThisProcess: () -> Unit) {
-    runInstanceAction(claimFirstInstance(), ::focusFirstTextToolsWindow, exitThisProcess)
+    return true
 }
 
 /** Screen point in pixels. */
@@ -433,83 +404,6 @@ data class WindowBounds(
     val bottom: Int,
 ) {
     fun contains(point: ScreenPoint): Boolean = point.x >= left && point.x < right && point.y >= top && point.y < bottom
-
-    /** A point inside the window, inset from its top-left. Used when the caret is missing or outside. */
-    fun anchor(): ScreenPoint {
-        val x = (left + WINDOW_ANCHOR_X).coerceAtMost((right - 1).coerceAtLeast(left))
-        val y = (top + WINDOW_ANCHOR_Y).coerceAtMost((bottom - 1).coerceAtLeast(top))
-        return ScreenPoint(x, y)
-    }
-}
-
-/**
- * Where the action menu should open.
- * A caret inside [window] is an input field: the menu opens 24px below it.
- * No caret means there is no input field, so the menu opens at [cursor].
- * The point is clamped by 6px inside the work area that contains it.
- * Returns coordinates only. Does not open a window.
- */
-fun menuPosition(
-    caret: ScreenPoint?,
-    cursor: ScreenPoint,
-    menuWidth: Int,
-    menuHeight: Int,
-    workAreas: List<WorkArea>,
-    window: WindowBounds? = null,
-): ScreenPoint {
-    val usable = caret?.takeUnless { it.x == 0 && it.y == 0 }
-    val frame = window?.takeIf { it.right > it.left && it.bottom > it.top }
-    val useCaret = usable != null && (frame == null || frame.contains(usable))
-    val x = if (useCaret) usable.x else cursor.x
-    val y = if (useCaret) usable.y + CARET_DROP_PX else cursor.y
-    val area = workAreas.firstOrNull { it.containsX(x) && it.containsY(y) } ?: nearestWorkArea(x, y, workAreas)
-    if (area == null) return ScreenPoint(x, y)
-    val minX = area.left + MENU_MARGIN_PX
-    val minY = area.top + MENU_MARGIN_PX
-    val maxX = (area.right - menuWidth - MENU_MARGIN_PX).coerceAtLeast(minX)
-    val maxY = (area.bottom - menuHeight - MENU_MARGIN_PX).coerceAtLeast(minY)
-    return ScreenPoint(x.coerceIn(minX, maxX), y.coerceIn(minY, maxY))
-}
-
-/**
- * A point for a result window beside [window], on the same work area.
- * The right side is tried first, then the left, then below. A side that would
- * hang off the work area is shifted until it fits, so a low window still gets
- * the result beside it. shortcut: a source that fills the work area is covered,
- * because no side fits.
- */
-fun besideWindow(
-    window: WindowBounds,
-    width: Int,
-    height: Int,
-    areas: List<WorkArea>,
-): ScreenPoint {
-    val centerX = (window.left + window.right) / 2
-    val centerY = (window.top + window.bottom) / 2
-    val area =
-        areas.firstOrNull { it.containsX(centerX) && it.containsY(centerY) }
-            ?: nearestWorkArea(centerX, centerY, areas)
-            ?: return ScreenPoint(window.right + RESULT_GAP_PX, window.top)
-    val minX = area.left + MENU_MARGIN_PX
-    val minY = area.top + MENU_MARGIN_PX
-    val maxX = (area.right - width - MENU_MARGIN_PX).coerceAtLeast(minX)
-    val maxY = (area.bottom - height - MENU_MARGIN_PX).coerceAtLeast(minY)
-
-    fun place(
-        x: Int,
-        y: Int,
-    ) = ScreenPoint(x.coerceIn(minX, maxX), y.coerceIn(minY, maxY))
-
-    fun covers(point: ScreenPoint): Boolean {
-        val right = point.x + width
-        val bottom = point.y + height
-        return point.x < window.right && right > window.left && point.y < window.bottom && bottom > window.top
-    }
-
-    val right = place(window.right + RESULT_GAP_PX, window.top)
-    val left = place(window.left - width - RESULT_GAP_PX, window.top)
-    val below = place(window.left, window.bottom + RESULT_GAP_PX)
-    return listOf(right, left, below).firstOrNull { !covers(it) } ?: right
 }
 
 /**
@@ -637,14 +531,14 @@ internal fun controlBounds(hwnd: HWND): WindowBounds? {
         val rect = RECT()
         if (!User32.INSTANCE.GetWindowRect(control, rect)) return null
         if (rect.right <= rect.left || rect.bottom <= rect.top) return null
-        WindowBounds(rect.left, rect.top, rect.right, rect.bottom)
+        userSpace(WindowBounds(rect.left, rect.top, rect.right, rect.bottom))
     } catch (_: Throwable) {
         null
     }
 }
 
 /**
- * Caret of [hwnd], in screen pixels, read before the clipboard capture moves focus.
+ * Caret of [hwnd], in AWT user space like [java.awt.MouseInfo], read before the clipboard capture moves focus.
  * An empty caret rectangle means the control did not publish one.
  */
 fun caretScreenPoint(hwnd: HWND): ScreenPoint? {
@@ -664,7 +558,7 @@ fun caretScreenPoint(hwnd: HWND): ScreenPoint? {
         point.x = rect.left
         point.y = rect.top
         if (!CaretUser32.INSTANCE.ClientToScreen(caret, point)) return null
-        ScreenPoint(point.x, point.y)
+        userSpace(ScreenPoint(point.x, point.y))
     } catch (_: Throwable) {
         null
     }
@@ -685,7 +579,7 @@ fun currentWorkAreas(): List<WorkArea> {
     }
 }
 
-private fun nearestWorkArea(
+internal fun nearestWorkArea(
     x: Int,
     y: Int,
     areas: List<WorkArea>,
@@ -730,12 +624,6 @@ fun installedAutostart(exe: Path): RunCommand {
     return RunCommand(RUN_KEY, "TextTools", "\"$text\"")
 }
 
-/** True when [command] is exactly the command [installedAutostart] would build for [exe]. */
-fun autostartMatchesInstall(
-    command: RunCommand,
-    exe: Path,
-): Boolean = command == installedAutostart(exe)
-
 /**
  * The running program, when it is an installed exe.
  * `java.exe` and `javaw.exe` are the development launch, not an install.
@@ -773,35 +661,20 @@ fun autostartEnabled(
     registryMatches: Boolean,
 ): Boolean = stored ?: registryMatches
 
-/** The TextTools value from `reg query` output. Null when the value is absent. */
-fun parseRunValue(
-    output: String,
-    valueName: String = "TextTools",
-): String? {
-    val marker = "REG_SZ"
-    val line =
-        output.lineSequence().map { it.trim() }.firstOrNull { row ->
-            row.startsWith(valueName, ignoreCase = true) && row.contains(marker)
-        } ?: return null
-    val at = line.indexOf(marker)
-    if (at < 0) return null
-    return line.substring(at + marker.length).trim()
-}
-
 /**
  * Writes or removes the HKCU Run value for an installed exe.
  * A development launch has no exe and this call does nothing.
+ * A refused registry call is ignored, as the old `reg.exe` exit codes were: it must not stop the start or Settings.
  */
 class WindowsRunKey {
     fun read(): String? {
         if (!windowsHost()) return null
-        val process =
-            ProcessBuilder("reg", "query", RUN_KEY, "/v", "TextTools")
-                .redirectErrorStream(true)
-                .start()
-        val text = process.inputStream.readBytes().toString(Charsets.UTF_8)
-        if (process.waitFor() != 0) return null
-        return parseRunValue(text)
+        return try {
+            if (!Advapi32Util.registryValueExists(WinReg.HKEY_CURRENT_USER, RUN_PATH, RUN_VALUE)) return null
+            Advapi32Util.registryGetStringValue(WinReg.HKEY_CURRENT_USER, RUN_PATH, RUN_VALUE)
+        } catch (_: RuntimeException) {
+            null // Win32Exception, or a value that is not a string: both read as "no TextTools command"
+        }
     }
 
     fun apply(
@@ -811,16 +684,15 @@ class WindowsRunKey {
         if (!windowsHost()) return
         val desired = if (enabled) installedAutostart(exe).command else null
         if (read() == desired) return
-        if (desired == null) {
-            ProcessBuilder("reg", "delete", RUN_KEY, "/v", "TextTools", "/f")
-                .redirectErrorStream(true)
-                .start()
-                .waitFor()
-        } else {
-            ProcessBuilder("reg", "add", RUN_KEY, "/v", "TextTools", "/t", "REG_SZ", "/d", desired, "/f")
-                .redirectErrorStream(true)
-                .start()
-                .waitFor()
+        try {
+            if (desired == null) {
+                Advapi32Util.registryDeleteValue(WinReg.HKEY_CURRENT_USER, RUN_PATH, RUN_VALUE)
+            } else {
+                Advapi32Util.registryCreateKey(WinReg.HKEY_CURRENT_USER, RUN_PATH) // reg add created a missing Run key too
+                Advapi32Util.registrySetStringValue(WinReg.HKEY_CURRENT_USER, RUN_PATH, RUN_VALUE, desired)
+            }
+        } catch (_: Win32Exception) {
+            // A refused write leaves the value as it was; the next start or save tries again.
         }
     }
 }
@@ -959,32 +831,77 @@ internal class AwtClip(
     private val clipboard = Toolkit.getDefaultToolkit().systemClipboard
     private val robot = Robot()
 
+    @Volatile
+    private var target: HWND? = null
+
     override fun readText(): String? =
-        try {
-            clipboard.getData(DataFlavor.stringFlavor) as? String
-        } catch (_: Exception) {
-            null
+        whenUnlocked {
+            try {
+                clipboard.getData(DataFlavor.stringFlavor) as? String ?: ""
+            } catch (_: UnsupportedFlavorException) {
+                "" // no text on the clipboard is not a lock
+            } catch (_: IOException) {
+                "" // advertised text that cannot be fetched is not a lock either
+            }
         }
 
     override fun writeText(text: String): Boolean =
-        try {
+        whenUnlocked {
             clipboard.setContents(StringSelection(text), null)
             true
-        } catch (_: Exception) {
-            false
+        } ?: false
+
+    /** AWT throws IllegalStateException while another process holds the clipboard. */
+    private fun <T : Any> whenUnlocked(block: () -> T): T? {
+        // No retry pause if a caller ever reads the clipboard from the UI thread; capture and paste run on IO.
+        val tries = if (EventQueue.isDispatchThread()) 1 else CLIP_LOCK_TRIES
+        repeat(tries) { attempt ->
+            try {
+                return block()
+            } catch (_: IllegalStateException) {
+                if (attempt < tries - 1) Thread.sleep(CLIP_LOCK_PAUSE_MILLIS)
+            } catch (_: IOException) {
+                return null
+            }
         }
+        return null
+    }
 
     override fun sendCopy() {
-        if (windowsHost()) chord(KeyEvent.VK_C)
+        if (!windowsHost()) return
+        waitForModifiersUp()
+        target = focus()
+        chord(KeyEvent.VK_C)
+    }
+
+    // VK_MENU (Alt), VK_SHIFT, VK_LWIN, VK_RWIN. A held Ctrl is fine: Ctrl+C is what we send.
+    private val heldModifiers = intArrayOf(0x12, 0x10, 0x5B, 0x5C)
+
+    /** The hotkey's Alt, Shift or Win may still be down; the source would then see Ctrl+Alt+C or Ctrl+Shift+C. */
+    private fun waitForModifiersUp() {
+        val deadline = System.currentTimeMillis() + MODIFIER_WAIT_MILLIS
+        while (System.currentTimeMillis() < deadline &&
+            heldModifiers.any { User32.INSTANCE.GetAsyncKeyState(it).toInt() < 0 }
+        ) {
+            Thread.sleep(MODIFIER_POLL_MILLIS)
+        }
     }
 
     override fun sendPaste() {
-        if (windowsHost()) chord(KeyEvent.VK_V)
+        if (!windowsHost()) return
+        Thread.sleep(PASTE_AFTER_WRITE_MILLIS) // let clipboard watchers release the update before Ctrl+V
+        chord(KeyEvent.VK_V)
     }
+
+    override fun forgetSource() {
+        target = null
+    }
+
+    override fun hasCapturedSource(): Boolean = target != null
 
     override fun activateSource(): Boolean {
         if (!windowsHost()) return false
-        val hwnd = focus() ?: return false
+        val hwnd = target ?: focus() ?: return false
         val user32 = User32.INSTANCE
         if (shouldRestoreWindow(isIconic(hwnd))) user32.ShowWindow(hwnd, SW_RESTORE)
         if (!user32.SetForegroundWindow(hwnd)) return false
@@ -998,7 +915,7 @@ internal class AwtClip(
     }
 
     override fun canAcceptText(): Boolean {
-        val hwnd = focus() ?: return false
+        val hwnd = target ?: focus() ?: return false
         if (caretScreenPoint(hwnd) != null) return true
         return focusedInputAcceptsText(hwnd)
     }
@@ -1007,7 +924,7 @@ internal class AwtClip(
 
     override fun elevatedForeign(): Boolean {
         if (!windowsHost()) return false
-        val hwnd = focus() ?: return false
+        val hwnd = target ?: focus() ?: return false
         val pid = IntByReference()
         User32.INSTANCE.GetWindowThreadProcessId(hwnd, pid)
         val own = Kernel32.INSTANCE.GetCurrentProcessId()
@@ -1075,11 +992,14 @@ fun decoratedFrameSlack(window: Window): Pair<Int, Int> {
                 visible.size(),
             )
         if (status != 0) return 0 to 0
+        val transform = window.graphicsConfiguration.defaultTransform
         frameSlack(
             outer.right - outer.left,
             outer.bottom - outer.top,
             visible.right - visible.left,
             visible.bottom - visible.top,
+            transform.scaleX,
+            transform.scaleY,
         )
     } catch (_: UnsatisfiedLinkError) {
         0 to 0
@@ -1088,13 +1008,20 @@ fun decoratedFrameSlack(window: Window): Pair<Int, Int> {
     }
 }
 
-/** Non-negative gap from an outer rectangle down to the visible one. */
+/**
+ * Non-negative gap from an outer rectangle down to the visible one, both in device pixels,
+ * returned in AWT user space (divided by the window's scale, rounded up so the frame is never short).
+ */
 internal fun frameSlack(
     outerWidth: Int,
     outerHeight: Int,
     visibleWidth: Int,
     visibleHeight: Int,
-): Pair<Int, Int> = (outerWidth - visibleWidth).coerceAtLeast(0) to (outerHeight - visibleHeight).coerceAtLeast(0)
+    scaleX: Double,
+    scaleY: Double,
+): Pair<Int, Int> =
+    ceil((outerWidth - visibleWidth).coerceAtLeast(0) / scaleX).toInt() to
+        ceil((outerHeight - visibleHeight).coerceAtLeast(0) / scaleY).toInt()
 
 private interface DwmapiLib : StdCallLibrary {
     @Suppress("ktlint:standard:function-naming")
@@ -1115,12 +1042,6 @@ private interface DwmapiLib : StdCallLibrary {
 internal fun windowsHost(): Boolean = windowsHost(System.getProperty("os.name").orEmpty())
 
 internal fun windowsHost(osName: String): Boolean = osName.lowercase().contains("win")
-
-/** Process file name and title of the remembered source window. Empty when there is none. */
-data class SourceApp(
-    val proc: String,
-    val title: String,
-)
 
 /** File name at the end of a Windows or POSIX path. */
 fun exeFileName(path: String): String {
@@ -1143,12 +1064,6 @@ data class SourceSnapshot(
     val bounds: WindowBounds?,
 )
 
-/** Process and title for the app-profile hint. The window handle stays in this module. */
-fun sourceApp(watch: ForegroundWatch): SourceApp {
-    val shot = sourceSnapshot(watch)
-    return SourceApp(shot.proc, shot.title)
-}
-
 /** The foreground user window, read before the clipboard capture and before this process opens a window. */
 fun sourceSnapshot(watch: ForegroundWatch): SourceSnapshot {
     if (!windowsHost()) return SourceSnapshot("", "", "", null)
@@ -1160,7 +1075,7 @@ private fun windowBounds(hwnd: HWND): WindowBounds? {
     val rect = RECT()
     if (!User32.INSTANCE.GetWindowRect(hwnd, rect)) return null
     if (rect.right <= rect.left || rect.bottom <= rect.top) return null
-    return WindowBounds(rect.left, rect.top, rect.right, rect.bottom)
+    return userSpace(WindowBounds(rect.left, rect.top, rect.right, rect.bottom))
 }
 
 private fun windowClassName(hwnd: HWND): String {
@@ -1222,7 +1137,8 @@ private class DirectorySecretBytes(
 ) : SecretBytes {
     override fun read(slot: SecretSlot): ByteArray? {
         val path = file(slot)
-        if (!Files.isRegularFile(path)) return null
+        // Only a file known to be absent is "no secret"; one that cannot be inspected is an error.
+        if (Files.notExists(path)) return null
         return try {
             Files.readAllBytes(path)
         } catch (_: IOException) {
@@ -1262,6 +1178,7 @@ internal object DpapiProtector : SecretProtector {
         input: ByteArray,
         protect: Boolean,
     ): ByteArray {
+        if (!windowsHost()) throw SecretStoreException("The Windows secret store is unavailable")
         val output = WinCrypt.DATA_BLOB()
         val ok =
             if (protect) {

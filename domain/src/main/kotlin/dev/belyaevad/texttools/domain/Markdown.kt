@@ -22,6 +22,7 @@ sealed class MdBlock {
     data class ListBlock(
         val ordered: Boolean,
         val items: List<String>,
+        val start: Int = 1,
     ) : MdBlock()
 
     /** A table. Rendered only when a separator row was present. */
@@ -101,16 +102,21 @@ private fun readBullets(
     lines: List<String>,
     index: Int,
 ): Pair<MdBlock, Int>? {
-    if (!lines[index].startsWith("- ")) return null
+    if (bullet(lines[index]) == null) return null
     var cursor = index
     val items =
         buildList {
-            while (cursor < lines.size && lines[cursor].startsWith("- ")) {
-                add(lines[cursor].removePrefix("- "))
+            while (cursor < lines.size) {
+                add(bullet(lines[cursor]) ?: break)
                 cursor += 1
             }
         }
     return MdBlock.ListBlock(ordered = false, items) to cursor
+}
+
+private fun bullet(line: String): String? {
+    val text = line.trimStart()
+    return if (text.startsWith("- ") || text.startsWith("* ")) text.drop(2) else null
 }
 
 private fun readNumbers(
@@ -127,7 +133,8 @@ private fun readNumbers(
                 cursor += 1
             }
         }
-    return MdBlock.ListBlock(ordered = true, items) to cursor
+    val start = lines[index].substringBefore('.').toIntOrNull() ?: 1
+    return MdBlock.ListBlock(ordered = true, items, start) to cursor
 }
 
 private fun readHeading(
@@ -136,6 +143,7 @@ private fun readHeading(
 ): Pair<MdBlock, Int>? {
     if (!line.startsWith("#")) return null
     val level = line.takeWhile { it == '#' }.length
+    if (level > 6 || line.getOrNull(level) != ' ') return null
     return MdBlock.Heading(level, line.drop(level).trim()) to (index + 1)
 }
 

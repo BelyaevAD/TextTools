@@ -38,7 +38,6 @@ object Factory {
             appProfiling = false,
             clipWaitSeconds = 0.8,
             sentryErrors = false,
-            sentryTraces = false,
             autostart = true,
             profileModel = "",
         )

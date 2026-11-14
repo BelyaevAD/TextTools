@@ -3,8 +3,8 @@ plugins {
 }
 
 dependencies {
-    implementation(libs.coroutines)
     testImplementation(libs.kotlin.test)
+    testImplementation(libs.coroutines)
 }
 
 kotlin {

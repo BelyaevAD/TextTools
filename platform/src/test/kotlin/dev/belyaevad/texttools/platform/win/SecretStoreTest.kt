@@ -25,6 +25,18 @@ class SecretStoreTest {
     }
 
     @Test
+    fun aSlotThatCannotBeReadIsAnErrorNotAnEmptySlot() {
+        val root = Files.createTempDirectory("texttools-p5-unreadable-")
+        try {
+            Files.createDirectory(root.resolve("proxy-url.dpapi"))
+            val secrets = userSecrets(root, XorProtector)
+            assertFailsWith<SecretStoreException> { secrets.get(SecretSlot.ProxyUrl) }
+        } finally {
+            root.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
     fun plaintextProtectorIsRefused() {
         val root = Files.createTempDirectory("texttools-p5-plain-")
         try {
@@ -75,6 +87,12 @@ class SecretStoreTest {
         } finally {
             root.toFile().deleteRecursively()
         }
+    }
+
+    @Test
+    fun aNonWindowsHostReportsTheStoreUnavailable() {
+        if (windowsHost()) return
+        assertFailsWith<SecretStoreException> { DpapiProtector.protect(byteArrayOf(1)) }
     }
 
     @Test

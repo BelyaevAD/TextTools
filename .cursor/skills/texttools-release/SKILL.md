@@ -17,7 +17,7 @@ Copy the new msi and deb into `dist/`. Those files, and a DMG only when the Mac 
 
 ## Version
 
-The number has three parts, as in `1.1.123`. The changelog heading, the README version line, `packageVersion`, the installer name `TextTools-X.Y.Z.msi`, and the tag are that same number. A user-visible change gets its own heading `## vX.Y.Z — YYYY-MM-DD` and the last part increases by one. Do not batch that change into a two-part heading such as `v1.2`. Tags `v1.0` and `v1.1` stay as published. The first three-part release after `v1.1` is `v1.1.1`.
+The number has three parts, as in `1.1.123`. The changelog heading, `packageVersion`, the installer name `TextTools-X.Y.Z.msi`, and the tag are that same number. A user-visible change gets its own heading `## vX.Y.Z — YYYY-MM-DD` and the last part increases by one. Do not batch that change into a two-part heading such as `v1.2`. Tags `v1.0` and `v1.1` stay as published. The first three-part release after `v1.1` is `v1.1.1`.
 
 ## Notes and pictures
 

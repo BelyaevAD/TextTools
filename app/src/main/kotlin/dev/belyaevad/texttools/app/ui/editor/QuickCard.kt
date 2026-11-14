@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.belyaevad.texttools.app.ui.AppField
 import dev.belyaevad.texttools.app.ui.AppPrimaryButton
 import dev.belyaevad.texttools.app.ui.AppSecondaryButton
 import dev.belyaevad.texttools.app.ui.QuickCardHeight
@@ -45,11 +46,11 @@ fun quickCard(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(tr(Ed.FIELD_NAME), modifier = Modifier.width(110.dp))
-                lineField(label, { label = it }, Modifier.width(250.dp))
+                AppField(label, { label = it }, Modifier.width(250.dp))
             }
             Text(tr(Ed.QUICK_NAME_HINT), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
             Text(tr(Ed.QUICK_INSTR))
-            lineField(
+            AppField(
                 instruction,
                 { instruction = it },
                 Modifier.fillMaxWidth().height(136.dp),

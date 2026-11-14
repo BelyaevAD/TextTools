@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.belyaevad.texttools.app.ui.ActionCardHeight
 import dev.belyaevad.texttools.app.ui.ActionCardWidth
+import dev.belyaevad.texttools.app.ui.AppField
 import dev.belyaevad.texttools.app.ui.AppPrimaryButton
 import dev.belyaevad.texttools.app.ui.AppSecondaryButton
 import dev.belyaevad.texttools.domain.Action
@@ -127,9 +128,9 @@ fun actionCard(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(tr(Ed.FIELD_NAME), modifier = Modifier.width(110.dp))
-                lineField(nameText, { nameText = it }, Modifier.width(250.dp))
+                AppField(nameText, { nameText = it }, Modifier.width(250.dp))
                 Text(tr(Ed.ICON), modifier = Modifier.padding(start = 12.dp))
-                lineField(iconText, { iconText = it }, Modifier.padding(start = 8.dp).width(64.dp))
+                AppField(iconText, { iconText = it }, Modifier.padding(start = 8.dp).width(64.dp))
                 Text(tr(Ed.FIELD_KEY), modifier = Modifier.padding(start = 12.dp))
                 picker(keyLabels, keyIndex, { keyIndex = it }, Modifier.padding(start = 8.dp).width(96.dp))
             }
@@ -169,7 +170,7 @@ fun actionCard(
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(tr(Ed.FIELD_PREFIX), modifier = Modifier.width(110.dp))
-                lineField(prefixText, { prefixText = it }, Modifier.weight(1f))
+                AppField(prefixText, { prefixText = it }, Modifier.weight(1f))
             }
             Text(
                 tr(Ed.PREFIX_HINT),
@@ -178,7 +179,7 @@ fun actionCard(
                 modifier = Modifier.padding(start = 110.dp),
             )
             Text(tr(Ed.FIELD_PROMPT))
-            lineField(
+            AppField(
                 promptText,
                 { promptText = it },
                 Modifier.fillMaxWidth().heightIn(min = 180.dp).weight(1f),
